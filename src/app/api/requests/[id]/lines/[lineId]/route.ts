@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { plain } from "@/lib/serialize";
 import { prisma } from "@/lib/db";
 
 /** Rep decisions on one line: pick a candidate, mark reviewed, note an override, set competitor price. */
@@ -19,5 +20,5 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if ("overrideNote" in body) data.overrideNote = body.overrideNote;
   if ("estCompetitorPrice" in body) data.estCompetitorPrice = body.estCompetitorPrice;
   const updated = await prisma.requestLine.update({ where: { id: lineId }, data, include: { candidates: { orderBy: { rank: "asc" }, include: { ownProduct: true } }, competitorProduct: true } });
-  return NextResponse.json(updated);
+  return NextResponse.json(plain(updated));
 }

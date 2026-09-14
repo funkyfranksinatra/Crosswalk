@@ -8,6 +8,7 @@
  */
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/db";
+import { num, times } from "@/lib/money";
 
 const INK = "FF16181D";
 const TEAL = "FF0E6B6B";
@@ -81,7 +82,7 @@ export async function buildCrossReferenceWorkbook(requestId: string): Promise<{ 
     for (const c of line.candidates) {
       const row = wc.addRow([
         line.rawCode, line.competitorProduct?.description ?? "", c.rank, c.ownProduct.sku, c.ownProduct.description, c.matchType, c.source,
-        c.score, c.scoreBin, c.scorePrice, c.scoreCogs, c.scoreMargin, c.unitPrice, c.unitPrice != null ? c.unitPrice * line.quantity : null,
+        c.score, c.scoreBin, c.scorePrice, c.scoreCogs, c.scoreMargin, num(c.unitPrice), cents(num(times(c.unitPrice, line.quantity))),
         line.selectedCandidateId === c.id ? "Yes" : "", c.rationale ?? "",
       ]);
       for (const k of [8, 9, 10, 11, 12]) row.getCell(k).numFmt = "0%";
@@ -183,7 +184,7 @@ export function xrefHeaders(us: string): string[] {
   ];
 }
 
-/** Money is stored as floats; round to cents so 63.61 × 6 exports as 381.66, not 381.65999999999997. */
+/** Cells are numbers for Excel; arithmetic happens in Decimal (src/lib/money) and is rounded to cents here. */
 const cents = (v: number | null | undefined): number | null => (v == null ? null : Math.round(v * 100) / 100);
 
 function xrefRows(r: Loaded): { rows: { cells: CellValue[]; matchType: string }[]; total: CellValue[] } {
@@ -195,8 +196,8 @@ function xrefRows(r: Loaded): { rows: { cells: CellValue[]; matchType: string }[
     const sel = line.candidates.find((c) => c.id === line.selectedCandidateId) ?? line.candidates.find((c) => c.isSelected) ?? null;
     const others = line.candidates.filter((c) => c.id !== sel?.id && c.matchType !== "No Match").slice(0, 2);
     const notFound = !cp || cp.resolution === "not-found";
-    const compExt = cents(line.estCompetitorPrice != null ? line.estCompetitorPrice * line.quantity : null);
-    const ourExt = cents(sel?.unitPrice != null ? sel.unitPrice * line.quantity : null);
+    const compExt = cents(num(times(line.estCompetitorPrice, line.quantity)));
+    const ourExt = cents(num(times(sel?.unitPrice, line.quantity)));
     compTotal += compExt ?? 0;
     ourTotal += ourExt ?? 0;
     const matchType = sel ? sel.matchType : notFound ? "Competitor Product Not Found" : "No Match";
@@ -207,7 +208,7 @@ function xrefRows(r: Loaded): { rows: { cells: CellValue[]; matchType: string }[
         line.rawCode,
         notFound && !cp?.description ? "Not Found" : cp?.description ?? "",
         line.quantity,
-        line.estCompetitorPrice,
+        num(line.estCompetitorPrice),
         compExt,
         sel?.ownProduct.sku ?? "NO MATCH",
         sel?.ownProduct.description ?? "",
@@ -215,7 +216,7 @@ function xrefRows(r: Loaded): { rows: { cells: CellValue[]; matchType: string }[
         sel?.ownProduct.category ?? cp?.category ?? (notFound ? "NO MATCH" : ""),
         line.quantity,
         sel ? (sel.unitPrice != null ? r.pricebook?.name ?? "LIST PRICE" : "No price on file") : "No Price Book found",
-        sel?.unitPrice ?? null,
+        num(sel?.unitPrice),
         ourExt,
         matchType,
         sel ? Math.round(sel.score * 100) / 100 : null,
@@ -242,9 +243,9 @@ function offerRows(r: Loaded): { rows: CellValue[][]; total: number; notes: stri
   for (const line of r.lines) {
     const sel = line.candidates.find((c) => c.id === line.selectedCandidateId) ?? line.candidates.find((c) => c.isSelected);
     if (!sel || sel.matchType === "No Match") continue;
-    const ext = cents(sel.unitPrice != null ? sel.unitPrice * line.quantity : null);
+    const ext = cents(num(times(sel.unitPrice, line.quantity)));
     total += ext ?? 0;
-    rows.push([line.rawCode, line.competitorProduct?.description ?? "", sel.ownProduct.sku, sel.ownProduct.description + (sel.additionalProducts ? ` (requires ${sel.additionalProducts})` : ""), line.quantity, sel.unitPrice, ext]);
+    rows.push([line.rawCode, line.competitorProduct?.description ?? "", sel.ownProduct.sku, sel.ownProduct.description + (sel.additionalProducts ? ` (requires ${sel.additionalProducts})` : ""), line.quantity, num(sel.unitPrice), ext]);
   }
   const unmatched = r.lines.filter((l) => !l.candidates.some((c) => c.id === l.selectedCandidateId && c.matchType !== "No Match"));
   const notes = [

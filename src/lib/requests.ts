@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { num, type MoneyLike } from "@/lib/money";
 
 export async function nextReference(): Promise<string> {
   const last = await prisma.request.findFirst({ orderBy: { createdAt: "desc" }, select: { reference: true } });
@@ -19,7 +20,7 @@ export type RequestSummary = {
   priced: number;
 };
 
-export function summarizeLines(lines: { quantity: number; estCompetitorPrice: number | null; resolutionStatus: string; matchStatus: string; reviewed: boolean; selectedCandidateId: string | null; candidates: { id: string; matchType: string; unitPrice: number | null }[] }[]): RequestSummary {
+export function summarizeLines(lines: { quantity: number; estCompetitorPrice: MoneyLike; resolutionStatus: string; matchStatus: string; reviewed: boolean; selectedCandidateId: string | null; candidates: { id: string; matchType: string; unitPrice: MoneyLike }[] }[]): RequestSummary {
   const s: RequestSummary = { total: lines.length, resolved: 0, matched: 0, exact: 0, close: 0, alternative: 0, reviewed: 0, ourExtended: 0, competitorExtended: 0, priced: 0 };
   for (const l of lines) {
     if (l.resolutionStatus === "resolved") s.resolved++;
@@ -30,9 +31,11 @@ export function summarizeLines(lines: { quantity: number; estCompetitorPrice: nu
       if (sel.matchType === "Exact Match") s.exact++;
       else if (sel.matchType === "Close Match") s.close++;
       else s.alternative++;
-      if (sel.unitPrice != null) { s.ourExtended += sel.unitPrice * l.quantity; s.priced++; }
+      const up = num(sel.unitPrice);
+      if (up != null) { s.ourExtended += up * l.quantity; s.priced++; }
     }
-    if (l.estCompetitorPrice != null) s.competitorExtended += l.estCompetitorPrice * l.quantity;
+    const cp = num(l.estCompetitorPrice);
+    if (cp != null) s.competitorExtended += cp * l.quantity;
   }
   return s;
 }

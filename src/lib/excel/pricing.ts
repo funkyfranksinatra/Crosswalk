@@ -5,6 +5,7 @@
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/db";
 import { normalizeCfn } from "@/lib/cfn";
+import { num } from "@/lib/money";
 
 export type PricingImportResult = { updated: number; unknownSkus: string[]; pricebooks: string[]; rows: number };
 
@@ -73,7 +74,9 @@ export async function importPricingRows(grid: (string | number | null | undefine
       const price = num(pb.col);
       if (price === undefined) continue;
       const pricebookId = pricebooks.get(pb.name)!;
-      await prisma.priceEntry.upsert({ where: { pricebookId_productId: { pricebookId, productId: id } }, create: { pricebookId, productId: id, price }, update: { price } });
+      const existing = await prisma.priceEntry.findFirst({ where: { pricebookId, productId: id, contractId: null } });
+      if (existing) await prisma.priceEntry.update({ where: { id: existing.id }, data: { price } });
+      else await prisma.priceEntry.create({ data: { pricebookId, productId: id, price, source: "import" } });
     }
     updated++;
   }
@@ -87,8 +90,8 @@ export async function pricingTemplateRows(companyId: string): Promise<(string | 
   if (pricebooks.length === 0) headers.push("HOSPITAL LIST PRICE");
   const rows: (string | number | null)[][] = [headers];
   for (const p of products) {
-    const row: (string | number | null)[] = [p.sku, p.description, p.category ?? "", p.listPrice ?? null, p.cogs ?? null];
-    for (const pb of pricebooks) row.push(p.prices.find((e) => e.pricebookId === pb.id)?.price ?? null);
+    const row: (string | number | null)[] = [p.sku, p.description, p.category ?? "", num(p.listPrice), num(p.cogs)];
+    for (const pb of pricebooks) row.push(num(p.prices.find((e) => e.pricebookId === pb.id)?.price));
     if (pricebooks.length === 0) row.push(null);
     rows.push(row);
   }
@@ -106,8 +109,8 @@ export async function pricingTemplate(companyId: string): Promise<Buffer> {
   ws.getRow(1).font = { bold: true };
   ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE3F1EF" } };
   for (const p of products) {
-    const row: (string | number | null)[] = [p.sku, p.description, p.category ?? "", p.listPrice ?? null, p.cogs ?? null];
-    for (const pb of pricebooks) row.push(p.prices.find((e) => e.pricebookId === pb.id)?.price ?? null);
+    const row: (string | number | null)[] = [p.sku, p.description, p.category ?? "", num(p.listPrice), num(p.cogs)];
+    for (const pb of pricebooks) row.push(num(p.prices.find((e) => e.pricebookId === pb.id)?.price));
     if (pricebooks.length === 0) row.push(null);
     ws.addRow(row);
   }

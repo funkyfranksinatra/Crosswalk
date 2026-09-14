@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getCompany } from "@/lib/settings";
 import { PageHeader, Card, Stat } from "@/components/ui";
 import { parseBin } from "@/lib/match/bin";
+import { num } from "@/lib/money";
 import { CatalogTable, CatalogActions } from "./client";
 
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<{ q?: string; cat?: string; only?: string }> }) {
@@ -37,7 +38,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       </div>
       <Card padded={false}>
         <CatalogTable
-          products={products.map((p) => ({ id: p.id, sku: p.sku, description: p.description, category: p.category, brand: p.brand, labeler: p.labeler, status: p.status, gudidDi: p.gudidDi, gmdnName: p.gmdnName, listPrice: p.listPrice, cogs: p.cogs, binJson: p.binJson, binSource: p.binSource, prices: p.prices.map((e) => ({ name: e.pricebook.name, price: e.price })), used: p._count.candidates }))}
+          products={products.map((p) => ({ id: p.id, sku: p.sku, description: p.description, category: p.category, brand: p.brand, labeler: p.labeler, status: p.status, gudidDi: p.gudidDi, gmdnName: p.gmdnName, listPrice: num(p.listPrice), cogs: num(p.cogs), binJson: p.binJson, binSource: p.binSource, prices: p.prices.filter((e) => e.pricebook).map((e) => ({ name: e.pricebook!.name, price: num(e.price) ?? 0 })), used: p._count.candidates }))}
           categories={categories.map((c) => ({ name: c.category ?? "Uncategorised", count: c._count._all }))}
           q={q} cat={cat} only={only} total={total}
         />

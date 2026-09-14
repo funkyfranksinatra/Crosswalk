@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Prisma's driver adapter and better-sqlite3 are native; keep them out of the bundler.
+  // Prisma driver adapters and pg are server-only; keep them out of the bundler.
   devIndicators: false,
-  serverExternalPackages: ["@prisma/client", "@prisma/adapter-libsql", "@libsql/client", "libsql", "exceljs"],
+  serverExternalPackages: ["@prisma/client", "@prisma/adapter-pg", "@prisma/adapter-neon", "@neondatabase/serverless", "pg", "ws", "exceljs"],
 };
 
 export default nextConfig;

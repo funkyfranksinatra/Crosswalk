@@ -94,6 +94,7 @@ export function RequestView({ id }: { id: string }) {
           {data.llmAvailable && <button className="btn-ghost" onClick={() => rerun(undefined, true)} disabled={running} title="Ask the model again for every line (ignores cached verdicts)">Re-grade fresh</button>}
           <ExportMenu id={id} />
           <SheetsButton id={id} google={data.google} xrefUrl={data.xrefSheetUrl} offerUrl={data.offerSheetUrl} onDone={load} />
+          {data.status === "complete" && <CreateProposal requestId={id} />}
         </div>
       </div>
 
@@ -444,4 +445,25 @@ function Chevron({ open }: { open: boolean }) {
 }
 function IconDownload() {
   return <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 15v1a1 1 0 001 1h10a1 1 0 001-1v-1" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+
+
+/** Hand the cross-reference to the commercial workspace: waterfall pricing, competitor intelligence, recommendations, approvals. */
+function CreateProposal({ requestId }: { requestId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function go() {
+    setBusy(true); setErr(null);
+    const r = await fetch("/api/proposals", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ requestId }) });
+    const j = await r.json();
+    setBusy(false);
+    if (!r.ok) { setErr(j.error ?? "Could not create proposal"); return; }
+    window.location.href = `/proposals/${j.id}`;
+  }
+  return (
+    <span className="relative">
+      <button className="btn-primary" onClick={go} disabled={busy} title="Creates a versioned proposal: applicable contract prices, competitor intelligence, recommended prices and approval requirements for every selected line">{busy ? "Pricing…" : "Create proposal"}</button>
+      {err && <span className="absolute right-0 top-11 w-64 text-[11.5px] text-none bg-none-soft rounded px-2 py-1">{err}</span>}
+    </span>
+  );
 }

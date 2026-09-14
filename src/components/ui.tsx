@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
+export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: ReactNode; title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-6 mb-6">
       <div className="min-w-0">
@@ -88,7 +88,8 @@ export function Empty({ title, children, icon }: { title: string; children?: Rea
   );
 }
 
-export function money(n: number | null | undefined, opts: { compact?: boolean } = {}) {
+export function money(v: number | string | null | undefined, opts: { compact?: boolean } = {}) {
+  const n = typeof v === "string" ? Number(v) : v;
   if (n == null || !Number.isFinite(n)) return "—";
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: opts.compact ? 0 : 2, notation: opts.compact && Math.abs(n) >= 100000 ? "compact" : "standard" }).format(n);
 }

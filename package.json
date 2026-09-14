@@ -1,6 +1,6 @@
 {
   "name": "crosswalk",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,23 +11,31 @@
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
     "typecheck": "tsc --noEmit",
-    "setup": "npm install && prisma generate && prisma migrate deploy && tsx prisma/seed.ts",
+    "setup": "npm install && prisma generate && prisma migrate deploy && tsx prisma/seed.ts && tsx prisma/seed-enterprise.ts",
     "postinstall": "prisma generate",
     "check": "tsx scripts/check.ts",
-    "eval": "tsx scripts/eval.ts"
+    "eval": "tsx scripts/eval.ts",
+    "check:enterprise": "tsx scripts/check-enterprise.ts",
+    "test:enterprise": "tsx scripts/test-enterprise.ts",
+    "db:seed:enterprise": "tsx prisma/seed-enterprise.ts",
+    "db:migrate:http": "tsx scripts/migrate-http.ts"
   },
   "dependencies": {
-    "@libsql/client": "^0.18.0",
-    "@prisma/adapter-libsql": "^7.10.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "@prisma/adapter-neon": "^7.10.0",
+    "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "decimal.js": "^10.6.0",
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
     "google-auth-library": "^11.0.2",
     "next": "16.3.5",
     "openai": "^7.15.0",
+    "pg": "^8.23.0",
     "prisma": "^7.10.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "ws": "^8.21.3",
     "zod": "^4.6.4"
   },
   "devDependencies": {
@@ -35,6 +43,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5"

@@ -4,9 +4,12 @@ import { llmConfig } from "@/lib/llm/client";
 import { PageHeader, Card, Chip } from "@/components/ui";
 import { SettingsForm } from "./form";
 import { GoogleCard } from "./google";
+import { IntegrationsCard } from "./integrations";
+import { getActor, can } from "@/lib/auth";
 import { googleStatus } from "@/lib/sheets/google";
 
 export default async function SettingsPage() {
+  const actor = await getActor();
   const s = await getSettings();
   const llm = llmConfig();
   const calls = await prisma.llmCall.groupBy({ by: ["purpose", "ok"], _count: { _all: true }, _avg: { durationMs: true, inputTokens: true, outputTokens: true } });
@@ -41,6 +44,7 @@ export default async function SettingsPage() {
               </div>
             )}
           </Card>
+          <IntegrationsCard canSync={can(actor, "manage_contracts")} />
           <GoogleCard status={googleStatus()} />
           <Card title="Data sources">
             <ul className="text-[13px] space-y-2">

@@ -23,6 +23,8 @@ google-service-account.json
 
 # customer / company reference data — shared out of band, never committed
 data/reference/
+!data/fixtures/
+!data/fixtures/**
 samples/
 *.xlsx
 *.xls
@@ -45,3 +47,4 @@ docs/crosswalk-build-notes.md
 # one-time bootstrap artefacts
 crosswalk.bundle
 push-to-github.ps1
+data/fixtures/integrations/pushed-quotes/

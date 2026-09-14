@@ -3,16 +3,27 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const NAV = [
+import { DevSignIn, type ActorInfo } from "./dev-signin";
+
+type NavItem = { href: string; label: string; icon: (p: IconProps) => React.JSX.Element; perm?: string; section?: string };
+const NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: IconGrid },
-  { href: "/requests", label: "Requests", icon: IconInbox },
-  { href: "/catalog", label: "Our catalog", icon: IconBox },
-  { href: "/crosses", label: "Known crosses", icon: IconLink },
+  { href: "/requests", label: "Cross-reference", icon: IconInbox, perm: "run_cross_reference" },
+  { href: "/proposals", label: "Proposals", icon: IconDoc, perm: "view_pricing" },
+  { href: "/approvals", label: "Deal desk", icon: IconCheck, perm: "approve_discount" },
+  { href: "/accounts", label: "Accounts", icon: IconBuilding, perm: "view_pricing", section: "Commercial" },
+  { href: "/contracts", label: "Contracts", icon: IconContract, perm: "view_pricing" },
+  { href: "/intelligence", label: "Competitor pricing", icon: IconRadar, perm: "view_pricing" },
+  { href: "/analytics", label: "Analytics", icon: IconChart, perm: "view_analytics" },
+  { href: "/catalog", label: "Our catalog", icon: IconBox, section: "Reference" },
+  { href: "/crosses", label: "Crosswalk", icon: IconLink },
   { href: "/settings", label: "Settings", icon: IconSliders },
 ];
 
-export function Sidebar({ companyName, llm }: { companyName: string; llm: { available: boolean; model: string } }) {
+export function Sidebar({ companyName, llm, actor, sso }: { companyName: string; llm: { available: boolean; model: string }; actor: ActorInfo | null; sso: boolean }) {
   const path = usePathname();
+  const perms = new Set(actor?.permissions ?? []);
+  const items = NAV.filter((n) => !n.perm || perms.has(n.perm) || (actor?.roles ?? []).includes("ADMIN"));
   return (
     <aside className="w-[232px] shrink-0 bg-sidebar text-sidebar-ink flex flex-col sticky top-0 h-screen">
       <div className="px-5 pt-6 pb-5">
@@ -25,7 +36,7 @@ export function Sidebar({ companyName, llm }: { companyName: string; llm: { avai
         </Link>
       </div>
       <nav className="px-3 flex flex-col gap-0.5">
-        {NAV.map((n) => {
+        {items.map((n) => {
           const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
           return (
             <Link
@@ -39,12 +50,17 @@ export function Sidebar({ companyName, llm }: { companyName: string; llm: { avai
           );
         })}
       </nav>
-      <div className="px-3 mt-4">
-        <Link href="/requests/new" className="btn-primary w-full justify-center">
-          <IconPlus className="h-4 w-4" /> New request
-        </Link>
+      {perms.has("run_cross_reference") && (
+        <div className="px-3 mt-4">
+          <Link href="/requests/new" className="btn-primary w-full justify-center">
+            <IconPlus className="h-4 w-4" /> New request
+          </Link>
+        </div>
+      )}
+      <div className="mt-auto px-3 pb-3">
+        <DevSignIn actor={actor} sso={sso} />
       </div>
-      <div className="mt-auto px-5 pb-5 text-[11.5px] text-sidebar-muted space-y-1.5">
+      <div className="px-5 pb-5 text-[11.5px] text-sidebar-muted space-y-1.5">
         <div className="flex items-center gap-2">
           <span className={`h-1.5 w-1.5 rounded-full ${llm.available ? "bg-exact" : "bg-alt"}`} />
           <span className="truncate">{llm.available ? `Model: ${llm.model}` : "Heuristic mode · no model key"}</span>
@@ -86,6 +102,24 @@ function IconLink({ className }: IconProps) {
 }
 function IconSliders({ className }: IconProps) {
   return (<svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 6h12M4 10h12M4 14h12" /><circle cx="8" cy="6" r="1.6" fill="currentColor" /><circle cx="13" cy="10" r="1.6" fill="currentColor" /><circle cx="7" cy="14" r="1.6" fill="currentColor" /></svg>);
+}
+function IconDoc({ className }: IconProps) {
+  return (<svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M5 3h7l3 3v11H5z" /><path d="M12 3v3h3M8 10h4M8 13h4" /></svg>);
+}
+function IconCheck({ className }: IconProps) {
+  return (<svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="10" cy="10" r="7" /><path d="M7 10l2 2 4-4" /></svg>);
+}
+function IconBuilding({ className }: IconProps) {
+  return (<svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="4" y="3" width="12" height="14" rx="1.5" /><path d="M7 7h2M11 7h2M7 10h2M11 10h2M8 17v-3h4v3" /></svg>);
+}
+function IconContract({ className }: IconProps) {
+  return (<svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M5 3h10v14H5z" /><path d="M8 7h4M8 10h4M8 13h2" /></svg>);
+}
+function IconRadar({ className }: IconProps) {
+  return (<svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="10" cy="10" r="7" /><circle cx="10" cy="10" r="3.5" /><path d="M10 10l5-5" /></svg>);
+}
+function IconChart({ className }: IconProps) {
+  return (<svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 16V9M9 16V5M14 16v-6" /><path d="M3 17h14" /></svg>);
 }
 export function IconPlus({ className }: IconProps) {
   return (<svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 4v12M4 10h12" strokeLinecap="round" /></svg>);

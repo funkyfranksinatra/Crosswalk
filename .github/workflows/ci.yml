@@ -8,8 +8,16 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env: { POSTGRES_USER: crosswalk, POSTGRES_PASSWORD: crosswalk, POSTGRES_DB: crosswalk }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U crosswalk" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      DATABASE_URL: file:./prisma/ci.db
+      DATABASE_URL: postgresql://crosswalk:crosswalk@localhost:5432/crosswalk
+      DATABASE_ADAPTER: pg
       COMPANY_NAME: Medtronic
     steps:
       - uses: actions/checkout@v4
@@ -20,8 +28,10 @@ jobs:
       - run: npm ci
       - run: npx prisma migrate deploy
       - run: npm run typecheck
+      - name: Cross-reference engine checks (pure)
+        run: npm run check
+      - name: Commercial engine checks (pure)
+        run: npm run check:enterprise
       - run: npm run build
-      - name: Seed without reference data (must not fail)
-        run: npx tsx prisma/seed.ts
-      - name: Unit checks (heuristic binner + similarity)
-        run: npx tsx scripts/check.ts
+      - name: Seed without reference data, then the enterprise backfill (must not fail)
+        run: npx tsx prisma/seed.ts && npx tsx prisma/seed-enterprise.ts --no-demo

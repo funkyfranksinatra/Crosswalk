@@ -1,0 +1,5 @@
+[
+  { "externalId": "001DEV0000IDNNYC", "name": "NYC Academic Health System (IDN)", "accountNumber": "IDN-NYC-001", "type": "IDN", "region": "US-East", "segment": "Academic", "currency": "USD" },
+  { "externalId": "001DEV0000MSK001", "name": "Memorial Sloan Kettering", "accountNumber": "0001880967", "type": "SOLD_TO", "parentExternalId": "001DEV0000IDNNYC", "territory": "NE-2", "region": "US-East", "segment": "Academic", "isStrategic": true, "ownerEmail": "alex.rep@crosswalk.dev", "gpoName": "Premier", "gpoTier": "Tier 2" },
+  { "externalId": "001DEV0000HOSPA1", "name": "Hospital A — Mount Vernon General", "accountNumber": "0002000101", "type": "SOLD_TO", "region": "US-East", "segment": "Community", "gpoName": "Premier", "gpoTier": "Tier 2" }
+]

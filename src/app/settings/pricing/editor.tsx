@@ -1,0 +1,46 @@
+"use client";
+import { useCallback, useEffect, useState } from "react";
+import { PageHeader, Card } from "@/components/ui";
+import { Pill, fmtPct, label } from "@/components/commercial";
+
+type Policy = { id: string; productFamily: string; version: number; status: string; name: string | null; targetMarginPct: number; minMarginPct: number; floorMethod: string; floorParams: Record<string, number>; defaultStrategy: string; defaultAdjustmentPct: number; classification: string; strategicImportance: number; authority: Record<string, number>; approvalRules: { when: Record<string, unknown>; require: string; reason?: string }[]; effectiveFrom: string; supersededAt: string | null };
+const ROLES = ["SALES_REP", "REGIONAL_MANAGER", "CONTRACTING_MANAGER", "PRICING_DIRECTOR", "PRICING_COMMITTEE"];
+
+export function PolicyEditor() {
+  const [rows, setRows] = useState<Policy[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+  const [edit, setEdit] = useState<Partial<Policy> & { productFamily: string } | null>(null);
+  const load = useCallback(async () => { const r = await fetch("/api/pricing-policies", { cache: "no-store" }); const j = await r.json(); if (!r.ok) setErr(j.error); else setRows(j); }, []);
+  useEffect(() => { load(); }, [load]);
+  const families = [...new Set(rows.map((r) => r.productFamily))];
+  async function saveDraft() { if (!edit) return; const r = await fetch("/api/pricing-policies", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(edit) }); const j = await r.json(); if (!r.ok) setErr(j.error); else { setEdit(null); load(); } }
+  async function activate(id: string) { const r = await fetch(`/api/pricing-policies/${id}/activate`, { method: "POST" }); if (!r.ok) setErr((await r.json()).error); else load(); }
+  return (
+    <>
+      <PageHeader eyebrow="Settings" title="Pricing policies" description="Versioned per product family; “*” is the default. Target and minimum margin define the floor; authority bands say how far each role may go below the customer's current price; approval rules add conditions. Activating a draft supersedes the active version — proposals keep the version they used." actions={<button className="btn-primary" onClick={() => setEdit({ productFamily: "*" })}>New draft</button>} />
+      {err && <div className="mb-4 rounded-lg bg-none-soft text-none px-4 py-2.5 text-[13px]">{err}</div>}
+      {edit && (
+        <Card title="Draft policy version" className="mb-4">
+          <div className="grid grid-cols-4 gap-3 text-[13px]">
+            <label className="label">Product family<input className="input" list="fams" value={edit.productFamily} onChange={(e) => setEdit({ ...edit, productFamily: e.target.value })} /><datalist id="fams">{["*", ...families].map((f) => <option key={f} value={f} />)}</datalist></label>
+            <label className="label">Name<input className="input" value={edit.name ?? ""} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></label>
+            <label className="label">Target margin<input className="input mono" value={edit.targetMarginPct ?? 0.45} onChange={(e) => setEdit({ ...edit, targetMarginPct: Number(e.target.value) })} /></label>
+            <label className="label">Minimum margin (floor)<input className="input mono" value={edit.minMarginPct ?? 0.3} onChange={(e) => setEdit({ ...edit, minMarginPct: Number(e.target.value) })} /></label>
+            <label className="label">Default strategy<select className="input" value={edit.defaultStrategy ?? "MATCH"} onChange={(e) => setEdit({ ...edit, defaultStrategy: e.target.value })}>{["MATCH", "UNDERCUT_PCT", "UNDERCUT_AMOUNT", "HOLD_PREMIUM", "PRESERVE_CONTRACT", "STRATEGIC_DISCOUNT", "PENETRATION"].map((s) => <option key={s} value={s}>{label(s)}</option>)}</select></label>
+            <label className="label">Default adjustment (fraction)<input className="input mono" value={edit.defaultAdjustmentPct ?? 0} onChange={(e) => setEdit({ ...edit, defaultAdjustmentPct: Number(e.target.value) })} /></label>
+            <label className="label">Classification<select className="input" value={edit.classification ?? "DIFFERENTIATED"} onChange={(e) => setEdit({ ...edit, classification: e.target.value })}><option>DIFFERENTIATED</option><option>COMMODITY</option></select></label>
+            <label className="label">Strategic importance (1–5)<input className="input mono" type="number" min={1} max={5} value={edit.strategicImportance ?? 3} onChange={(e) => setEdit({ ...edit, strategicImportance: Number(e.target.value) })} /></label>
+            <div className="col-span-4"><div className="eyebrow mb-1">Discount authority (max fraction below current price)</div><div className="grid grid-cols-5 gap-2">{ROLES.map((r) => <label key={r} className="label">{label(r)}<input className="input mono" value={edit.authority?.[r] ?? ""} onChange={(e) => setEdit({ ...edit, authority: { ...(edit.authority ?? {}), [r]: Number(e.target.value) } })} /></label>)}</div></div>
+            <label className="label col-span-4">Approval rules (JSON)<textarea className="input mono h-24" value={JSON.stringify(edit.approvalRules ?? [{ when: { belowFloor: true }, require: "PRICING_COMMITTEE", reason: "below floor" }], null, 1)} onChange={(e) => { try { setEdit({ ...edit, approvalRules: JSON.parse(e.target.value) }); } catch { /* keep typing */ } }} /></label>
+          </div>
+          <div className="flex justify-end gap-2 mt-3"><button className="btn-ghost" onClick={() => setEdit(null)}>Cancel</button><button className="btn-primary" onClick={saveDraft}>Save draft</button></div>
+        </Card>
+      )}
+      <Card padded={false}>
+        <table className="table !text-[12.5px]"><thead><tr><th>Family</th><th>v</th><th>Status</th><th>Target / min margin</th><th>Strategy</th><th>Class</th><th>Rep / Mgr / Dir authority</th><th>Rules</th><th></th></tr></thead>
+          <tbody>{rows.map((p) => <tr key={p.id} className={p.status === "SUPERSEDED" ? "opacity-50" : ""}><td><b>{p.productFamily}</b><div className="text-muted">{p.name}</div></td><td className="mono">{p.version}</td><td><Pill value={p.status} /></td><td className="mono">{fmtPct(p.targetMarginPct)} / {fmtPct(p.minMarginPct)}</td><td>{label(p.defaultStrategy)}{p.defaultAdjustmentPct ? ` ${fmtPct(p.defaultAdjustmentPct)}` : ""}</td><td className="text-muted">{p.classification.toLowerCase()} · {p.strategicImportance}/5</td><td className="mono">{fmtPct(p.authority.SALES_REP, 0)} / {fmtPct(p.authority.REGIONAL_MANAGER, 0)} / {fmtPct(p.authority.PRICING_DIRECTOR, 0)}</td><td className="text-muted">{p.approvalRules.map((r) => r.reason ?? r.require).join("; ")}</td><td className="whitespace-nowrap">{p.status === "DRAFT" && <button className="btn-secondary !py-0.5 !text-[11px]" onClick={() => activate(p.id)}>Activate</button>}{p.status !== "DRAFT" && <button className="btn-ghost !py-0.5 !text-[11px]" onClick={() => setEdit({ ...p, name: p.name ?? undefined })}>New version</button>}</td></tr>)}</tbody>
+        </table>
+      </Card>
+    </>
+  );
+}

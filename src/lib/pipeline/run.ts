@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/db";
 import { specFor } from "@/lib/excel/sizes";
 import { compactCfn } from "@/lib/cfn";
+import { num, toDb, times } from "@/lib/money";
 import { summarizeRecord, type OpenFdaRecord } from "@/lib/gudid/openfda";
 import { binProduct } from "@/lib/llm/tasks";
 import { groupSiblings, gradeGroup, applyGroupGrades, type GradeLineInput } from "@/lib/match/grading";
@@ -269,7 +270,7 @@ export async function runRequest(requestId: string) {
         });
       }
 
-      const competitorForScore = { bin: compBin ?? heuristicBin({ description: crosses[0]?.competitorDescription }), description: cp?.description ?? crosses[0]?.competitorDescription ?? "", estPrice: line.estCompetitorPrice };
+      const competitorForScore = { bin: compBin ?? heuristicBin({ description: crosses[0]?.competitorDescription }), description: cp?.description ?? crosses[0]?.competitorDescription ?? "", estPrice: num(line.estCompetitorPrice) };
       const inputs: CandidateInput[] = candidates.map((c) => {
         const k = crossBySku.get(c.p.id);
         const pb = Array.isArray(c.p.prices) ? c.p.prices[0] : undefined;
@@ -278,8 +279,8 @@ export async function runRequest(requestId: string) {
           sku: c.p.sku,
           description: c.p.description,
           bin: c.bin,
-          unitPrice: pb?.price ?? c.p.listPrice ?? null,
-          cogs: c.p.cogs ?? null,
+          unitPrice: num(pb?.price ?? c.p.listPrice),
+          cogs: num(c.p.cogs),
           identity: selfSku != null && c.p.sku.toUpperCase() === selfSku,
           knownCross: k ? { matchType: k.matchType, preferredOwnSku: k.preferredOwnSku, additionalProducts: k.additionalProducts, notes: k.notes, source: k.source } : null,
         };
@@ -335,8 +336,8 @@ export async function runRequest(requestId: string) {
       factorsJson: JSON.stringify(s.factors),
       rationale: s.rationale,
       additionalProducts: (s as { additionalProducts?: string }).additionalProducts ?? s.knownCross?.additionalProducts ?? null,
-      unitPrice: s.unitPrice,
-      extended: s.unitPrice != null ? s.unitPrice * line.quantity : null,
+      unitPrice: toDb(s.unitPrice),
+      extended: toDb(times(s.unitPrice, line.quantity)),
       isSelected: i === 0 && s.matchType !== "No Match",
     }));
     await prisma.matchCandidate.createMany({ data: rows });

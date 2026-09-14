@@ -1,0 +1,4 @@
+[
+  { "sku": "PPM1510X3", "plant": "Juarez", "currency": "USD", "costType": "STANDARD", "cost": "27.90", "effectiveFrom": "2026-01-01" },
+  { "sku": "PPM1510X3", "region": "EU", "currency": "EUR", "costType": "LANDED", "cost": "29.10", "effectiveFrom": "2026-01-01" }
+]

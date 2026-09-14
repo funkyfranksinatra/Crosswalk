@@ -5,7 +5,7 @@
 | Topic | Decision | Why |
 | --- | --- | --- |
 | App shape | Next.js 16 web app on localhost, single repo | One `npm run dev`, designed UI, later deployable behind SSO |
-| Database | Prisma 7 + SQLite via the `@prisma/adapter-libsql` driver adapter | Zero-install local persistence; libSQL ships prebuilt binaries as npm packages, so Windows demo machines need no C++ toolchain (better-sqlite3 needed a native build and failed on the first Windows install); swap `provider` for Postgres later |
+| Database | **v0.4: Prisma 7 + PostgreSQL** (Neon in dev; `pg` / `neon-ws` driver adapters). v0.1–0.3 used SQLite via libSQL for zero-install demos; history kept in `prisma/migrations-sqlite-v0.3/` | The commercial platform needs `Decimal` money, real transactions, concurrent users and effective-dated rows; Neon gives the team a shared dev database and branches without hosting anything. See `docs/ENTERPRISE_ARCHITECTURE.md` |
 | LLM | OpenAI Responses API, model ID from `LLM_MODEL` in `.env`, deterministic fallback | "gpt 5.6 astra" is not a public model ID; keep it configurable, never blocking |
 | Competitor lookup | openFDA Device UDI first, LLM hints as fallback | AccessGUDID's own API only looks up by DI; openFDA searches by catalog number and returns the full GUDID record |
 | Own catalog | The MDT SKUs in `Endomechanical.xlsx` (+ hernia SKUs from the legacy BAT report), enriched from openFDA | Small, curated, matches the reference data; grows via **Add SKUs** |
@@ -116,3 +116,7 @@ reports resolution rate and top-1/top-3 hit rate against the curated crosses.
 * Pricebook tiers per account/GPO (the BAT screenshot's "Pricebook Tiers").
 * Review workflow: assign lines, comments, approval before the offer exports.
 * Learning loop: rep selections → new KnownCross rows.
+
+## Beyond matching
+
+The commercial layer added in v0.4 (contracts, waterfall, competitor intelligence, pricing policy, proposals, approvals, governance, outcomes, analytics, RBAC, integrations) is documented in `docs/ENTERPRISE_ARCHITECTURE.md` (plan + implementation record) and `docs/BUSINESS_RULES.md` (rule → file → test). This document stays about the matching pipeline that feeds it.

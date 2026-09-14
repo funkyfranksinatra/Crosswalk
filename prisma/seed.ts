@@ -10,13 +10,9 @@ import "dotenv/config";
 import path from "node:path";
 import fs from "node:fs";
 import ExcelJS from "exceljs";
-import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { prisma } from "../src/lib/db";
 import { normalizeCfn } from "../src/lib/cfn";
 import { heuristicBin, FAMILIES } from "../src/lib/match/bin";
-
-const url = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
-const prisma = new PrismaClient({ adapter: new PrismaLibSql({ url: url.startsWith("file:") && !path.isAbsolute(url.slice(5)) ? `file:${path.resolve(process.cwd(), url.slice(5)).replace(/\\/g, "/")}` : url }) });
 
 const SHEET = path.resolve(process.cwd(), "data/reference/Endomechanical.xlsx");
 const COMPANY = process.env.COMPANY_NAME ?? "Medtronic";
@@ -173,7 +169,9 @@ async function main() {
       });
       if (pricebookName && Number.isFinite(price) && price > 0) {
         const pb = await prisma.pricebook.upsert({ where: { name: pricebookName }, create: { name: pricebookName }, update: {} });
-        await prisma.priceEntry.upsert({ where: { pricebookId_productId: { pricebookId: pb.id, productId: prod.id } }, create: { pricebookId: pb.id, productId: prod.id, price }, update: { price } });
+        const existing = await prisma.priceEntry.findFirst({ where: { pricebookId: pb.id, productId: prod.id, contractId: null } });
+        if (existing) await prisma.priceEntry.update({ where: { id: existing.id }, data: { price } });
+        else await prisma.priceEntry.create({ data: { pricebookId: pb.id, productId: prod.id, price, source: "legacy-report" } });
       }
       n++;
     }

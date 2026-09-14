@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { plain } from "@/lib/serialize";
 import { prisma } from "@/lib/db";
 import { summarizeLines } from "@/lib/requests";
 import { llmConfig } from "@/lib/llm/client";
@@ -17,7 +18,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!request) return NextResponse.json({ error: "not found" }, { status: 404 });
   let modelStatus: unknown = null;
   try { modelStatus = request.optionsJson ? (JSON.parse(request.optionsJson).model ?? null) : null; } catch {}
-  return NextResponse.json({ ...request, summary: summarizeLines(request.lines), log: JSON.parse(request.logJson), llmAvailable: llmConfig().available, google: googleStatus(), modelStatus });
+  return NextResponse.json(plain({ ...request, summary: summarizeLines(request.lines), log: JSON.parse(request.logJson), llmAvailable: llmConfig().available, google: googleStatus(), modelStatus }));
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
