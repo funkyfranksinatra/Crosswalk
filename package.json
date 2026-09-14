@@ -1,16 +1,34 @@
 {
   "name": "cracr",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio",
+    "typecheck": "tsc --noEmit",
+    "setup": "npm install && prisma generate && prisma migrate deploy && tsx prisma/seed.ts",
+    "postinstall": "prisma generate",
+    "check": "tsx scripts/check.ts",
+    "eval": "tsx scripts/eval.ts"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "@prisma/adapter-libsql": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
+    "google-auth-library": "^11.0.2",
     "next": "16.3.5",
+    "openai": "^7.15.0",
+    "prisma": "^7.10.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.6.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -18,6 +36,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }

@@ -1,0 +1,8 @@
+-- CreateTable
+CREATE TABLE "LlmGrade" (
+    "key" TEXT NOT NULL PRIMARY KEY,
+    "model" TEXT NOT NULL,
+    "lines" INTEGER NOT NULL DEFAULT 1,
+    "json" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

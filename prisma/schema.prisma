@@ -1,0 +1,256 @@
+// CRACR — Competitor Attribute Cross Reference
+// Local SQLite database via Prisma 7 + libSQL driver adapter (prebuilt binaries, no node-gyp).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// The company CRACR is deployed at (one row in v1, but modelled so a
+/// multi-tenant deployment is a data change, not a schema change).
+model Company {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  /// openFDA labeler names that count as "us" (JSON string[])
+  labelers  String       @default("[]")
+  createdAt DateTime     @default(now())
+  products  OwnProduct[]
+  requests  Request[]
+}
+
+/// A product the deployed company sells. Seeded from the curated
+/// Endomechanical sheet (313 SKUs), enriched from openFDA/GUDID, priced
+/// from an optional pricing import.
+model OwnProduct {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id])
+  sku           String
+  description   String
+  category      String? // Class of Trade / product family, e.g. "Trocar Products"
+  brand         String?
+  labeler       String? // openFDA company_name
+  status        String? // commercial_distribution_status
+  gudidDi       String?
+  gmdnName      String?
+  gmdnCode      String?
+  fdaProductCode String?
+  gudidJson     String? // raw openFDA record (JSON)
+  gudidSyncedAt DateTime?
+  /// Structured attribute bin (JSON, see src/lib/match/bin.ts)
+  binJson       String?
+  binSource     String? // "llm" | "heuristic"
+  binnedAt      DateTime?
+  /// Money — all optional; the ranker renormalises weights when missing.
+  listPrice     Float?
+  cogs          Float?   // cost to manufacture / unit
+  currency      String   @default("USD")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  prices        PriceEntry[]
+  candidates    MatchCandidate[]
+
+  @@unique([companyId, sku])
+  @@index([category])
+}
+
+/// A competitor product resolved from a CFN, cached across requests.
+model CompetitorProduct {
+  id             String   @id @default(cuid())
+  cfnNorm        String   @unique // normalised catalog number
+  cfnMatched     String? // the variant that actually hit (may differ from cfnNorm)
+  manufacturer   String?
+  labeler        String? // raw openFDA company_name
+  brand          String?
+  description    String?
+  category       String?
+  gudidDi        String?
+  gmdnName       String?
+  gmdnCode       String?
+  fdaProductCode String?
+  status         String?
+  gudidJson      String?
+  /// "openfda" | "openfda-variant" | "llm" | "known-cross" | "manual" | "not-found"
+  resolution     String
+  resolutionNote String?
+  confidence     Float?  // 0..1; < 0.75 is shown as "verify"
+  alternatesJson String? // other openFDA hits for the same CFN (reprocessors etc.)
+  binJson        String?
+  binSource      String?
+  binnedAt       DateTime?
+  resolvedAt     DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lines          RequestLine[]
+}
+
+/// Sizes a rep knows for competitor codes that GUDID does not size (Ethicon meshes, many reloads).
+/// Imported from a sheet; applied to the competitor bin ahead of GUDID and regex sizes.
+model CompetitorSpec {
+  id           String   @id @default(cuid())
+  cfnNorm      String   @unique
+  manufacturer String?
+  description  String?
+  dimsJson     String // Dimension[] as in the bin schema
+  notes        String?
+  source       String   @default("import")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// Human-curated cross reference (ground truth). Seeded from Endomechanical.xlsx.
+model KnownCross {
+  id              String  @id @default(cuid())
+  ownSku          String
+  ownDescription  String?
+  category        String?
+  competitorName  String
+  competitorCode  String
+  competitorCodeNorm String
+  competitorDescription String?
+  matchType       String  // Exact Match | Close Match | Alternative Match | US Downsell Match
+  preferredOwnSku String? // reviewer's preferred cross when it differs from ownSku
+  additionalProducts String? // e.g. handle/shell needed
+  notes           String?
+  source          String  // sheet name
+  isActive        Boolean @default(true)
+  createdAt       DateTime @default(now())
+
+  @@unique([ownSku, competitorCodeNorm, source])
+  @@index([competitorCodeNorm])
+}
+
+model Pricebook {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  currency  String       @default("USD")
+  createdAt DateTime     @default(now())
+  entries   PriceEntry[]
+  requests  Request[]
+}
+
+model PriceEntry {
+  id          String     @id @default(cuid())
+  pricebookId String
+  pricebook   Pricebook  @relation(fields: [pricebookId], references: [id], onDelete: Cascade)
+  productId   String
+  product     OwnProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  price       Float
+
+  @@unique([pricebookId, productId])
+}
+
+/// One sales-rep submission (one intake spreadsheet).
+model Request {
+  id             String   @id @default(cuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id])
+  reference      String   @unique // human id, e.g. REQ-0001
+  accountNumber  String?
+  accountName    String?
+  accountType    String?  // Sold-To | Ship-To | Group | IDN
+  reportType     String   @default("Competitive Cross Reference with Pricebook")
+  pricebookId    String?
+  pricebook      Pricebook? @relation(fields: [pricebookId], references: [id])
+  sourceFileName String?
+  sourceUrl      String?  // Google Sheets link when the intake came from one
+  xrefSheetUrl   String?  // Drive write-back links (when a service account is configured)
+  offerSheetUrl  String?
+  status         String   @default("draft") // draft | queued | running | complete | failed
+  stage          String?  // human-readable current stage
+  progress       Int      @default(0) // 0..100
+  error          String?
+  useLlm         Boolean  @default(true)
+  optionsJson    String?  // ranking weights etc.
+  logJson        String   @default("[]")
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  startedAt      DateTime?
+  completedAt    DateTime?
+  lines          RequestLine[]
+}
+
+model RequestLine {
+  id                  String   @id @default(cuid())
+  requestId           String
+  request             Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  lineNo              Int
+  rawCode             String
+  cfnNorm             String
+  quantity            Float
+  estCompetitorPrice  Float?
+  competitorProductId String?
+  competitorProduct   CompetitorProduct? @relation(fields: [competitorProductId], references: [id])
+  /// pending | resolved | not-found | error
+  resolutionStatus    String   @default("pending")
+  resolutionNote      String?
+  /// pending | matched | no-match | error
+  matchStatus         String   @default("pending")
+  selectedCandidateId String?
+  overrideNote        String?
+  reviewed            Boolean  @default(false)
+  candidates          MatchCandidate[]
+
+  @@index([requestId, lineNo])
+}
+
+model MatchCandidate {
+  id           String      @id @default(cuid())
+  lineId       String
+  line         RequestLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  ownProductId String
+  ownProduct   OwnProduct  @relation(fields: [ownProductId], references: [id])
+  rank         Int
+  matchType    String      // Exact Match | Close Match | Alternative Match | No Match
+  /// "known-cross" | "attribute" | "llm"
+  source       String
+  score        Float       // 0..1 composite
+  scoreBin     Float?
+  scorePrice   Float?
+  scoreCogs    Float?
+  scoreMargin  Float?
+  factorsJson  String?     // which factors were available + weights used
+  rationale    String?
+  additionalProducts String?
+  unitPrice    Float?
+  extended     Float?
+  isSelected   Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+
+  @@index([lineId, rank])
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/// Observability for every model call (FDE habit: you can't tune what you can't see).
+model LlmCall {
+  id         String   @id @default(cuid())
+  purpose    String
+  model      String
+  ok         Boolean
+  durationMs Int
+  inputTokens  Int?
+  outputTokens Int?
+  error      String?
+  subject    String?
+  createdAt  DateTime @default(now())
+}
+
+/// Cached model grading verdicts keyed by a hash of their exact inputs, so a
+/// re-run with unchanged data replays the verdict instead of re-asking the model.
+model LlmGrade {
+  key       String   @id
+  model     String
+  lines     Int      @default(1)
+  json      String
+  createdAt DateTime @default(now())
+}

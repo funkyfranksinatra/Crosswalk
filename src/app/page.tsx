@@ -1,69 +1,102 @@
-import Image from "next/image";
+import Link from "next/link";
+import { prisma } from "@/lib/db";
+import { getCompany } from "@/lib/settings";
+import { llmConfig } from "@/lib/llm/client";
+import { PageHeader, Card, Stat, StatusPill, relTime, Empty, Chip } from "@/components/ui";
+import { summarizeLines } from "@/lib/requests";
 
-export default function Home() {
+export default async function Overview() {
+  const company = await getCompany();
+  const [requests, products, priced, binned, crosses, competitors, unresolved] = await Promise.all([
+    prisma.request.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: { lines: { include: { candidates: { select: { id: true, matchType: true, unitPrice: true } } } } } }),
+    prisma.ownProduct.count({ where: { companyId: company.id, isActive: true } }),
+    prisma.ownProduct.count({ where: { companyId: company.id, OR: [{ listPrice: { not: null } }, { prices: { some: {} } }] } }),
+    prisma.ownProduct.count({ where: { companyId: company.id, gudidSyncedAt: { not: null }, gudidDi: { not: null } } }),
+    prisma.knownCross.count({ where: { isActive: true } }),
+    prisma.competitorProduct.count({ where: { resolution: { not: "not-found" } } }),
+    prisma.competitorProduct.count({ where: { resolution: "not-found" } }),
+  ]);
+  const llm = llmConfig();
+  const readiness = [
+    { label: "Catalog", ok: products > 0, text: `${products} SKUs · ${binned} with GUDID data`, href: "/catalog", action: binned < products ? "Enrich from GUDID" : undefined },
+    { label: "Pricing", ok: priced > 0, text: priced ? `${priced} of ${products} SKUs priced` : "No prices loaded — ranking uses attributes only", href: "/catalog", action: "Import pricing" },
+    { label: "Model", ok: llm.available, text: llm.available ? `${llm.model} for binning, grading and unresolved codes` : "Heuristic mode. Add OPENAI_API_KEY to .env for model-assisted matching", href: "/settings" },
+    { label: "Curated crosses", ok: crosses > 0, text: `${crosses} human-verified cross references loaded`, href: "/crosses" },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <>
+      <PageHeader
+        eyebrow={company.name}
+        title="Competitive cross reference"
+        description="Upload what a prospect buys from a competitor. CRACR resolves every code against FDA GUDID, bins the attributes, and ranks your best-fit and next-best products with prices ready for a bid."
+        actions={<Link href="/requests/new" className="btn-primary">New request</Link>}
+      />
+
+      <div className="grid grid-cols-4 gap-3 mb-6">
+        <Stat label="Requests" value={await prisma.request.count()} hint="all time" />
+        <Stat label="Competitor products resolved" value={competitors} hint={unresolved ? `${unresolved} still unresolved` : "cached across requests"} tone="accent" />
+        <Stat label="Our SKUs" value={products} hint={`${priced} priced`} />
+        <Stat label="Known crosses" value={crosses} hint="from curated sheets" />
+      </div>
+
+      <div className="grid grid-cols-[1.6fr_1fr] gap-4">
+        <Card title="Recent requests" padded={false} actions={<Link href="/requests" className="text-[12.5px] text-accent font-medium">All requests →</Link>}>
+          {requests.length === 0 ? (
+            <Empty title="No requests yet">Start with the sample intake in <span className="kbd">data/reference</span> or upload a rep's spreadsheet.</Empty>
+          ) : (
+            <table className="table">
+              <thead><tr><th>Request</th><th>Account</th><th>Lines</th><th>Matched</th><th>Status</th><th>When</th></tr></thead>
+              <tbody>
+                {requests.map((r) => {
+                  const s = summarizeLines(r.lines);
+                  return (
+                    <tr key={r.id}>
+                      <td><Link href={`/requests/${r.id}`} className="mono font-semibold text-accent">{r.reference}</Link></td>
+                      <td><div className="text-ink">{r.accountName ?? "—"}</div><div className="mono text-[11.5px] text-muted">{r.accountNumber}</div></td>
+                      <td className="mono">{s.total}</td>
+                      <td>
+                        <div className="flex items-center gap-1.5">
+                          <span className="mono">{s.matched}</span>
+                          <span className="text-muted text-[12px]">({s.exact}E · {s.close}C · {s.alternative}A)</span>
+                        </div>
+                      </td>
+                      <td><StatusPill status={r.status} /></td>
+                      <td className="text-muted">{relTime(r.createdAt)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </Card>
+
+        <Card title="Readiness" subtitle="What CRACR has to work with right now">
+          <ul className="space-y-3">
+            {readiness.map((r) => (
+              <li key={r.label} className="flex items-start gap-3">
+                <span className={`mt-1 h-2 w-2 rounded-full shrink-0 ${r.ok ? "bg-exact" : "bg-alt"}`} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-ink">{r.label}</span>
+                    <Link href={r.href} className="text-[12px] text-accent font-medium">{r.action ?? "Open"} →</Link>
+                  </div>
+                  <div className="text-[12.5px] text-muted">{r.text}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-5 pt-4 border-t border-line-2">
+            <div className="eyebrow mb-2">How a request runs</div>
+            <ol className="text-[12.5px] text-ink-2 space-y-1.5">
+              <li className="flex gap-2"><Chip tone="accent">1</Chip> Resolve each code in GUDID (openFDA) — variants, list context, model hints</li>
+              <li className="flex gap-2"><Chip tone="accent">2</Chip> Bin attributes: type, family, sizes, materials, features</li>
+              <li className="flex gap-2"><Chip tone="accent">3</Chip> Retrieve candidates: curated crosses + attribute neighbours</li>
+              <li className="flex gap-2"><Chip tone="accent">4</Chip> Rank by fit, price, cost and margin; grade with the model</li>
+            </ol>
+          </div>
+        </Card>
+      </div>
+    </>
   );
 }

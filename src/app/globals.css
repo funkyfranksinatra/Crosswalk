@@ -1,26 +1,189 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------------
+   CRACR design tokens.
+   Clinical paper, ink type, one deep-teal accent, semantic match colours.
+   Numbers and codes always in the mono face so SKUs scan like SKUs.
+   ---------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f6f5f1;
+  --panel: #ffffff;
+  --panel-2: #fbfaf7;
+  --ink: #16181d;
+  --ink-2: #3d4149;
+  --muted: #6b7079;
+  --faint: #9aa0a8;
+  --line: #e4e2dc;
+  --line-2: #efede8;
+  --accent: #0e6b6b;
+  --accent-ink: #0a5252;
+  --accent-soft: #e3f1ef;
+  --accent-soft-2: #cfe6e2;
+  --exact: #1f7a4d;
+  --exact-soft: #e2f3e8;
+  --close: #0e6b6b;
+  --close-soft: #e3f1ef;
+  --alt: #a16207;
+  --alt-soft: #fbf0d6;
+  --none: #b42318;
+  --none-soft: #fce8e6;
+  --info: #2f5fbf;
+  --info-soft: #e6edfb;
+  --sidebar: #16181d;
+  --sidebar-ink: #d7d9de;
+  --sidebar-muted: #8b909a;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(22, 24, 29, 0.05), 0 1px 1px rgba(22, 24, 29, 0.03);
+  --shadow-lg: 0 12px 32px rgba(22, 24, 29, 0.12), 0 2px 6px rgba(22, 24, 29, 0.06);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: var(--paper);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-2: var(--accent-soft-2);
+  --color-exact: var(--exact);
+  --color-exact-soft: var(--exact-soft);
+  --color-close: var(--close);
+  --color-close-soft: var(--close-soft);
+  --color-alt: var(--alt);
+  --color-alt-soft: var(--alt-soft);
+  --color-none: var(--none);
+  --color-none-soft: var(--none-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-ink: var(--sidebar-ink);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --font-sans: ui-sans-serif, -apple-system, "Segoe UI Variable", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --radius-card: var(--radius);
+  --shadow-card: var(--shadow);
+  --shadow-pop: var(--shadow-lg);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01", "tnum";
 }
+
+::selection {
+  background: var(--accent-soft-2);
+}
+
+/* Utilities that other classes compose with @apply must be @utility in Tailwind v4 */
+@utility mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+@utility eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+@utility btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  user-select: none;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+  cursor: pointer;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* Component layer -------------------------------------------------------- */
+@layer components {
+  .card {
+    @apply bg-panel border border-line rounded-[var(--radius)];
+    box-shadow: var(--shadow);
+  }
+  .btn-primary {
+    @apply btn bg-accent text-white hover:bg-accent-ink;
+  }
+  .btn-secondary {
+    @apply btn bg-panel border border-line text-ink hover:bg-panel-2 hover:border-faint;
+  }
+  .btn-ghost {
+    @apply btn text-ink-2 hover:bg-line-2;
+  }
+  .btn-danger {
+    @apply btn bg-none-soft text-none hover:bg-[#f8d7d3];
+  }
+  .input {
+    @apply w-full rounded-lg border border-line bg-panel px-3 py-2 text-[13px] text-ink placeholder:text-faint outline-none;
+    @apply focus:border-accent focus:ring-2 focus:ring-accent/15;
+  }
+  .label {
+    @apply block text-[12px] font-medium text-ink-2 mb-1.5;
+  }
+  .table {
+    @apply w-full text-[13px];
+  }
+  .table th {
+    @apply text-left eyebrow py-2.5 px-3 border-b border-line bg-panel-2 sticky top-0 z-10;
+  }
+  .table td {
+    @apply py-2.5 px-3 border-b border-line-2 align-top;
+  }
+  .table tbody tr:hover td {
+    background: var(--panel-2);
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold leading-4 whitespace-nowrap;
+  }
+  .kbd {
+    @apply mono text-[11px] rounded border border-line bg-panel-2 px-1 py-0.5 text-muted;
+  }
+}
+
+/* Scrollbars, subtle */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cfcdc6 transparent;
+}
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, var(--line-2) 25%, #f4f3ef 50%, var(--line-2) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+.pulse-dot { animation: pulse-dot 1.2s ease-in-out infinite; }
