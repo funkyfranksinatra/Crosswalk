@@ -1,4 +1,4 @@
-# CRACR — from working prototype to production
+# Crosswalk — from working prototype to production
 
 State at handoff (v0.3, Sept 2026): the full pipeline works end to end on a
 laptop — intake → GUDID resolution → attribute binning → ranking → model

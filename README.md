@@ -1,8 +1,10 @@
-# CRACR — Competitor Attribute Cross Reference
+# Crosswalk
+
+**Competitor Product Cross Reference Engine.** In healthcare data a *crosswalk* is a mapping between two code systems; this one maps what a hospital buys from a competitor to the products you sell.
 
 A local tool for medical-device sales teams. Point it at what a prospect buys
 from a competitor (catalog numbers + quantities — a Google Sheets link, a
-pasted range, or an .xlsx/.csv), and CRACR resolves every code against FDA
+pasted range, or an .xlsx/.csv), and Crosswalk resolves every code against FDA
 GUDID, bins the product attributes, ranks your best-fit and next-best SKUs
 with prices, and produces both a rep-editable cross-reference workbook and a
 customer-facing contract offer — as Google Sheets, .csv, or .xlsx.
@@ -42,7 +44,7 @@ Then open **New request** and either paste a Google Sheets link (shared as
 
 | Tier | Needs | Gives |
 | --- | --- | --- |
-| Links | nothing | Paste a link to a sheet shared *Anyone with the link*; CRACR reads the tab in the link. Downloads (.xlsx/.csv) open in Sheets via Drive → New → File upload. |
+| Links | nothing | Paste a link to a sheet shared *Anyone with the link*; Crosswalk reads the tab in the link. Downloads (.xlsx/.csv) open in Sheets via Drive → New → File upload. |
 | Paste / CSV | nothing | Copy a range from Sheets and paste it; or upload a Sheets → File → Download → CSV. |
 | Drive write-back | a Google service account (free) | **Send to Google Sheets** writes both exports into a Drive folder as native Sheets (tabs + formatting kept) and links them from the request. Private sheets shared with the service-account email are readable too. |
 
@@ -55,7 +57,7 @@ steps are also shown in **Settings → Google Sheets & Drive**, with a
 
 ### Without a model key
 
-CRACR runs fully in *heuristic mode*: deterministic regex/keyword binning and
+Crosswalk runs fully in *heuristic mode*: deterministic regex/keyword binning and
 attribute similarity. Add a key to get sharper bins, plain-language match
 rationales, and model hints for codes GUDID can't find.
 

@@ -1,4 +1,4 @@
-# CRACR architecture & decisions
+# Crosswalk architecture & decisions
 
 ## Decisions (agreed with Dev, Sept 2026)
 

@@ -26,7 +26,7 @@ export function GoogleCard({ status }: { status: { configured: boolean; email: s
           <ol className="list-decimal ml-4 space-y-1">
             <li>Google Cloud Console → create a project → enable the <b>Google Drive API</b> and <b>Google Sheets API</b>.</li>
             <li>IAM & Admin → Service Accounts → create one → Keys → <b>Add key → JSON</b>. Save it next to the app.</li>
-            <li>In Drive, create a folder for CRACR exports and <b>share it with the service-account email as Editor</b> (a Shared Drive folder is best in Workspace).</li>
+            <li>In Drive, create a folder for Crosswalk exports and <b>share it with the service-account email as Editor</b> (a Shared Drive folder is best in Workspace).</li>
             <li>Add to <span className="kbd">.env</span> and restart:</li>
           </ol>
           <pre className="mono mt-2 text-[12px]">GOOGLE_SERVICE_ACCOUNT_JSON=./google-service-account.json{"\n"}GOOGLE_DRIVE_FOLDER_ID=1AbC…   # folder id from its URL</pre>

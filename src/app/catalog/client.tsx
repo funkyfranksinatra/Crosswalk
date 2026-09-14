@@ -180,7 +180,7 @@ export function CatalogActions() {
           {panel === "sizes" && (
             <>
               <div className="font-semibold mb-1">Competitor sizes import</div>
-              <p className="text-[12.5px] text-muted mb-3">FDA GUDID leaves many competitor codes unsized (Ethicon meshes, most reloads), so they tie to our smallest product. The template lists every competitor code CRACR has seen that still lacks a size — fill in <b>Width</b> / <b>Length</b> (or <b>Diameter</b>) from the competitor catalog and bring it back. Affected lines re-bin and re-grade on the next run.</p>
+              <p className="text-[12.5px] text-muted mb-3">FDA GUDID leaves many competitor codes unsized (Ethicon meshes, most reloads), so they tie to our smallest product. The template lists every competitor code Crosswalk has seen that still lacks a size — fill in <b>Width</b> / <b>Length</b> (or <b>Diameter</b>) from the competitor catalog and bring it back. Affected lines re-bin and re-grade on the next run.</p>
               <div className="flex items-center gap-2 mb-3">
                 <a className="btn-secondary" href="/api/competitor-sizes/template">Template .xlsx</a>
                 <a className="btn-secondary" href="/api/competitor-sizes/template?format=csv">Template .csv</a>

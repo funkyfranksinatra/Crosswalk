@@ -5,7 +5,7 @@ import { getSettings } from "@/lib/settings";
 import { llmConfig } from "@/lib/llm/client";
 
 export const metadata: Metadata = {
-  title: "CRACR — Competitor Attribute Cross Reference",
+  title: "Crosswalk — Competitor Product Cross Reference Engine",
   description: "Cross-reference competitor purchases to your catalog and build a competitive bid.",
 };
 

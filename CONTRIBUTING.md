@@ -1,9 +1,9 @@
-# Contributing to CRACR
+# Contributing to Crosswalk
 
 ## Getting a working copy
 
 ```bash
-git clone <this repo> cracr && cd cracr
+git clone <this repo> crosswalk && cd crosswalk
 cp .env.example .env            # add OPENAI_API_KEY + LLM_MODEL if you have them; the app runs without
 npm run setup                   # install, prisma generate, migrate, seed
 npm run dev                     # http://localhost:3000

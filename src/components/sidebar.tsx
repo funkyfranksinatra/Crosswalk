@@ -19,8 +19,8 @@ export function Sidebar({ companyName, llm }: { companyName: string; llm: { avai
         <Link href="/" className="flex items-center gap-2.5">
           <Logo />
           <div>
-            <div className="text-[15px] font-semibold tracking-tight text-white leading-none">CRACR</div>
-            <div className="text-[10.5px] text-sidebar-muted mt-1 tracking-wide uppercase">Cross Reference</div>
+            <div className="text-[15px] font-semibold tracking-tight text-white leading-none">Crosswalk</div>
+            <div className="text-[10.5px] text-sidebar-muted mt-1 tracking-wide uppercase">Competitor Product Cross Reference</div>
           </div>
         </Link>
       </div>

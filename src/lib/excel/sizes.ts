@@ -6,7 +6,7 @@
  * the size from the competitor's catalog. This import stores those sizes per
  * competitor code (`CompetitorSpec`) and they are applied to the competitor
  * bin ahead of GUDID and regex sizes. The template is pre-filled with every
- * competitor code CRACR has seen that still lacks a width/length/diameter, so
+ * competitor code Crosswalk has seen that still lacks a width/length/diameter, so
  * the rep only fills in what is missing.
  */
 import ExcelJS from "exceljs";
@@ -133,7 +133,7 @@ export async function specFor(codes: (string | null | undefined)[]): Promise<{ d
 export const SIZES_HEADERS = ["Competitor Code", "Manufacturer", "Description", "Width", "Length", "Diameter", "Thickness (mm)", "Unit", "Notes"] as const;
 
 /**
- * Template rows: every competitor code CRACR has resolved whose bin still has no
+ * Template rows: every competitor code Crosswalk has resolved whose bin still has no
  * width / length / diameter (blank cells to fill), followed by the sizes already on file.
  */
 export async function competitorSizesTemplateRows(): Promise<{ rows: (string | number | null)[][]; missing: number; onFile: number }> {

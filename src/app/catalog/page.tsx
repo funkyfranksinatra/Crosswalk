@@ -27,7 +27,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const unsized = competitors.filter((c) => c.manufacturer !== company.name && !parseBin(c.binJson, { allowStale: true })?.dimensions.some((d) => ["width", "length", "diameter"].includes(d.name))).length;
   return (
     <>
-      <PageHeader eyebrow={company.name} title="Our catalog" description="Every SKU CRACR can propose. Seeded from the curated cross-reference sheets, enriched from FDA GUDID, priced from your import." actions={<CatalogActions />} />
+      <PageHeader eyebrow={company.name} title="Our catalog" description="Every SKU Crosswalk can propose. Seeded from the curated cross-reference sheets, enriched from FDA GUDID, priced from your import." actions={<CatalogActions />} />
       <div className="grid grid-cols-5 gap-3 mb-5">
         <Stat label="SKUs" value={total} />
         <Stat label="With GUDID record" value={withGudid} hint={withGudid < total ? `${total - withGudid} to enrich` : "complete"} tone="accent" />

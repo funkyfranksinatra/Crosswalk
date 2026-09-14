@@ -37,11 +37,11 @@ Thumbs.db
 __pycache__/
 *.py[cod]
 *.zip
-docs/cracr-build-notes.md
+docs/crosswalk-build-notes.md
 
 # course files that happen to live in this folder
 *.py
 
 # one-time bootstrap artefacts
-cracr.bundle
+crosswalk.bundle
 push-to-github.ps1

@@ -1,4 +1,4 @@
-// CRACR — Competitor Attribute Cross Reference
+// Crosswalk — Competitor Product Cross Reference Engine
 // Local SQLite database via Prisma 7 + libSQL driver adapter (prebuilt binaries, no node-gyp).
 
 generator client {
@@ -10,7 +10,7 @@ datasource db {
   provider = "sqlite"
 }
 
-/// The company CRACR is deployed at (one row in v1, but modelled so a
+/// The company Crosswalk is deployed at (one row in v1, but modelled so a
 /// multi-tenant deployment is a data change, not a schema change).
 model Company {
   id        String       @id @default(cuid())

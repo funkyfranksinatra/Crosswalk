@@ -5,7 +5,7 @@
  *  can be read through its CSV export URL. This is what demos use.
  *
  *  Tier 2 — service account (optional). With GOOGLE_SERVICE_ACCOUNT_JSON set,
- *  CRACR can read private sheets shared with the service-account email and
+ *  Crosswalk can read private sheets shared with the service-account email and
  *  write exports into a Drive folder as native Google Sheets (the .xlsx we
  *  already build is uploaded with Drive's convert-on-upload, so tabs, number
  *  formats and colours survive). Free — needs a Google Cloud project with the
@@ -47,7 +47,7 @@ export async function fetchPublicSheetRows(ref: SheetRef): Promise<{ rows: strin
     throw new SheetAccessError(
       "This sheet is not shared publicly.",
       googleConfigured()
-        ? `Either share it as "Anyone with the link → Viewer", or share it with the service account ${serviceAccountEmail()} and CRACR will read it privately.`
+        ? `Either share it as "Anyone with the link → Viewer", or share it with the service account ${serviceAccountEmail()} and Crosswalk will read it privately.`
         : 'Open the sheet in Google Sheets → Share → General access → "Anyone with the link" (Viewer), then paste the link again.',
     );
   }
@@ -148,7 +148,7 @@ async function readPrivateSheet(ref: SheetRef): Promise<{ rows: string[][]; titl
 export async function uploadXlsxAsGoogleSheet(buffer: Buffer, name: string, opts: { anyoneWithLink?: boolean } = {}): Promise<{ id: string; url: string }> {
   const folder = driveFolderId();
   if (!folder) throw new Error("GOOGLE_DRIVE_FOLDER_ID is not set");
-  const boundary = "cracr" + Math.random().toString(36).slice(2);
+  const boundary = "crosswalk" + Math.random().toString(36).slice(2);
   const metadata = { name: name.replace(/\.xlsx$/i, ""), mimeType: "application/vnd.google-apps.spreadsheet", parents: [folder] };
   const head = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n`;
   const tail = `\r\n--${boundary}--`;

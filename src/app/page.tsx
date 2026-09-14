@@ -29,7 +29,7 @@ export default async function Overview() {
       <PageHeader
         eyebrow={company.name}
         title="Competitive cross reference"
-        description="Upload what a prospect buys from a competitor. CRACR resolves every code against FDA GUDID, bins the attributes, and ranks your best-fit and next-best products with prices ready for a bid."
+        description="Upload what a prospect buys from a competitor. Crosswalk resolves every code against FDA GUDID, bins the attributes, and ranks your best-fit and next-best products with prices ready for a bid."
         actions={<Link href="/requests/new" className="btn-primary">New request</Link>}
       />
 
@@ -71,7 +71,7 @@ export default async function Overview() {
           )}
         </Card>
 
-        <Card title="Readiness" subtitle="What CRACR has to work with right now">
+        <Card title="Readiness" subtitle="What Crosswalk has to work with right now">
           <ul className="space-y-3">
             {readiness.map((r) => (
               <li key={r.label} className="flex items-start gap-3">

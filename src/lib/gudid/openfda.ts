@@ -101,7 +101,7 @@ export function rankHits(hits: OpenFdaRecord[], cfn: string, preferCompanies: st
   return [...hits].sort((a, b) => score(b) - score(a));
 }
 
-/** Flatten an openFDA record into the columns CRACR stores. */
+/** Flatten an openFDA record into the columns Crosswalk stores. */
 export function summarizeRecord(r: OpenFdaRecord) {
   const gmdn = r.gmdn_terms?.[0];
   const pc = r.product_codes?.[0];

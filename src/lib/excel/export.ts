@@ -44,7 +44,7 @@ export async function buildCrossReferenceWorkbook(requestId: string): Promise<{ 
   const r = await loadRequest(requestId);
   const us = r.company.name;
   const wb = new ExcelJS.Workbook();
-  wb.creator = "CRACR";
+  wb.creator = "Crosswalk";
   wb.created = new Date();
 
   // ---- Sheet 1: Cross Reference -------------------------------------------
@@ -108,13 +108,13 @@ export async function buildCrossReferenceWorkbook(requestId: string): Promise<{ 
     ["Request", r.reference], ["Account", `${r.accountNumber ?? ""} ${r.accountName ?? ""}`.trim()], ["Report type", r.reportType],
     ["Pricebook", r.pricebook?.name ?? "List price"], ["Source file", r.sourceFileName ?? ""], ["Generated", new Date().toISOString()],
     ["Lines", String(r.lines.length)], ["Resolved", String(r.lines.filter((l) => l.resolutionStatus === "resolved").length)], ["Matched", String(r.lines.filter((l) => l.matchStatus === "matched").length)],
-    ["Data sources", "openFDA Device UDI (AccessGUDID mirror), curated cross-reference sheet, CRACR attribute matcher"],
+    ["Data sources", "openFDA Device UDI (AccessGUDID mirror), curated cross-reference sheet, Crosswalk attribute matcher"],
   ];
   for (const [k, v] of info) { const row = wi.addRow([k, v]); row.getCell(1).font = { bold: true }; }
   wi.columns = [{ width: 18 }, { width: 90 }];
 
   const buffer = Buffer.from(await wb.xlsx.writeBuffer());
-  return { buffer, filename: `CRACR_XrefReport_${r.reference}_${stamp()}.xlsx` };
+  return { buffer, filename: `Crosswalk_XrefReport_${r.reference}_${stamp()}.xlsx` };
 }
 
 export async function buildContractOfferWorkbook(requestId: string): Promise<{ buffer: Buffer; filename: string }> {
@@ -259,7 +259,7 @@ function offerRows(r: Loaded): { rows: CellValue[][]; total: number; notes: stri
 export async function buildCrossReferenceRows(requestId: string): Promise<{ rows: CellValue[][]; filename: string }> {
   const r = await loadRequest(requestId);
   const x = xrefRows(r);
-  return { rows: [xrefHeaders(r.company.name), ...x.rows.map((row) => row.cells), x.total], filename: `CRACR_XrefReport_${r.reference}_${stamp()}.xlsx` };
+  return { rows: [xrefHeaders(r.company.name), ...x.rows.map((row) => row.cells), x.total], filename: `Crosswalk_XrefReport_${r.reference}_${stamp()}.xlsx` };
 }
 
 /** CSV-friendly rows for the customer proposal. */
