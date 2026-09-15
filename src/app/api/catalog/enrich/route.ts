@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { handle } from "@/lib/api";
 import { getCompany } from "@/lib/settings";
 import { enrichOwnProducts } from "@/lib/gudid/enrich";
 
@@ -9,8 +10,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  return handle("manage_catalog", async () => {
   const body = await req.json().catch(() => ({}));
-  if (job?.running) return NextResponse.json({ ok: true, alreadyRunning: true });
+  if (job?.running) return { ok: true, alreadyRunning: true };
   const company = await getCompany();
   job = { running: true, done: 0, total: 0, enriched: 0, missing: 0, startedAt: Date.now() };
   enrichOwnProducts(company.id, (m) => {
@@ -19,5 +21,6 @@ export async function POST(req: Request) {
   }, { onlyMissing: body.onlyMissing !== false })
     .then((r) => { if (job) { job.running = false; job.enriched = r.enriched; job.missing = r.missing; job.total = r.total; job.done = r.total; } })
     .catch(() => { if (job) job.running = false; });
-  return NextResponse.json({ ok: true });
+  return { ok: true };
+  });
 }

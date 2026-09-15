@@ -87,6 +87,7 @@ LLM_MODEL=gpt-5.6-astra        # any model ID your endpoint accepts
 | `npm run dev` | Dev server on :3000 |
 | `npm run build && npm start` | Production build |
 | `npm run db:seed [-- --gudid]` | (Re)load curated sheets; `--gudid` enriches own SKUs from openFDA |
+| Catalog → GUDID library → **Import from GUDID** | Bulk-import a labeler's GUDID catalog (competitor or own); preview the count first; large labelers split by FDA product code |
 | `npm run db:seed:enterprise [-- --no-demo]` | Seed dev users, roles, default pricing policy (+ demo accounts, GPO, contracts, observations) |
 | `npm run db:studio` | Browse the Postgres database |
 | `npm run check` / `npm run check:enterprise` | Pure unit checks: matcher rules / commercial engines (waterfall, cost, confidence, recommendation, rebates, bundles, clauses) |
@@ -113,6 +114,11 @@ LLM_MODEL=gpt-5.6-astra        # any model ID your endpoint accepts
    you have seen — fill in width/length or diameter from the competitor
    catalog and import it (file or Sheets link). Imported sizes beat GUDID and
    regex, and affected lines re-bin on the next run.
+   **GUDID library** (Catalog → GUDID library) lets an authorised user pull a
+   whole labeler's GUDID catalog (competitors' and our own) into the database;
+   the resolver answers from it first — no network round trip per code — and
+   anyone can look a product up by code, DI, brand or description. Codes the
+   library does not hold still go to openFDA live.
 3. **Retrieve** — curated crosses for the code + top attribute neighbours in
    the same family.
 4. **Rank** — composite of attribute fit, competitive price, COGS, margin
@@ -152,7 +158,7 @@ prisma/schema.prisma        data model — catalog & matching (Company, OwnProdu
 prisma/migrations/          Postgres migrations (SQLite history kept in migrations-sqlite-v0.3/)
 prisma/seed.ts              curated sheets → DB · seed-enterprise.ts users, roles, policy, demo commercial data
 src/lib/cfn.ts              catalog-number normalisation
-src/lib/gudid/openfda.ts    openFDA client · enrich.ts own-catalog enrichment
+src/lib/gudid/openfda.ts    openFDA client · enrich.ts own-catalog enrichment · library.ts bulk labeler import + library-first lookup
 src/lib/llm/client.ts       OpenAI adapter (structured outputs, logged) · tasks.ts bin / hints / grade
 src/lib/match/bin.ts        bin schema, heuristic binner, similarity · score.ts ranking
 src/lib/pipeline/resolve.ts two-pass CFN resolution · run.ts the request pipeline

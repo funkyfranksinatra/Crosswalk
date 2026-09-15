@@ -34,6 +34,8 @@ import { contractPerformance, proposalConversion } from "../src/lib/compliance";
 import { winLoss, pricingEffectiveness, conversion, crossReferenceAccuracy } from "../src/lib/analytics";
 import { proposeCross, setReview, publishVersion, approvedCross } from "../src/lib/xref/governance";
 import { summaryFor } from "../src/lib/intelligence";
+import { gatherHits, resolveCfn } from "../src/lib/pipeline/resolve";
+import { adoptRecords, localHits } from "../src/lib/gudid/library";
 
 let passed = 0; const failures: string[] = [];
 async function step(name: string, fn: () => Promise<void>) {
@@ -64,6 +66,10 @@ async function cleanup() {
   await prisma.crosswalkVersionEntry.deleteMany({ where: { competitorCodeNorm: "E2E-TEST-CODE" } });
   await prisma.knownCross.deleteMany({ where: { source: "rep", competitorCode: "E2E-TEST-CODE" } });
   await prisma.externalRef.deleteMany({ where: { system: "dev", entityType: "Proposal" } });
+  await prisma.competitorProduct.deleteMany({ where: { cfnNorm: { in: ["E2E-LIB-9001", "E2ELIB9001"] } } });
+  await prisma.gudidDevice.deleteMany({ where: { recordKey: { startsWith: "e2e-lib-" } } });
+  await prisma.ownProduct.deleteMany({ where: { sku: "E2E-OWN-7001", source: "gudid-import" } });
+  await prisma.gudidImport.deleteMany({ where: { query: "E2E fixture" } });
 }
 
 async function main() {
@@ -262,6 +268,40 @@ async function main() {
     const pe = await pricingEffectiveness(); assert.ok(pe.linesWon >= 1);
     const cv = await conversion(); assert.ok(cv.converted >= 1);
     const acc = await crossReferenceAccuracy(); assert.ok(acc.decisions >= 30 && acc.top1AcceptanceRate !== null);
+  });
+
+  await step("GUDID library: a bulk-imported labeler catalog resolves codes without openFDA, and library records can join our catalog", async () => {
+    const company = await getCompany();
+    const ownLabeler = (JSON.parse(company.labelers || "[]") as string[])[0] ?? "Covidien";
+    const imp = await prisma.gudidImport.create({ data: { query: "E2E fixture", kind: "COMPETITOR", status: "DONE", fetched: 2, created: 2, finishedAt: new Date() } });
+    const rec = (key: string, company_name: string, code: string, desc: string) => ({ public_device_record_key: key, company_name, brand_name: "E2E BRAND", catalog_number: code, version_or_model_number: code, device_description: desc, commercial_distribution_status: "In Commercial Distribution", identifiers: [{ id: `0${key.replace(/\D/g, "")}`.padEnd(14, "0"), type: "Primary" }], gmdn_terms: [{ code: "35386", name: "Polypropylene surgical mesh, non-bioabsorbable" }], device_sizes: [{ type: "Width", value: "10", unit: "Centimeter" }, { type: "Length", value: "15", unit: "Centimeter" }], public_version_date: "2026-01-01" });
+    const { toDeviceRow } = await import("../src/lib/gudid/library-model");
+    const rows = [rec("e2e-lib-1", "ETHICON, LLC", "E2E-LIB-9001", "E2E Mesh 10 cm x 15 cm"), rec("e2e-lib-2", ownLabeler.toUpperCase() + " LP", "E2E-OWN-7001", "E2E Own Mesh 10 cm x 15 cm")].map(toDeviceRow);
+    await prisma.gudidDevice.createMany({ data: rows.map((r) => ({ ...r, importId: imp.id })) });
+
+    // Library answers the exact and punctuation-free variants; nothing here exists in openFDA.
+    assert.equal((await localHits("E2E-LIB-9001", false)).length, 1);
+    assert.equal((await localHits("E2ELIB9001", false)).length, 1);
+    assert.equal((await localHits("*LIB9001*", true)).length, 1);
+    const hits = await gatherHits("E2E-LIB-9001", undefined, true);
+    assert.ok(hits.length >= 1 && hits[0].fromLibrary === true, "resolver should take the library hit");
+    const cp = await resolveCfn("E2E-LIB-9001", { useLlm: false, strict: true });
+    assert.ok(cp && cp.resolution === "openfda" && cp.manufacturer === "Ethicon" && /GUDID library exact hit/.test(cp.resolutionNote ?? ""), `resolved as ${cp?.resolution}: ${cp?.resolutionNote}`);
+    assert.ok((cp.confidence ?? 0) >= 0.75);
+
+    // Adoption into our catalog: only our labeler's record becomes an OwnProduct; idempotent.
+    assert.equal(await adoptRecords(["e2e-lib-2", "e2e-lib-2"]), 1);
+    assert.equal(await adoptRecords(["e2e-lib-2"]), 0);
+    const own = await prisma.ownProduct.findUnique({ where: { companyId_sku: { companyId: company.id, sku: "E2E-OWN-7001" } } });
+    assert.ok(own && own.source === "gudid-import" && own.category === "Hernia Mesh" && own.gudidDi && own.binJson);
+
+    // Authorization: the import is a catalog-management action.
+    assert.equal(permissionsFor(["SALES_REP"]).has("manage_catalog"), false);
+    assert.equal(permissionsFor(["PRODUCT_MARKETING"]).has("manage_catalog"), true);
+    assert.equal(permissionsFor(["PRICING_ANALYST"]).has("manage_catalog"), true);
+    // Leave the library as we found it (the fixture rows would otherwise show up in the UI).
+    await prisma.gudidDevice.deleteMany({ where: { recordKey: { startsWith: "e2e-lib-" } } });
+    await prisma.gudidImport.delete({ where: { id: imp.id } });
   });
 
   console.log(`\n${passed} passed, ${failures.length} failed`);

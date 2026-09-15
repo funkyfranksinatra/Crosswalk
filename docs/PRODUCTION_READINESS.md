@@ -67,3 +67,7 @@ pilot with real reps.
 
 Everything in this document is additive; nothing in the current codebase
 needs to be rewritten to get there.
+
+## GUDID library imports
+
+Imports run in-process (one at a time, progress persisted in `GudidImport`); a restart mid-import is detected on the next start (the orphaned run is marked FAILED, its rows stay) and re-running the same labeler refreshes and completes it. Move the runner to the job queue (§3.1) with the enrichment and sync jobs. Each `GudidDevice` row stores the full openFDA JSON (≈2–4 KB); budget storage before importing very large labelers or drop `gudidJson` to a compressed column.

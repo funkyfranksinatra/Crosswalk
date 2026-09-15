@@ -16,6 +16,7 @@ const NAV: NavItem[] = [
   { href: "/intelligence", label: "Competitor pricing", icon: IconRadar, perm: "view_pricing" },
   { href: "/analytics", label: "Analytics", icon: IconChart, perm: "view_analytics" },
   { href: "/catalog", label: "Our catalog", icon: IconBox, section: "Reference" },
+  { href: "/catalog/gudid", label: "GUDID library", icon: IconSearch },
   { href: "/crosses", label: "Crosswalk", icon: IconLink },
   { href: "/settings", label: "Settings", icon: IconSliders },
 ];
@@ -37,7 +38,7 @@ export function Sidebar({ companyName, llm, actor, sso }: { companyName: string;
       </div>
       <nav className="px-3 flex flex-col gap-0.5">
         {items.map((n) => {
-          const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
+          const active = n.href === "/" ? path === "/" : path === n.href || (path.startsWith(n.href + "/") && !NAV.some((o) => o.href !== n.href && o.href.startsWith(n.href) && path.startsWith(o.href)));
           return (
             <Link
               key={n.href}
@@ -114,6 +115,11 @@ function IconBuilding({ className }: IconProps) {
 }
 function IconContract({ className }: IconProps) {
   return (<svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M5 3h10v14H5z" /><path d="M8 7h4M8 10h4M8 13h2" /></svg>);
+}
+function IconSearch({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="9" cy="9" r="5.5" /><path d="M13 13l4 4" /></svg>
+  );
 }
 function IconRadar({ className }: IconProps) {
   return (<svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="10" cy="10" r="7" /><circle cx="10" cy="10" r="3.5" /><path d="M10 10l5-5" /></svg>);

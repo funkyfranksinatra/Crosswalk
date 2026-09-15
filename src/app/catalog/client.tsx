@@ -144,6 +144,7 @@ export function CatalogActions() {
   return (
     <div className="relative">
       <div className="flex items-center gap-2">
+        <a className="btn-secondary" href="/catalog/gudid">GUDID library</a>
         <button className="btn-secondary" onClick={() => setPanel(panel === "enrich" ? null : "enrich")}>Enrich from GUDID</button>
         <button className="btn-secondary" onClick={() => setPanel(panel === "pricing" ? null : "pricing")}>Pricing</button>
         <button className="btn-secondary" onClick={() => setPanel(panel === "sizes" ? null : "sizes")}>Competitor sizes</button>

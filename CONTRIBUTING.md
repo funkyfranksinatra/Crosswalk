@@ -54,6 +54,9 @@ Read `docs/ARCHITECTURE.md` first — it has the data-flow diagram, the
 decisions taken with the product owner, and the reasoning behind the
 resolution, binning and grading rules. The short version:
 
+* `src/lib/gudid/` — openFDA client, own-catalog enrichment, and `library.ts`
+  (bulk labeler import into `GudidDevice`, the library-first lookup the
+  resolver uses; pure mapping in `library-model.ts`).
 * `src/lib/pipeline/` — `resolve.ts` (CFN → GUDID record) and `run.ts` (the
   request pipeline: resolve → bin → retrieve → score → grade → persist).
 * `src/lib/match/` — `bin.ts` (the comparable attribute shape + heuristic
