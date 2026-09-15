@@ -9,6 +9,7 @@
  * existing line unless explicitly asked to refresh.
  */
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { audit } from "@/lib/audit";
 import { type Actor, requirePermission, can } from "@/lib/auth";
 import { D, money, toDb, toDbPct, round, type Money, ZERO } from "@/lib/money";
@@ -184,21 +185,62 @@ export async function refreshEconomics(proposalId: string, priceOverrides?: Map<
   return e;
 }
 
+/** Policies the given lines pin (by id) plus the active set, loaded once — never one query per line. */
+export type PolicyCache = { byId: Map<string, Policy>; active: Map<string, Policy> };
+export async function policyCacheFor(lines: { policyId: string | null }[]): Promise<PolicyCache> {
+  const ids = [...new Set(lines.map((l) => l.policyId).filter((x): x is string => Boolean(x) && x !== "default"))];
+  const [rows, active] = await Promise.all([ids.length ? prisma.pricingPolicy.findMany({ where: { id: { in: ids } } }) : Promise.resolve([]), activePolicies()]);
+  const { toPolicy } = await import("@/lib/pricing/policy-model");
+  return { byId: new Map(rows.map((r) => [r.id, toPolicy(r)])), active };
+}
+function policyFromCache(cache: PolicyCache, l: LineRow): Policy {
+  return (l.policyId && cache.byId.get(l.policyId)) || policyFor(cache.active, l.productFamily);
+}
 async function policyForLine(l: LineRow): Promise<Policy> {
-  if (l.policyId && l.policyId !== "default") {
-    const row = await prisma.pricingPolicy.findUnique({ where: { id: l.policyId } });
-    if (row) { const { toPolicy } = await import("@/lib/pricing/policy-model"); return toPolicy(row); }
-  }
-  return policyFor(await activePolicies(), l.productFamily);
+  return policyFromCache(await policyCacheFor([l]), l);
 }
 
 /** The derived columns for a line at a given price — pure economics on snapshot inputs, one implementation. */
-async function derivedFor(l: LineRow & { proposal: { account: { isStrategic: boolean } } }, price: Money | null, included: boolean, opts: { dealValue?: Money | null; strategicAccount?: boolean } = {}) {
-  const policy = await policyForLine(l);
+function derivedWith(policy: Policy, l: LineRow & { proposal: { account: { isStrategic: boolean } } }, price: Money | null, included: boolean, opts: { dealValue?: Money | null; strategicAccount?: boolean } = {}) {
   const floor = money(l.floorPrice) ?? floorFor(policy, money(l.cost), money(l.listPrice));
   const econ = economicsAt(price, { listPrice: money(l.listPrice), contractPrice: money(l.contractPrice), cost: money(l.cost), quantity: money(l.quantity)!, policy, strategicAccount: opts.strategicAccount ?? l.proposal.account.isStrategic, dealValue: opts.dealValue ?? null, contractMonths: null }, floor);
   const state = !included || !price ? "NOT_REQUIRED" : econ.requiredAuthority ? (l.approvalState === "APPROVED" || l.approvalState === "PENDING" ? l.approvalState : "REQUIRED") : "NOT_REQUIRED";
   return { marginAmount: toDb(econ.marginAmount), marginPct: toDbPct(econ.marginPct), discountFromListPct: toDbPct(econ.discountFromListPct), discountFromContractPct: toDbPct(econ.discountFromContractPct), requiredAuthority: econ.requiredAuthority, approvalState: state };
+}
+
+/**
+ * Recompute every line of a proposal in one pass: one read, one policy load, one batched write.
+ * (Per-line recomputation cost ~4 round trips; a 300-line deal took a minute.)
+ */
+export async function recomputeAllLines(proposalId: string, opts: { dealValue?: Money | null; strategicAccount?: boolean } = {}) {
+  const lines = await prisma.proposalLine.findMany({ where: { proposalId }, include: { proposal: { include: { account: true } } }, orderBy: { lineNo: "asc" } });
+  const cache = await policyCacheFor(lines);
+  const updates = lines.map((l) => ({ id: l.id, data: derivedWith(policyFromCache(cache, l), l, money(l.proposedPrice), l.included, opts) }));
+  await bulkWriteDerived(updates);
+  return lines.map((l, i) => ({ ...l, ...updates[i].data }));
+}
+
+type Derived = ReturnType<typeof derivedWith>;
+/** One UPDATE … FROM unnest(…) statement for every line — a 300-line deal is one round trip, not 300. */
+async function bulkWriteDerived(rows: { id: string; data: Derived & { proposedPrice?: string | null; included?: boolean } }[]) {
+  if (!rows.length) return;
+  const col = <K extends keyof (Derived & { proposedPrice?: string | null; included?: boolean })>(k: K) => rows.map((r) => (r.data[k] === undefined ? null : r.data[k])) as (string | boolean | null)[];
+  const withPrice = rows.some((r) => "proposedPrice" in r.data);
+  await prisma.$executeRaw(Prisma.sql`
+    UPDATE "ProposalLine" AS l SET
+      "marginAmount" = v.ma::numeric, "marginPct" = v.mp::numeric, "discountFromListPct" = v.dl::numeric, "discountFromContractPct" = v.dc::numeric,
+      "requiredAuthority" = v.ra, "approvalState" = v.st,
+      "proposedPrice" = CASE WHEN ${withPrice} THEN v.pp::numeric ELSE l."proposedPrice" END,
+      "included" = CASE WHEN ${withPrice} THEN v.inc::boolean ELSE l."included" END,
+      "updatedAt" = now()
+    FROM unnest(${rows.map((r) => r.id)}::text[], ${col("marginAmount")}::text[], ${col("marginPct")}::text[], ${col("discountFromListPct")}::text[], ${col("discountFromContractPct")}::text[], ${col("requiredAuthority")}::text[], ${col("approvalState")}::text[], ${col("proposedPrice")}::text[], ${rows.map((r) => (r.data.included === undefined ? null : String(r.data.included)))}::text[])
+      AS v(id, ma, mp, dl, dc, ra, st, pp, inc)
+    WHERE l.id = v.id`);
+}
+
+async function derivedFor(l: LineRow & { proposal: { account: { isStrategic: boolean } } }, price: Money | null, included: boolean, opts: { dealValue?: Money | null; strategicAccount?: boolean } = {}) {
+  const policy = await policyForLine(l);
+  return derivedWith(policy, l, price, included, opts);
 }
 
 /** Recompute a line's margin/discount/approval fields for its current proposedPrice (pure economics, snapshot inputs). */
@@ -267,19 +309,23 @@ export async function rerecommendLine(actor: Actor, lineId: string, opts: { stra
 export async function createScenario(actor: Actor, proposalId: string, kind: string, name?: string) {
   requirePermission(actor, "edit_proposed_pricing");
   const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { lines: true, account: true } });
-  const policies = await activePolicies();
+  if (!["RECOMMENDED", "AGGRESSIVE", "MARGIN_OPTIMIZED", "CUSTOM"].includes(kind)) throw new Error("kind must be RECOMMENDED, AGGRESSIVE, MARGIN_OPTIMIZED or CUSTOM");
+  if (name !== undefined && (typeof name !== "string" || name.length > 120)) throw new Error("name must be text (max 120)");
+  const cache = await policyCacheFor(p.lines);
   const s = await prisma.scenario.create({ data: { proposalId, kind, name: name ?? kind.charAt(0) + kind.slice(1).toLowerCase().replace(/_/g, " "), createdByUserId: actor.id } });
+  const scenarioLines: { scenarioId: string; proposalLineId: string; proposedPrice: string | null; included: boolean }[] = [];
   for (const l of p.lines) {
     let price: Money | null = money(l.proposedPrice);
-    const policy = l.policyId ? await policyForLine(l) : policyFor(policies, l.productFamily);
+    const policy = policyFromCache(cache, l);
     const base = { currency: p.currency, quantity: money(l.quantity)!, listPrice: money(l.listPrice), contractPrice: money(l.contractPrice), contractSource: l.contractPriceSource, cost: money(l.cost), competitorPrice: money(l.competitorPrice), competitorConfidence: l.competitorPriceConfidence ?? 0, competitorBasis: (l.competitorPriceBasis as never) ?? "NONE", policy, strategicAccount: p.account.isStrategic };
     if (l.productId) {
       if (kind === "RECOMMENDED") price = money(l.recommendedPrice);
       else if (kind === "AGGRESSIVE") price = recommend({ ...base, strategy: money(l.competitorPrice) ? "UNDERCUT_PCT" : "STRATEGIC_DISCOUNT", adjustmentPct: 0.05 }).recommendedPrice;
       else if (kind === "MARGIN_OPTIMIZED") { const t = money(l.targetPrice); const ref = money(l.contractPrice) ?? money(l.listPrice); price = t && ref ? (t.gt(ref) ? ref : t) : (t ?? price); }
     }
-    await prisma.scenarioLine.create({ data: { scenarioId: s.id, proposalLineId: l.id, proposedPrice: toDb(price), included: l.included } });
+    scenarioLines.push({ scenarioId: s.id, proposalLineId: l.id, proposedPrice: toDb(price), included: l.included });
   }
+  await prisma.scenarioLine.createMany({ data: scenarioLines });
   return s;
 }
 
@@ -312,13 +358,36 @@ export async function scenarioEconomics(scenarioId: string) {
 /** Copy a scenario's prices into the proposal (only while editable), audited per line. */
 export async function applyScenario(actor: Actor, scenarioId: string) {
   requirePermission(actor, "edit_proposed_pricing");
-  const s = await prisma.scenario.findUniqueOrThrow({ where: { id: scenarioId }, include: { lines: true } });
+  const s = await prisma.scenario.findUniqueOrThrow({ where: { id: scenarioId }, include: { lines: true, proposal: { select: { currency: true } } } });
   await assertEditable(s.proposalId);
-  for (const sl of s.lines) {
-    await prisma.proposalLine.update({ where: { id: sl.proposalLineId }, data: { included: sl.included } });
-    await setProposedPrice(actor, sl.proposalLineId, money(sl.proposedPrice), `applied scenario "${s.name}"`);
+  const full = await prisma.proposalLine.findMany({ where: { proposalId: s.proposalId }, include: { proposal: { include: { account: true } } } });
+  const before = new Map(full.map((l) => [l.id, l]));
+  const cache = await policyCacheFor(full);
+  // Validate every scenario price with the same rules as a manual edit, then write all prices in one
+  // batch, recompute every line once and roll the deal up once (not once per line).
+  const writes = s.lines.map((sl) => {
+    const b = before.get(sl.proposalLineId);
+    if (!b) throw new Error("scenario refers to a line that is no longer on the proposal");
+    let price = money(sl.proposedPrice);
+    if (price !== null) {
+      if (price.lte(0)) throw new Error("scenario price must be positive");
+      const list = money(b.listPrice);
+      if (list && list.gt(0) && price.gt(list.times(10))) throw new Error(`scenario price ${price.toFixed(2)} is more than 10× list`);
+      price = round(price, s.proposal.currency);
+    }
+    return { id: sl.proposalLineId, included: sl.included, price, previous: money(b.proposedPrice) };
+  });
+  const rows = writes.map((w) => { const l = before.get(w.id)!; return { id: w.id, data: { ...derivedWith(policyFromCache(cache, l), { ...l, approvalState: "NOT_REQUIRED" }, w.price, w.included), proposedPrice: toDb(w.price), included: w.included } }; });
+  await bulkWriteDerived(rows);
+  await prisma.approvalRequest.updateMany({ where: { proposalLineId: { in: writes.map((w) => w.id) }, status: "PENDING" }, data: { status: "WITHDRAWN", decisionComments: `scenario "${s.name}" applied before decision` } });
+  const after = new Map(rows.map((r) => [r.id, r.data]));
+  await refreshEconomics(s.proposalId);
+  for (const w of writes) {
+    if (w.previous?.toString() === w.price?.toString()) continue;
+    const a = after.get(w.id);
+    await audit({ actorUserId: actor.id, entityType: "ProposalLine", entityId: w.id, action: "PRICE_CHANGED", reason: `applied scenario "${s.name}"`, before: { proposedPrice: w.previous?.toString() ?? null }, after: { proposedPrice: w.price?.toString() ?? null }, context: { marginPct: a?.marginPct ?? null, discountFromListPct: a?.discountFromListPct ?? null, requiredAuthority: a?.requiredAuthority ?? null } });
   }
-  await audit({ actorUserId: actor.id, entityType: "Proposal", entityId: s.proposalId, action: "SCENARIO_APPLIED", context: { scenarioId, name: s.name, kind: s.kind } });
+  await audit({ actorUserId: actor.id, entityType: "Proposal", entityId: s.proposalId, action: "SCENARIO_APPLIED", context: { scenarioId, name: s.name, kind: s.kind, lines: writes.length } });
 }
 
 // ---------------------------------------------------------------------------
@@ -331,7 +400,7 @@ export async function newVersion(actor: Actor, proposalId: string) {
   const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { lines: true } });
   const { lines: _lines, ...head } = p;
   const created = await prisma.proposal.create({ data: { ...stripId(head), reference: p.reference.replace(/(-v\d+)?$/, "") + `-v${p.version + 1}`, version: p.version + 1, parentProposalId: p.id, status: "DRAFT", lockedAt: null, submittedAt: null, decidedAt: null, economicsJson: null, createdByUserId: actor.id, ownerUserId: actor.id } });
-  for (const l of p.lines) await prisma.proposalLine.create({ data: { ...stripId(l), proposalId: created.id, approvalState: l.requiredAuthority ? "REQUIRED" : "NOT_REQUIRED" } });
+  await prisma.proposalLine.createMany({ data: p.lines.map((l) => ({ ...stripId(l), proposalId: created.id, approvalState: l.requiredAuthority ? "REQUIRED" : "NOT_REQUIRED" })) });
   await refreshEconomics(created.id);
   await audit({ actorUserId: actor.id, entityType: "Proposal", entityId: created.id, action: "VERSION_CREATED", context: { from: p.id, version: created.version } });
   return created;

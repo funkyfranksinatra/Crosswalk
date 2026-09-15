@@ -7,7 +7,7 @@ import { audit } from "@/lib/audit";
 import { type Actor, requirePermission, hasAuthority, AuthError } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { proposalStatusFrom, canFinalize } from "./rules";
-import { recomputeLine, refreshEconomics } from "@/lib/proposals/service";
+import { recomputeAllLines, refreshEconomics } from "@/lib/proposals/service";
 
 /**
  * Submit a proposal. Every included line is re-evaluated against its policy; lines
@@ -33,21 +33,27 @@ export async function submitForApproval(actor: Actor, proposalId: string, notes?
 
   let routed = 0, auto = 0;
   try {
-  for (const l of included) {
-    const line = await recomputeLine(l.id, { dealValue: econ.revenue, strategicAccount: p.account.isStrategic });
-    if (!line.requiredAuthority) { await prisma.proposalLine.update({ where: { id: l.id }, data: { approvalState: "NOT_REQUIRED" } }); continue; }
-    const snapshot = { proposedPrice: line.proposedPrice?.toString() ?? null, recommendedPrice: line.recommendedPrice?.toString() ?? null, floorPrice: line.floorPrice?.toString() ?? null, marginPct: line.marginPct?.toString() ?? null, discountFromListPct: line.discountFromListPct?.toString() ?? null, discountFromContractPct: line.discountFromContractPct?.toString() ?? null, policyId: line.policyId, dealRevenue: econ.revenue.toString() };
+  const recomputed = (await recomputeAllLines(proposalId, { dealValue: econ.revenue, strategicAccount: p.account.isStrategic })).filter((l) => l.included);
+  const notRequired: string[] = [], autoIds: string[] = [];
+  const autoEvents: Parameters<typeof audit>[0][] = [];
+  const toRoute: { line: (typeof recomputed)[number]; snapshot: Record<string, unknown> }[] = [];
+  for (const line of recomputed) {
+    if (!line.requiredAuthority) { notRequired.push(line.id); continue; }
+    const str = (v: unknown) => (v === null || v === undefined ? null : String(v));
+    const snapshot = { proposedPrice: str(line.proposedPrice), recommendedPrice: str(line.recommendedPrice), floorPrice: str(line.floorPrice), marginPct: line.marginPct === null ? null : money(line.marginPct)!.toString(), discountFromListPct: line.discountFromListPct === null ? null : money(line.discountFromListPct)!.toString(), discountFromContractPct: line.discountFromContractPct === null ? null : money(line.discountFromContractPct)!.toString(), policyId: line.policyId, dealRevenue: econ.revenue.toString() };
     if (hasAuthority(actor, line.requiredAuthority)) {
-      auto++;
-      await prisma.proposalLine.update({ where: { id: l.id }, data: { approvalState: "APPROVED" } });
-      await audit({ actorUserId: actor.id, entityType: "ProposalLine", entityId: l.id, action: "AUTO_APPROVED", reason: `submitter holds ${line.requiredAuthority} authority`, context: snapshot });
-    } else {
-      routed++;
-      const req = await prisma.approvalRequest.create({ data: { proposalId, proposalLineId: l.id, requiredRole: line.requiredAuthority, reason: reasonFor(line), notes: notes ?? null, requestedByUserId: actor.id, snapshotJson: JSON.stringify(snapshot), policyId: line.policyId } });
-      await prisma.proposalLine.update({ where: { id: l.id }, data: { approvalState: "PENDING" } });
-      await audit({ actorUserId: actor.id, entityType: "ApprovalRequest", entityId: req.id, action: "REQUESTED", context: { line: l.id, requiredRole: line.requiredAuthority, ...snapshot } });
-    }
+      auto++; autoIds.push(line.id);
+      autoEvents.push({ actorUserId: actor.id, entityType: "ProposalLine", entityId: line.id, action: "AUTO_APPROVED", reason: `submitter holds ${line.requiredAuthority} authority`, context: snapshot });
+    } else { routed++; toRoute.push({ line, snapshot }); }
   }
+  if (notRequired.length) await prisma.proposalLine.updateMany({ where: { id: { in: notRequired } }, data: { approvalState: "NOT_REQUIRED" } });
+  if (autoIds.length) await prisma.proposalLine.updateMany({ where: { id: { in: autoIds } }, data: { approvalState: "APPROVED" } });
+  for (const e of autoEvents) await audit(e);
+  for (const { line, snapshot } of toRoute) {
+    const req = await prisma.approvalRequest.create({ data: { proposalId, proposalLineId: line.id, requiredRole: line.requiredAuthority!, reason: reasonFor({ ...line, proposedPrice: line.proposedPrice, floorPrice: line.floorPrice }), notes: notes ?? null, requestedByUserId: actor.id, snapshotJson: JSON.stringify(snapshot), policyId: line.policyId } });
+    await audit({ actorUserId: actor.id, entityType: "ApprovalRequest", entityId: req.id, action: "REQUESTED", context: { line: line.id, requiredRole: line.requiredAuthority, ...snapshot } });
+  }
+  if (toRoute.length) await prisma.proposalLine.updateMany({ where: { id: { in: toRoute.map((r) => r.line.id) } }, data: { approvalState: "PENDING" } });
   const requests = await prisma.approvalRequest.findMany({ where: { proposalId, status: { notIn: ["WITHDRAWN", "EXPIRED"] } } });
   const status = routed === 0 ? "APPROVED" : proposalStatusFrom(requests);
   await prisma.proposal.update({ where: { id: proposalId }, data: { status, submittedAt: new Date(), lockedAt: new Date(), decidedAt: status === "APPROVED" ? new Date() : null } });
