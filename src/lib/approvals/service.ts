@@ -112,7 +112,7 @@ export async function reopen(actor: Actor, proposalId: string, reason?: string) 
 
 export async function finalizeCheck(proposalId: string) {
   const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { lines: true } });
-  return canFinalize({ status: p.status, lines: p.lines.map((l) => ({ included: l.included, approvalState: l.approvalState, proposedPrice: money(l.proposedPrice) })) });
+  return canFinalize({ status: p.status, validThrough: p.validThrough, lines: p.lines.map((l) => ({ included: l.included, approvalState: l.approvalState, proposedPrice: money(l.proposedPrice) })) });
 }
 
 export async function queueFor(actor: Actor) {

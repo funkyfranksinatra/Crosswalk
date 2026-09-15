@@ -82,6 +82,12 @@ export async function retireVersion(actorUserId: string | null, id: string) {
 
 /** A rep-sourced cross (from a proposal / request decision): enters as DRAFT, never auto-approved. */
 export async function proposeCross(actorUserId: string | null, input: { ownSku: string; competitorName: string; competitorCode: string; matchType: string; competitorDescription?: string | null; ownDescription?: string | null; category?: string | null; accountId?: string | null; justification?: string | null }) {
+  if (typeof input.ownSku !== "string" || !input.ownSku.trim() || typeof input.competitorCode !== "string" || !input.competitorCode.trim() || typeof input.competitorName !== "string" || !input.competitorName.trim()) throw new Error("ownSku, competitorName and competitorCode are required");
+  const MATCH_TYPES = ["Exact Match", "Close Match", "Alternative Match", "US Downsell Match", "No Match"];
+  if (!MATCH_TYPES.includes(input.matchType)) throw new Error(`matchType must be one of ${MATCH_TYPES.join(", ")}`);
+  if ((input.justification ?? "").length > 4000) throw new Error("justification is too long");
+  const own = await prisma.ownProduct.findFirst({ where: { sku: input.ownSku.trim().toUpperCase() }, select: { id: true } });
+  if (!own) throw new Error(`${input.ownSku} is not in our catalog`);
   const norm = normalizeCfn(input.competitorCode);
   const row = await prisma.knownCross.upsert({
     where: { ownSku_competitorCodeNorm_source: { ownSku: input.ownSku.toUpperCase(), competitorCodeNorm: norm, source: "rep" } },

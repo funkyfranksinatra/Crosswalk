@@ -16,6 +16,8 @@ import { type Actor, AuthError, verifySession, signSession, redactAuditEvent, re
 import { setReview, proposeCross } from "../src/lib/xref/governance";
 import { importPurchasesGrid } from "../src/lib/imports/purchases";
 import { importCostsGrid } from "../src/lib/imports/costs";
+import { draftPolicy } from "../src/lib/pricing/policy";
+import { saveSettings, getCompany, getSettings } from "../src/lib/settings";
 import { money, D, marginPct, discountPct, priceForMargin, round, sum, times } from "../src/lib/money";
 import { setProposedPrice, setLineIncluded, refreshEconomics, recomputeLine, assertEditable, newVersion, createScenario, applyScenario } from "../src/lib/proposals/service";
 import { submitForApproval, decide, finalizeCheck, reopen } from "../src/lib/approvals/service";
@@ -327,6 +329,49 @@ async function main() {
       await prisma.purchaseRecord.deleteMany({ where: { externalId: { startsWith: "ADV-INV-" } } });
       await prisma.standardCost.deleteMany({ where: { plant: "ADV-PLANT" } });
     }
+  });
+
+  // ---- Configuration attacks ------------------------------------------------------------------
+  await step("a policy that would disable floors or invert authority is refused; a sane draft is accepted", async () => {
+    const admin = await actor("admin@crosswalk.dev");
+    await rejects(() => draftPolicy(admin.id, { productFamily: "ADV Family", minMarginPct: 1 } as never), /Invalid policy/, "100% min margin");
+    await rejects(() => draftPolicy(admin.id, { productFamily: "ADV Family", minMarginPct: 0.5, targetMarginPct: 0.4 }), /above target/, "min > target");
+    await rejects(() => draftPolicy(admin.id, { productFamily: "ADV Family", authority: { SALES_REP: 0.5, REGIONAL_MANAGER: 0.1 } }), /must not shrink/, "inverted authority");
+    await rejects(() => draftPolicy(admin.id, { productFamily: "ADV Family", approvalRules: [] }), /below floor/, "no floor rule");
+    await rejects(() => draftPolicy(admin.id, { productFamily: "ADV Family", defaultStrategy: "YOLO" as never }), /Invalid policy/, "unknown strategy");
+    const ok = await draftPolicy(admin.id, { productFamily: "ADV Family", targetMarginPct: 0.5, minMarginPct: 0.35 });
+    assert.equal(ok.status, "DRAFT");
+    await prisma.pricingPolicy.deleteMany({ where: { productFamily: "ADV Family" } });
+    await prisma.auditEvent.deleteMany({ where: { entityType: "PricingPolicy", entityId: ok.id } });
+  });
+  await step("renaming the company keeps the catalog (no second Company row); bad settings are refused", async () => {
+    const before = await getCompany();
+    const products = await prisma.ownProduct.count({ where: { companyId: before.id } });
+    await saveSettings({ companyName: `${before.name} ADV` });
+    const after = await getCompany();
+    assert.equal(after.id, before.id, "same company row");
+    assert.equal(await prisma.ownProduct.count({ where: { companyId: after.id } }), products);
+    assert.equal(await prisma.company.count(), 1);
+    await saveSettings({ companyName: before.name });
+    assert.equal((await getCompany()).name, before.name);
+    await rejects(() => saveSettings({ maxCandidates: 100000 }), /between 1 and 25/, "absurd candidates");
+    await rejects(() => saveSettings({ weights: { bin: -1 } as never }), /between 0 and 10/, "negative weight");
+    await rejects(() => saveSettings({ weights: { bin: 0, price: 0, cogs: 0, margin: 0 } as never }), /positive/, "all-zero weights");
+    assert.equal((await getSettings()).maxCandidates <= 25, true);
+  });
+  await step("a rep-proposed cross must name a real SKU and a real match type", async () => {
+    await rejects(() => proposeCross(rep.id, { ownSku: "NOPE-000", competitorName: "X", competitorCode: "Y1", matchType: "Close Match" }), /not in our catalog/, "unknown sku");
+    await rejects(() => proposeCross(rep.id, { ownSku: "PPM1510X3", competitorName: "X", competitorCode: "Y1", matchType: "Perfect" }), /matchType/, "bad match type");
+    await rejects(() => proposeCross(rep.id, { competitorName: "X", competitorCode: "Y1", matchType: "Close Match" } as never), /required/, "missing sku");
+  });
+  await step("an approved proposal past its valid-through date cannot be exported", async () => {
+    const f8 = await fixture("exp");
+    await setProposedPrice(f8.rep, f8.lines[1].id, D("390")); await setProposedPrice(f8.rep, f8.lines[2].id, D("95"));
+    await submitForApproval(f8.rep, f8.p.id);
+    for (const q of await prisma.approvalRequest.findMany({ where: { proposalId: f8.p.id, status: "PENDING" } })) await decide(q.requiredRole === "PRICING_COMMITTEE" ? committee : director, q.id, "APPROVED");
+    assert.ok((await finalizeCheck(f8.p.id)).ok);
+    await prisma.proposal.update({ where: { id: f8.p.id }, data: { validThrough: new Date(Date.now() - 864e5) } });
+    await rejects(() => buildQuote(f8.rep, f8.p.id, "csv"), /expired/, "expired export");
   });
 
   await cleanup();

@@ -81,3 +81,36 @@ export function toPolicy(row: { id: string; productFamily: string; version: numb
 
 
 export type PolicyInput = Partial<Omit<Policy, "id" | "version" | "status">> & { productFamily: string; name?: string };
+
+/** What an administrator may submit as a policy draft — a bad policy silently disables floors, so everything is checked. */
+export const PolicyInputSchema = z.object({
+  productFamily: z.string().trim().min(1).max(80),
+  name: z.string().max(120).optional().nullable(),
+  targetMarginPct: z.number().min(0).max(0.99).optional(),
+  minMarginPct: z.number().min(0).max(0.99).optional(),
+  floorMethod: z.enum(["COST_PLUS_MIN_MARGIN", "PCT_OF_LIST", "FIXED"]).optional(),
+  floorParams: z.object({ pctOfList: z.number().min(0).max(1).optional(), fixed: z.number().nonnegative().optional(), minMarginPct: z.number().min(0).max(0.99).optional() }).optional(),
+  defaultStrategy: z.enum(STRATEGIES).optional(),
+  defaultAdjustmentPct: z.number().min(-1).max(1).optional(),
+  classification: z.enum(["COMMODITY", "DIFFERENTIATED"]).optional(),
+  strategicImportance: z.number().int().min(1).max(5).optional(),
+  authority: AuthoritySchema.optional(),
+  approvalRules: z.array(ApprovalRuleSchema).max(50).optional(),
+});
+
+/** Cross-field rules a merged policy must satisfy. Returns the problems (empty = valid). */
+export function policyProblems(p: Omit<Policy, "id" | "version" | "status">): string[] {
+  const out: string[] = [];
+  if (p.minMarginPct > p.targetMarginPct) out.push(`minimum margin ${p.minMarginPct} is above target margin ${p.targetMarginPct}`);
+  if (p.floorMethod === "PCT_OF_LIST" && p.floorParams.pctOfList === undefined) out.push("PCT_OF_LIST floor needs floorParams.pctOfList");
+  if (p.floorMethod === "FIXED" && p.floorParams.fixed === undefined) out.push("FIXED floor needs floorParams.fixed");
+  const ranks = ["SALES_REP", "REGIONAL_MANAGER", "CONTRACTING_MANAGER", "PRICING_DIRECTOR", "PRICING_COMMITTEE"];
+  for (const [role] of Object.entries(p.authority)) if (!ranks.includes(role)) out.push(`authority names unknown role ${role}`);
+  for (let i = 1; i < ranks.length; i++) {
+    const lo = p.authority[ranks[i - 1]], hi = p.authority[ranks[i]];
+    if (lo !== undefined && hi !== undefined && hi < lo) out.push(`${ranks[i]} authority (${hi}) is below ${ranks[i - 1]} (${lo}); authority must not shrink up the chain`);
+  }
+  for (const r of p.approvalRules) if (!ranks.includes(r.require)) out.push(`approval rule requires unknown role ${r.require}`);
+  if (!p.approvalRules.some((r) => r.when.belowFloor)) out.push("no approval rule covers pricing below floor");
+  return out;
+}

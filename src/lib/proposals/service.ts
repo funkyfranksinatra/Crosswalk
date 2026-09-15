@@ -49,6 +49,9 @@ export async function createFromRequest(actor: Actor, requestId: string, opts: {
   requirePermission(actor, "edit_proposed_pricing");
   const request = await prisma.request.findUnique({ where: { id: requestId }, include: { lines: { orderBy: { lineNo: "asc" }, include: { competitorProduct: true, candidates: { orderBy: { rank: "asc" }, include: { ownProduct: { include: { prices: { include: { pricebook: true } }, costs: true } } } } } } } });
   if (!request) throw new Error("request not found");
+  if (request.status !== "complete") throw new Error(`The cross-reference is ${request.status}; wait for it to complete before pricing`);
+  const open = await prisma.proposal.findFirst({ where: { requestId, accountId: opts.accountId, status: "DRAFT" }, select: { reference: true } });
+  if (open) throw new Error(`Draft ${open.reference} already exists for this request and account — open it, or create a new version from a closed proposal`);
   const asOf = opts.asOf ?? new Date();
   const ctx = await loadPricingContext({ accountId: opts.accountId, asOf });
   if (!ctx.account) throw new Error("account not found");
@@ -71,10 +74,13 @@ export async function createFromRequest(actor: Actor, requestId: string, opts: {
 
   let lineNo = 0;
   const usedPolicies = new Map<string, string>();
+  try {
   for (const line of request.lines) {
     lineNo++;
     const sel = line.candidates.find((c) => c.id === line.selectedCandidateId) ?? line.candidates.find((c) => c.isSelected) ?? null;
     const product = sel?.ownProduct ?? null;
+    // A retired SKU can be shown but never quoted: excluded, with the reason on the line.
+    const retired = product ? !product.isActive || /not in commercial/i.test(product.status ?? "") : false;
     const cp = line.competitorProduct;
     const competitorName = cp?.manufacturer ?? null;
     const qty = D(line.quantity);
@@ -103,7 +109,7 @@ export async function createFromRequest(actor: Actor, requestId: string, opts: {
 
     const created = await prisma.proposalLine.create({
       data: {
-        proposalId: proposal.id, lineNo, included: Boolean(product),
+        proposalId: proposal.id, lineNo, included: Boolean(product) && !retired,
         competitorCode: line.rawCode, competitorDescription: cp?.description ?? null, competitorName, competitorProductId: cp?.id ?? null,
         crossId: entry?.knownCrossId ?? null, crosswalkVersionId: version?.id ?? null, equivalenceLevel: equivalence, matchType,
         productId: product?.id ?? null, sku: product?.sku ?? null, description: product?.description ?? null, productFamily: product?.category ?? null,
@@ -116,7 +122,7 @@ export async function createFromRequest(actor: Actor, requestId: string, opts: {
         proposedPrice: toDb(rec?.recommendedPrice ?? null),
         marginAmount: toDb(rec?.marginAmount ?? null), marginPct: toDbPct(rec?.marginPct ?? null), discountFromListPct: toDbPct(rec?.discountFromListPct ?? null), discountFromContractPct: toDbPct(rec?.discountFromContractPct ?? null),
         requiredAuthority: rec?.requiredAuthority ?? null, approvalState: rec?.requiredAuthority ? "REQUIRED" : "NOT_REQUIRED",
-        notes: !product ? "No product selected on the cross-reference; excluded" : !entry && matchType ? `Cross-reference verdict "${matchType}" is not in the published crosswalk (v${version?.number ?? "—"}); shown as unapproved` : null,
+        notes: !product ? "No product selected on the cross-reference; excluded" : retired ? `${product.sku} is ${product.isActive ? "no longer in commercial distribution" : "inactive"}; excluded` : !entry && matchType ? `Cross-reference verdict "${matchType}" is not in the published crosswalk (v${version?.number ?? "—"}); shown as unapproved` : null,
       },
     });
     // Feedback: what the engine recommended vs what the rep chose (rep acceptance, not validated accuracy).
@@ -128,6 +134,12 @@ export async function createFromRequest(actor: Actor, requestId: string, opts: {
   await applyBundleTerms(proposal.id, ctx.primaryContractId);
   await prisma.proposal.update({ where: { id: proposal.id }, data: { policyVersionsJson: JSON.stringify(Object.fromEntries(usedPolicies)) } });
   await refreshEconomics(proposal.id);
+  } catch (e) {
+    // Never leave a half-built proposal behind: a partially priced draft looks like a real one.
+    await prisma.matchDecision.deleteMany({ where: { proposalLine: { proposalId: proposal.id } } });
+    await prisma.proposal.delete({ where: { id: proposal.id } }).catch(() => undefined);
+    throw e;
+  }
   await audit({ actorUserId: actor.id, entityType: "Proposal", entityId: proposal.id, action: "CREATED", after: { reference, requestId, accountId: ctx.account.id, crosswalkVersion: version?.number ?? null, lines: lineNo } });
   return prisma.proposal.findUniqueOrThrow({ where: { id: proposal.id } });
 }
