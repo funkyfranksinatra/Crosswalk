@@ -11,7 +11,7 @@
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { type Actor, requirePermission, can } from "@/lib/auth";
-import { D, money, toDb, toDbPct, type Money, ZERO } from "@/lib/money";
+import { D, money, toDb, toDbPct, round, type Money, ZERO } from "@/lib/money";
 import { loadPricingContext } from "@/lib/contracts/context";
 import { summariesFor, type PriceSummary } from "@/lib/intelligence";
 import { activePolicies, policyFor } from "@/lib/pricing/policy";
@@ -218,6 +218,9 @@ export async function setProposedPrice(actor: Actor, lineId: string, price: Mone
   // Price and its derived fields are computed first and written in ONE statement: a line is never
   // left with a new price and stale margins (or a failed write after the price landed).
   const full = await prisma.proposalLine.findUniqueOrThrow({ where: { id: lineId }, include: { proposal: { include: { account: true } } } });
+  // A quoted price is a price in the currency's minor unit: what is stored is what is approved,
+  // exported and written into the contract — never a sub-cent figure that rounds differently later.
+  if (price !== null) price = round(price, full.proposal.currency);
   const derived = await derivedFor({ ...full, approvalState: "NOT_REQUIRED" }, price, full.included);
   const after = await prisma.proposalLine.update({ where: { id: lineId }, data: { proposedPrice: toDb(price), ...derived } });
   // A pending approval request is for the *old* price; it is void now and the line must be resubmitted.
@@ -282,6 +285,9 @@ export async function createScenario(actor: Actor, proposalId: string, kind: str
 
 export async function setScenarioPrice(actor: Actor, scenarioId: string, lineId: string, price: Money | null, included?: boolean) {
   requirePermission(actor, "edit_proposed_pricing");
+  const s = await prisma.scenario.findUniqueOrThrow({ where: { id: scenarioId }, include: { proposal: { select: { currency: true } } } });
+  if (!(await prisma.proposalLine.findFirst({ where: { id: lineId, proposalId: s.proposalId }, select: { id: true } }))) throw new Error("line does not belong to this scenario's proposal");
+  if (price !== null) { if (price.lte(0)) throw new Error("price must be positive"); price = round(price, s.proposal.currency); }
   return prisma.scenarioLine.upsert({ where: { scenarioId_proposalLineId: { scenarioId, proposalLineId: lineId } }, create: { scenarioId, proposalLineId: lineId, proposedPrice: toDb(price), included: included ?? true }, update: { proposedPrice: toDb(price), ...(included === undefined ? {} : { included }) } });
 }
 

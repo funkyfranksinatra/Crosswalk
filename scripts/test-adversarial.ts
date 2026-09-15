@@ -195,7 +195,7 @@ async function main() {
     const q = await buildQuote(fx.rep, fx.p.id, "csv");
     const rows = parseCsv(q.buffer.toString("utf8"));
     for (const l of before) {
-      const row = rows.find((r) => r.some((c) => String(c) === l.competitorCode));
+      const row = rows.find((r) => String(r[0]) === l.competitorCode);
       assert.ok(row, `line ${l.competitorCode} missing from export`);
       assert.ok(row!.some((c) => Number(c) === Number(l.proposedPrice)), `export row for ${l.competitorCode} lacks the approved price ${l.proposedPrice}: ${row}`);
     }
