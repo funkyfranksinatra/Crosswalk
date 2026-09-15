@@ -24,7 +24,7 @@ import { parseIntake } from "../src/lib/excel/intake";
 import { runRequest } from "../src/lib/pipeline/run";
 import { permissionsFor } from "../src/lib/auth/permissions";
 import { type Actor, AuthError } from "../src/lib/auth";
-import { Decimal, money } from "../src/lib/money";
+import { Decimal, money, round } from "../src/lib/money";
 import { createFromRequest, setProposedPrice, setLineIncluded, refreshEconomics, createScenario, scenarioEconomics, applyScenario, newVersion, assertEditable } from "../src/lib/proposals/service";
 import { submitForApproval, decide, finalizeCheck, queueFor } from "../src/lib/approvals/service";
 import { recordOutcome } from "../src/lib/proposals/outcome";
@@ -183,7 +183,7 @@ async function main() {
     const pe = await refreshEconomics(proposal.id);
     assert.notEqual(se.economics.revenue, pe.revenue.toString());
     const l = await prisma.proposalLine.findUniqueOrThrow({ where: { id: meshLine.id } });
-    assert.ok(d(l.proposedPrice).eq(d(meshLine.contractPrice).times(0.66)));
+    assert.ok(d(l.proposedPrice).eq(round(d(meshLine.contractPrice).times(0.66))), "stored price is the entered price rounded to cents");
   });
 
   // ---- 5. Submit → route → decide ----------------------------------------------------------
@@ -217,6 +217,46 @@ async function main() {
     await assert.rejects(applyScenario(rep, (await prisma.scenario.findFirstOrThrow({ where: { proposalId: proposal.id } })).id), /locked/);
   });
 
+  await step("CRITICAL SCENARIO: the exported quote equals the approved prices, totals equal the line sum, history reconstructs every price, nothing moved after approval", async () => {
+    const { buildQuote } = await import("../src/lib/proposals/export");
+    const { parseCsv } = await import("../src/lib/sheets/csv");
+    const lines = await prisma.proposalLine.findMany({ where: { proposalId: proposal.id, included: true }, orderBy: { lineNo: "asc" } });
+    const q = await buildQuote(rep, proposal.id, "csv");
+    const rows = parseCsv(q.buffer.toString("utf8"));
+    for (const l of lines) {
+      const row = rows.find((r) => String(r[0]) === l.competitorCode);
+      assert.ok(row, `exported quote lacks ${l.competitorCode}`);
+      assert.ok(row!.some((c) => Number(c) === Number(l.proposedPrice)), `${l.competitorCode}: export shows ${row} but approved price is ${l.proposedPrice}`);
+      assert.ok(row!.some((c) => Number(c) === Number(l.quantity)), `${l.competitorCode}: quantity missing from export`);
+    }
+    // Totals: deal revenue equals the line sum, exactly.
+    const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposal.id }, include: { crosswalkVersion: true } });
+    const econ = JSON.parse(p.economicsJson!);
+    const revenue = lines.reduce((s, l) => s.plus(d(l.proposedPrice).times(d(l.quantity))), d(0));
+    assert.equal(String(econ.revenue), revenue.toString(), "economics.revenue ≠ Σ price×qty");
+    // Every included line that needed approval has an APPROVED or AUTO_APPROVED event carrying the price, floor, margin and policy it was judged at.
+    for (const l of lines.filter((x) => x.requiredAuthority)) {
+      const reqs = await prisma.approvalRequest.findMany({ where: { proposalLineId: l.id, status: "APPROVED" } });
+      const auto = await prisma.auditEvent.findFirst({ where: { entityType: "ProposalLine", entityId: l.id, action: "AUTO_APPROVED" } });
+      assert.ok(reqs.length || auto, `${l.competitorCode}: no approval record`);
+      const ctx = reqs[0] ? JSON.parse(reqs[0].snapshotJson!) : JSON.parse(auto!.contextJson!);
+      assert.equal(String(ctx.proposedPrice), d(l.proposedPrice).toString(), `${l.competitorCode}: approved at ${ctx.proposedPrice}, line now ${l.proposedPrice}`);
+      assert.ok("floorPrice" in ctx && "marginPct" in ctx && "policyId" in ctx, "approval snapshot must carry floor, margin and policy");
+    }
+    // The crosswalk version is pinned and the account/contract context is on the proposal.
+    assert.ok(p.crosswalkVersionId && p.crosswalkVersion?.status === "PUBLISHED");
+    assert.equal(p.accountId, msk.id);
+    // Nothing can move now.
+    await assert.rejects(setProposedPrice(rep, lines[0].id, d(1)), /locked/);
+    await assert.rejects(setLineIncluded(rep, lines[0].id, false), /locked/);
+    // Unauthorized roles: no cost, no export.
+    const clinical = await actor("dr.clinical@crosswalk.dev");
+    await assert.rejects(buildQuote(clinical, proposal.id, "csv"), /permission/i);
+    const { redactForActor } = await import("../src/lib/auth");
+    const red = redactForActor(rep, lines[0] as unknown as Record<string, unknown>);
+    assert.equal(red.cost, null); assert.equal(red.floorPrice, null); assert.equal(red.marginPct, null);
+  });
+
   // ---- 6. CRM push, win, contract, compliance ---------------------------------------------
   await step("approved quote pushes to CRM idempotently (dev adapter) and syncs are logged", async () => {
     const crm = await syncCrmAccounts(rep.id);
@@ -237,7 +277,7 @@ async function main() {
     const prod = await prisma.ownProduct.findFirstOrThrow({ where: { sku: "ONB12STF" }, include: { prices: { include: { pricebook: true } } } });
     const r = ctx.resolvePrice({ ...prod, prices: prod.prices.map((e) => ({ ...e, pricebook: e.pricebook ? { name: e.pricebook.name } : null })) }, new Decimal(600));
     assert.equal(r.source, "LOCAL");
-    assert.ok(r.price!.eq(d(trocar.contractPrice).times(0.95)));
+    assert.ok(r.price!.eq(round(d(trocar.contractPrice).times(0.95))), `contract price ${r.price} ≠ approved ${round(d(trocar.contractPrice).times(0.95))}`);
     await prisma.purchaseRecord.create({ data: { accountId: msk.id, productId: prod.id, sku: "ONB12STF", quantity: "120", netPrice: r.price!.toFixed(4), currency: "USD", invoiceDate: new Date(), contractId: contract!.id, proposalId: proposal.id, source: "import", externalId: `E2E-${proposal.id}` } });
     const conv = await proposalConversion(proposal.id);
     assert.equal(conv.linesConverted, 1);

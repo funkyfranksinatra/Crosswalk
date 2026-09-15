@@ -5,8 +5,11 @@ import { Pill } from "@/components/commercial";
 import { renewalPipeline } from "@/lib/compliance";
 import { num } from "@/lib/money";
 import { ContractTools } from "./tools";
+import { getActor, can } from "@/lib/auth";
 
 export default async function ContractsPage() {
+  const actor = await getActor();
+  if (!can(actor, "view_pricing")) return <Empty title="Contracts are visible to commercial roles">Your role has no pricing visibility.</Empty>;
   const contracts = await prisma.contract.findMany({ orderBy: [{ status: "asc" }, { effectiveTo: "asc" }], include: { account: true, gpo: true, _count: { select: { entries: true, commitments: true, rebates: true, bundles: true } } } });
   const renewals = await renewalPipeline(180);
   return (

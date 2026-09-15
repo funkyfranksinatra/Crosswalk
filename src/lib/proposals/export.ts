@@ -6,7 +6,7 @@ import ExcelJS from "exceljs";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { type Actor, requirePermission } from "@/lib/auth";
-import { money, num, times } from "@/lib/money";
+import { money, num, times, round, ZERO } from "@/lib/money";
 import { finalizeCheck } from "@/lib/approvals/service";
 import { toCsv } from "@/lib/sheets/csv";
 
@@ -15,15 +15,16 @@ const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "").
 export async function quoteRows(proposalId: string) {
   const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { account: true, lines: { orderBy: { lineNo: "asc" } } } });
   const rows: (string | number | null)[][] = [["Current Product", "Current Product Description", "Proposed Equivalent", "Description", "Equivalence", "Annual Qty", "Unit Price", "Extended", "Notes"]];
-  let total = 0;
+  // Contractual figures: decimal all the way, rounded to the currency's minor unit only for display.
+  let total = ZERO;
   for (const l of p.lines) {
     if (!l.included || !money(l.proposedPrice)) continue;
-    const ext = num(times(l.proposedPrice, l.quantity)) ?? 0;
-    total += ext;
-    rows.push([l.competitorCode, l.competitorDescription ?? "", l.sku ?? "", l.description ?? "", (l.equivalenceLevel ?? "").replace(/_/g, " ").toLowerCase(), num(l.quantity), num(l.proposedPrice), Math.round(ext * 100) / 100, l.justification ?? ""]);
+    const ext = round(times(l.proposedPrice, l.quantity)!, p.currency);
+    total = total.plus(ext);
+    rows.push([l.competitorCode, l.competitorDescription ?? "", l.sku ?? "", l.description ?? "", (l.equivalenceLevel ?? "").replace(/_/g, " ").toLowerCase(), num(l.quantity), num(round(money(l.proposedPrice)!, p.currency)), num(ext), l.justification ?? ""]);
   }
-  rows.push(["TOTAL", "", "", "", "", null, null, Math.round(total * 100) / 100, ""]);
-  return { proposal: p, rows, total };
+  rows.push(["TOTAL", "", "", "", "", null, null, num(round(total, p.currency)), ""]);
+  return { proposal: p, rows, total: num(total)! };
 }
 
 export async function buildQuote(actor: Actor, proposalId: string, format: "xlsx" | "csv") {

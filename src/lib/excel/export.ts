@@ -8,7 +8,7 @@
  */
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/db";
-import { num, times } from "@/lib/money";
+import { num, times, round, ZERO } from "@/lib/money";
 
 const INK = "FF16181D";
 const TEAL = "FF0E6B6B";
@@ -41,7 +41,9 @@ function border(row: ExcelJS.Row, count: number) {
   for (let c = 1; c <= count; c++) row.getCell(c).border = { bottom: { style: "thin", color: { argb: LINE } } };
 }
 
-export async function buildCrossReferenceWorkbook(requestId: string): Promise<{ buffer: Buffer; filename: string }> {
+export type Hide = { cost?: boolean; margin?: boolean };
+
+export async function buildCrossReferenceWorkbook(requestId: string, hide: Hide = {}): Promise<{ buffer: Buffer; filename: string }> {
   const r = await loadRequest(requestId);
   const us = r.company.name;
   const wb = new ExcelJS.Workbook();
@@ -82,7 +84,7 @@ export async function buildCrossReferenceWorkbook(requestId: string): Promise<{ 
     for (const c of line.candidates) {
       const row = wc.addRow([
         line.rawCode, line.competitorProduct?.description ?? "", c.rank, c.ownProduct.sku, c.ownProduct.description, c.matchType, c.source,
-        c.score, c.scoreBin, c.scorePrice, c.scoreCogs, c.scoreMargin, num(c.unitPrice), cents(num(times(c.unitPrice, line.quantity))),
+        c.score, c.scoreBin, c.scorePrice, hide.cost ? null : c.scoreCogs, hide.margin ? null : c.scoreMargin, num(c.unitPrice), cents(times(c.unitPrice, line.quantity)),
         line.selectedCandidateId === c.id ? "Yes" : "", c.rationale ?? "",
       ]);
       for (const k of [8, 9, 10, 11, 12]) row.getCell(k).numFmt = "0%";
@@ -185,21 +187,22 @@ export function xrefHeaders(us: string): string[] {
 }
 
 /** Cells are numbers for Excel; arithmetic happens in Decimal (src/lib/money) and is rounded to cents here. */
-const cents = (v: number | null | undefined): number | null => (v == null ? null : Math.round(v * 100) / 100);
+/** Money cell from a decimal product, rounded to cents with banker's rounding (never float×100). */
+const cents = (v: import("decimal.js").default | null | undefined): number | null => (v == null ? null : num(round(v)));
 
 function xrefRows(r: Loaded): { rows: { cells: CellValue[]; matchType: string }[]; total: CellValue[] } {
-  let compTotal = 0;
-  let ourTotal = 0;
+  let compTotal = ZERO;
+  let ourTotal = ZERO;
   const rows: { cells: CellValue[]; matchType: string }[] = [];
   for (const line of r.lines) {
     const cp = line.competitorProduct;
     const sel = line.candidates.find((c) => c.id === line.selectedCandidateId) ?? line.candidates.find((c) => c.isSelected) ?? null;
     const others = line.candidates.filter((c) => c.id !== sel?.id && c.matchType !== "No Match").slice(0, 2);
     const notFound = !cp || cp.resolution === "not-found";
-    const compExt = cents(num(times(line.estCompetitorPrice, line.quantity)));
-    const ourExt = cents(num(times(sel?.unitPrice, line.quantity)));
-    compTotal += compExt ?? 0;
-    ourTotal += ourExt ?? 0;
+    const compExt = cents(times(line.estCompetitorPrice, line.quantity));
+    const ourExt = cents(times(sel?.unitPrice, line.quantity));
+    compTotal = compTotal.plus(compExt ?? 0);
+    ourTotal = ourTotal.plus(ourExt ?? 0);
     const matchType = sel ? sel.matchType : notFound ? "Competitor Product Not Found" : "No Match";
     rows.push({
       matchType,
@@ -233,18 +236,18 @@ function xrefRows(r: Loaded): { rows: { cells: CellValue[]; matchType: string }[
       ],
     });
   }
-  const total: CellValue[] = ["TOTAL", "", "", r.lines.reduce((a, l) => a + l.quantity, 0), "", cents(compTotal) || null, "", "", "", "", "", "", "", cents(ourTotal) || null, ""];
+  const total: CellValue[] = ["TOTAL", "", "", r.lines.reduce((a, l) => a + l.quantity, 0), "", compTotal.isZero() ? null : num(round(compTotal)), "", "", "", "", "", "", "", ourTotal.isZero() ? null : num(round(ourTotal)), ""];
   return { rows, total };
 }
 
 function offerRows(r: Loaded): { rows: CellValue[][]; total: number; notes: string[] } {
-  let total = 0;
+  let total = ZERO;
   const rows: CellValue[][] = [];
   for (const line of r.lines) {
     const sel = line.candidates.find((c) => c.id === line.selectedCandidateId) ?? line.candidates.find((c) => c.isSelected);
     if (!sel || sel.matchType === "No Match") continue;
-    const ext = cents(num(times(sel.unitPrice, line.quantity)));
-    total += ext ?? 0;
+    const ext = cents(times(sel.unitPrice, line.quantity));
+    total = total.plus(ext ?? 0);
     rows.push([line.rawCode, line.competitorProduct?.description ?? "", sel.ownProduct.sku, sel.ownProduct.description + (sel.additionalProducts ? ` (requires ${sel.additionalProducts})` : ""), line.quantity, num(sel.unitPrice), ext]);
   }
   const unmatched = r.lines.filter((l) => !l.candidates.some((c) => c.id === l.selectedCandidateId && c.matchType !== "No Match"));
@@ -253,11 +256,12 @@ function offerRows(r: Loaded): { rows: CellValue[][]; total: number; notes: stri
     unmatched.length ? `${unmatched.length} item(s) on your usage list were not included in this proposal (${unmatched.slice(0, 8).map((l) => l.rawCode).join(", ")}${unmatched.length > 8 ? ", …" : ""}). Your representative will follow up on these.` : "All items on your usage list are covered by this proposal.",
     "Prices are per unit in USD and exclude tax and freight unless otherwise agreed.",
   ];
-  return { rows, total: cents(total) ?? 0, notes };
+  return { rows, total: num(round(total)) ?? 0, notes };
 }
 
 /** CSV-friendly rows for the rep workbook (main sheet only). */
-export async function buildCrossReferenceRows(requestId: string): Promise<{ rows: CellValue[][]; filename: string }> {
+export async function buildCrossReferenceRows(requestId: string, _hide: Hide = {}): Promise<{ rows: CellValue[][]; filename: string }> {
+  // The main sheet carries no cost or margin columns; `_hide` is accepted for symmetry with the workbook.
   const r = await loadRequest(requestId);
   const x = xrefRows(r);
   return { rows: [xrefHeaders(r.company.name), ...x.rows.map((row) => row.cells), x.total], filename: `Crosswalk_XrefReport_${r.reference}_${stamp()}.xlsx` };

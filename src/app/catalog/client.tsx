@@ -86,7 +86,7 @@ function safeBin(json: string | null): Bin | null {
   try { return JSON.parse(json) as Bin; } catch { return null; }
 }
 
-export function CatalogActions() {
+export function CatalogActions({ canManage = true, canImportCost = true }: { canManage?: boolean; canImportCost?: boolean }) {
   const router = useRouter();
   const [panel, setPanel] = useState<null | "add" | "pricing" | "sizes" | "enrich">(null);
   const [skus, setSkus] = useState("");
@@ -123,7 +123,7 @@ export function CatalogActions() {
     if (url) fd.append("sheetUrl", url);
     const r = await fetch("/api/pricing/import", { method: "POST", body: fd }).then((r) => r.json());
     setBusy(false);
-    setResult(r.error ? r.error : `${r.updated} SKUs updated from ${r.rows} rows · pricebooks: ${r.pricebooks.join(", ") || "none"}${r.unknownSkus.length ? ` · ${r.unknownSkus.length} unknown SKUs skipped` : ""}`);
+    setResult(r.error ? r.error : `${r.updated} SKUs updated from ${r.rows} rows · pricebooks: ${r.pricebooks.join(", ") || "none"}${r.unknownSkus.length ? ` · ${r.unknownSkus.length} unknown SKUs skipped` : ""}${r.invalid?.length ? ` · ${r.invalid.length} unusable cells skipped (${r.invalid.slice(0, 3).join("; ")}${r.invalid.length > 3 ? "…" : ""})` : ""}`);
     router.refresh();
   }
   async function importSizes(f: File | null, url?: string) {
@@ -145,10 +145,10 @@ export function CatalogActions() {
     <div className="relative">
       <div className="flex items-center gap-2">
         <a className="btn-secondary" href="/catalog/gudid">GUDID library</a>
-        <button className="btn-secondary" onClick={() => setPanel(panel === "enrich" ? null : "enrich")}>Enrich from GUDID</button>
-        <button className="btn-secondary" onClick={() => setPanel(panel === "pricing" ? null : "pricing")}>Pricing</button>
-        <button className="btn-secondary" onClick={() => setPanel(panel === "sizes" ? null : "sizes")}>Competitor sizes</button>
-        <button className="btn-primary" onClick={() => setPanel(panel === "add" ? null : "add")}>Add SKUs</button>
+        {canManage && <button className="btn-secondary" onClick={() => setPanel(panel === "enrich" ? null : "enrich")}>Enrich from GUDID</button>}
+        {canImportCost && <button className="btn-secondary" onClick={() => setPanel(panel === "pricing" ? null : "pricing")}>Pricing</button>}
+        {canManage && <button className="btn-secondary" onClick={() => setPanel(panel === "sizes" ? null : "sizes")}>Competitor sizes</button>}
+        {canManage && <button className="btn-primary" onClick={() => setPanel(panel === "add" ? null : "add")}>Add SKUs</button>}
       </div>
       {panel && (
         <div className="absolute right-0 top-12 z-20 w-[440px] card p-5" style={{ boxShadow: "var(--shadow-lg)" }}>

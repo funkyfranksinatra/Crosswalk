@@ -1,8 +1,11 @@
 import { getCompany } from "@/lib/settings";
 import { pricingTemplate, pricingTemplateRows } from "@/lib/excel/pricing";
 import { toCsv } from "@/lib/sheets/csv";
+import { authorize } from "@/lib/api";
 
 export async function GET(req: Request) {
+  const { deny } = await authorize("import_cost_data");
+  if (deny) return deny;
   const company = await getCompany();
   const format = new URL(req.url).searchParams.get("format") ?? "xlsx";
   if (format === "csv") {

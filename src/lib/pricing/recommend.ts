@@ -48,6 +48,8 @@ export type Recommendation = {
   belowFloor: boolean;
   confidence: number;
   explanation: string;
+  /** the same reasoning without margin or floor figures — what roles without view_cost/view_margin see */
+  explanationPublic: string;
   policyId: string;
   policyVersion: number;
 };
@@ -171,15 +173,21 @@ export function recommend(input: RecommendInput): Recommendation {
   }
 
   const econ = economicsAt(price, input, floor);
+  // Two explanations: the full one (margin, floor distance) for roles that may see cost and margin,
+  // and a public one that says everything except those figures. Redaction picks the right one.
+  const discountText = (econ.discountFromListPct ? `, ${econ.discountFromListPct.times(100).toFixed(1)}% off list` : "") +
+    (input.contractPrice && econ.discountFromContractPct ? `, ${econ.discountFromContractPct.times(100).toFixed(1)}% below the current ${input.contractSource ?? "contract"} price` : "");
+  const authorityText = `. ${econ.requiredAuthority ? `Needs ${econ.requiredAuthority.replace(/_/g, " ").toLowerCase()} approval (${econ.approvalReasons.join("; ")}).` : "Within sales-rep authority."}` +
+    (input.competitorBasis === "WEAK" ? " Competitor price intelligence is weak — verify before quoting." : "");
   const explanation = price === null
     ? `No recommendation: ${notes.join("; ")}.`
     : `Recommend ${fmt(price)}: ${notes.join("; ")}. ` +
       (econ.marginPct ? `Gross margin ${econ.marginPct.times(100).toFixed(1)}% (${fmt(econ.marginAmount)}/unit)` : "Margin unknown (no cost on file)") +
       (floor ? `, ${price.gte(floor) ? `${fmt(price.minus(floor))} above` : `${fmt(floor.minus(price))} BELOW`} the ${p.productFamily === "*" ? "default" : p.productFamily} floor ${fmt(floor)}` : "") +
-      (econ.discountFromListPct ? `, ${econ.discountFromListPct.times(100).toFixed(1)}% off list` : "") +
-      (input.contractPrice && econ.discountFromContractPct ? `, ${econ.discountFromContractPct.times(100).toFixed(1)}% below the current ${input.contractSource ?? "contract"} price` : "") +
-      `. ${econ.requiredAuthority ? `Needs ${econ.requiredAuthority.replace(/_/g, " ").toLowerCase()} approval (${econ.approvalReasons.join("; ")}).` : "Within sales-rep authority."}` +
-      (input.competitorBasis === "WEAK" ? " Competitor price intelligence is weak — verify before quoting." : "");
+      discountText + authorityText;
+  const explanationPublic = price === null
+    ? `No recommendation: ${notes.join("; ")}.`
+    : `Recommend ${fmt(price)}: ${notes.join("; ")}${floor && price.lt(floor) ? ". Below the pricing floor" : ""}${discountText.replace(/^, /, ". ")}` + authorityText;
 
   const confidence = price === null ? 0 : Math.min(1, 0.35 + (input.cost ? 0.2 : 0) + (compUsable ? 0.25 * input.competitorConfidence + 0.1 : 0) + (input.contractPrice ? 0.1 : 0));
 
@@ -199,6 +207,7 @@ export function recommend(input: RecommendInput): Recommendation {
     belowFloor: econ.belowFloor,
     confidence,
     explanation,
+    explanationPublic,
     policyId: p.id,
     policyVersion: p.version,
   };

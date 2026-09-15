@@ -40,8 +40,9 @@ export function proposalStatusFrom(requests: { status: string }[]): "APPROVED" |
 }
 
 /** May this proposal be finalised (exported as a quote / pushed to CRM)? */
-export function canFinalize(p: { status: string; lines: { included: boolean; approvalState: string; proposedPrice: Money | null }[] }): { ok: boolean; reason: string } {
+export function canFinalize(p: { status: string; validThrough?: Date | null; asOf?: Date; lines: { included: boolean; approvalState: string; proposedPrice: Money | null }[] }): { ok: boolean; reason: string } {
   const inc = p.lines.filter((l) => l.included);
+  if (p.validThrough && (p.asOf ?? new Date()) > p.validThrough && p.status !== "WON") return { ok: false, reason: `proposal expired on ${p.validThrough.toISOString().slice(0, 10)}; create a new version` };
   if (!inc.length) return { ok: false, reason: "no lines included" };
   if (inc.some((l) => l.proposedPrice === null)) return { ok: false, reason: `${inc.filter((l) => l.proposedPrice === null).length} included line(s) have no proposed price` };
   const unresolved = inc.filter((l) => l.approvalState === "REQUIRED" || l.approvalState === "PENDING" || l.approvalState === "REJECTED");

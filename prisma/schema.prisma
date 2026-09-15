@@ -742,9 +742,9 @@ model ProposalLine {
   policyId                  String?
   proposedPrice             Decimal?          @db.Decimal(18, 4)
   marginAmount              Decimal?          @db.Decimal(18, 4)
-  marginPct                 Decimal?          @db.Decimal(9, 6)
-  discountFromListPct       Decimal?          @db.Decimal(9, 6)
-  discountFromContractPct   Decimal?          @db.Decimal(9, 6)
+  marginPct                 Decimal?          @db.Decimal(12, 6)
+  discountFromListPct       Decimal?          @db.Decimal(12, 6)
+  discountFromContractPct   Decimal?          @db.Decimal(12, 6)
   requiredAuthority         String? // role
   approvalState             String            @default("NOT_REQUIRED") // NOT_REQUIRED | REQUIRED | PENDING | APPROVED | REJECTED
   justification             String? // premium / clinical justification
@@ -901,6 +901,7 @@ model PurchaseRecord {
   createdAt   DateTime    @default(now())
 
   @@index([accountId, invoiceDate])
+  @@index([accountId, externalId])
   @@index([contractId])
 }
 

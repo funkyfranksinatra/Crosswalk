@@ -2,15 +2,28 @@ import { prisma } from "@/lib/db";
 import { handle, body } from "@/lib/api";
 import { money } from "@/lib/money";
 import { scenarioEconomics, setScenarioPrice } from "@/lib/proposals/service";
+async function scoped(id: string, sid: string) {
+  const s = await prisma.scenario.findFirst({ where: { id: sid, proposalId: id }, select: { id: true } });
+  if (!s) throw new Error("scenario not found on this proposal");
+}
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string; sid: string }> }) {
-  const { sid } = await params;
-  return handle("view_pricing", async () => scenarioEconomics(sid));
+  const { id, sid } = await params;
+  return handle("view_pricing", async () => { await scoped(id, sid); return scenarioEconomics(sid); });
 }
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string; sid: string }> }) {
-  const { sid } = await params;
-  return handle("edit_proposed_pricing", async (actor) => { const b = await body<{ lineId: string; proposedPrice?: string | number | null; included?: boolean }>(req); await setScenarioPrice(actor, sid, b.lineId, b.proposedPrice == null || b.proposedPrice === "" ? null : money(b.proposedPrice as never), b.included); return scenarioEconomics(sid); });
+  const { id, sid } = await params;
+  return handle("edit_proposed_pricing", async (actor) => {
+    await scoped(id, sid);
+    const b = await body<{ lineId: string; proposedPrice?: string | number | null; included?: boolean }>(req);
+    const clear = b.proposedPrice == null || b.proposedPrice === "";
+    const price = clear ? null : money(b.proposedPrice as never);
+    if (!clear && price === null) throw new Error("proposedPrice is not a number");
+    if (price !== null && price.lte(0)) throw new Error("price must be positive");
+    await setScenarioPrice(actor, sid, b.lineId, price, b.included);
+    return scenarioEconomics(sid);
+  });
 }
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string; sid: string }> }) {
-  const { sid } = await params;
-  return handle("edit_proposed_pricing", async () => { await prisma.scenario.delete({ where: { id: sid } }); });
+  const { id, sid } = await params;
+  return handle("edit_proposed_pricing", async () => { await scoped(id, sid); await prisma.scenario.delete({ where: { id: sid } }); });
 }

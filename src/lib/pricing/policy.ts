@@ -4,7 +4,7 @@
  */
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { DEFAULT_POLICY, toPolicy, type Policy, type PolicyInput } from "./policy-model";
+import { DEFAULT_POLICY, toPolicy, PolicyInputSchema, policyProblems, type Policy, type PolicyInput } from "./policy-model";
 
 export * from "./policy-model";
 
@@ -21,10 +21,15 @@ export function policyFor(policies: Map<string, Policy>, family: string | null |
 }
 
 /** Create a new DRAFT version for a family (next version number). */
-export async function draftPolicy(actorUserId: string | null, input: PolicyInput) {
+export async function draftPolicy(actorUserId: string | null, raw: PolicyInput) {
+  const parsed = PolicyInputSchema.safeParse(raw);
+  if (!parsed.success) throw new Error(`Invalid policy: ${parsed.error.issues.map((i) => `${i.path.join(".") || "input"} ${i.message}`).join("; ")}`);
+  const input = parsed.data as PolicyInput;
   const last = await prisma.pricingPolicy.findFirst({ where: { productFamily: input.productFamily }, orderBy: { version: "desc" } });
   const base = last ? toPolicy(last) : { ...DEFAULT_POLICY };
-  const merged = { ...base, ...input };
+  const merged = { ...base, ...Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined)) } as Policy;
+  const problems = policyProblems(merged);
+  if (problems.length) throw new Error(`Invalid policy: ${problems.join("; ")}`);
   const row = await prisma.pricingPolicy.create({
     data: {
       productFamily: input.productFamily,

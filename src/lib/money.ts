@@ -120,6 +120,18 @@ export function toDb(v: MoneyLike): string | null {
   return d === null ? null : d.toFixed(4);
 }
 
+/**
+ * Percent / fraction columns are Decimal(12,6). A $0.01 price against a $300 cost is a −2,999,900 %
+ * margin — meaningful only as "catastrophic"; anything beyond ±999,999 is stored clamped so the
+ * write never fails after the price was accepted. Amounts are never clamped.
+ */
+export function toDbPct(v: MoneyLike): string | null {
+  const d = money(v);
+  if (d === null) return null;
+  const lim = new Decimal("999999");
+  return (d.gt(lim) ? lim : d.lt(lim.neg()) ? lim.neg() : d).toFixed(6);
+}
+
 /** JSON-safe representation (string) for API responses. */
 export function toJson(v: MoneyLike): string | null {
   const d = money(v);

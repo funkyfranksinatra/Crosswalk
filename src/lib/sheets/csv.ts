@@ -29,7 +29,9 @@ export function parseCsv(text: string): string[][] {
 export function toCsv(rows: (string | number | null | undefined)[][]): string {
   const esc = (v: string | number | null | undefined) => {
     if (v == null) return "";
-    const t = String(v);
+    // Formula injection: a *string* that a spreadsheet would evaluate (=, +, -, @, tab, CR) is
+    // prefixed with an apostrophe so it stays text. Numbers are written as numbers.
+    const t = typeof v === "string" && /^[=+\-@\t\r]/.test(v) && !/^[+-]?\d+(\.\d+)?$/.test(v) ? `'${v}` : String(v);
     return /[",\r\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   };
   return "﻿" + rows.map((r) => r.map(esc).join(",")).join("\r\n") + "\r\n";

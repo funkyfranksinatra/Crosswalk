@@ -35,7 +35,10 @@ npm run setup                 # install, generate Prisma client, migrate, seed c
 npm run dev                   # http://localhost:3000
 ```
 
-`DATABASE_ADAPTER` stays `pg` on a normal machine. Set it to `neon-ws` only in
+`DATABASE_ADAPTER` stays `pg` on a normal machine. A **production build** (`npm run
+build && npm start`) refuses the development sign-in unless `ALLOW_DEV_SIGNIN=true`
+is set (demo boxes only) or SSO is configured, and wants a `SESSION_SECRET`; `npm
+run dev` needs neither. Set it to `neon-ws` only in
 an HTTPS-only environment (cloud sandboxes) — see `.env.example`. With no SSO
 configured the sidebar shows a labelled **development sign-in** with the
 seeded users (`alex.rep`, `maria.manager`, `sam.contracting`, `dana.director`,

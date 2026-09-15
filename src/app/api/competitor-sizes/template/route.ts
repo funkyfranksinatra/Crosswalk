@@ -1,7 +1,10 @@
 import { competitorSizesTemplate, competitorSizesTemplateRows } from "@/lib/excel/sizes";
 import { toCsv } from "@/lib/sheets/csv";
+import { authorize } from "@/lib/api";
 
 export async function GET(req: Request) {
+  const { deny } = await authorize("manage_catalog");
+  if (deny) return deny;
   const format = new URL(req.url).searchParams.get("format") ?? "xlsx";
   if (format === "csv") {
     const { rows } = await competitorSizesTemplateRows();

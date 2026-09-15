@@ -54,7 +54,9 @@ export function ProposalWorkspace({ id }: { id: string }) {
     try {
       const r = await fetch(path, { headers: { "content-type": "application/json" }, ...init });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) { setErr(j.error ?? "Request failed"); return null; }
+      // On a refusal (locked by someone else, request voided, conflict) reload too, so the screen
+      // shows the state the server actually has rather than the one the user was editing.
+      if (!r.ok) { setErr(j.error ?? "Request failed"); await load(); return null; }
       setErr(null); await load(); return j;
     } finally { setBusy(false); }
   }

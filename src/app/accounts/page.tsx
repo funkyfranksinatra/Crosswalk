@@ -2,8 +2,11 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PageHeader, Card, Empty } from "@/components/ui";
 import { Pill } from "@/components/commercial";
+import { getActor, can } from "@/lib/auth";
 
 export default async function AccountsPage() {
+  const actor = await getActor();
+  if (!can(actor, "view_pricing")) return <Empty title="Accounts are visible to commercial roles">Your role has no pricing visibility.</Empty>;
   const accounts = await prisma.account.findMany({ orderBy: { name: "asc" }, include: { parent: true, memberships: { include: { gpo: true } }, _count: { select: { contracts: true, proposals: true, purchases: true } } } });
   const now = new Date();
   return (

@@ -38,7 +38,19 @@ export async function approvedCross(competitorCode: string, versionId?: string |
 export async function setReview(actorUserId: string, id: string, patch: { approvalStatus?: string; clinicalReviewStatus?: string; marketingReviewStatus?: string; equivalenceLevel?: string; approvedUsage?: string | null; justification?: string | null; effectiveFrom?: Date | null; effectiveTo?: Date | null }) {
   const before = await prisma.knownCross.findUnique({ where: { id } });
   if (!before) throw new Error("cross not found");
+  const STATUS = ["DRAFT", "IN_REVIEW", "APPROVED", "REJECTED", "RETIRED"], REVIEW = ["PENDING", "APPROVED", "REJECTED", "NOT_REQUIRED"], EQUIV = ["EXACT", "FUNCTIONAL", "CLOSEST_ALTERNATIVE", "PREMIUM_ALTERNATIVE", "PARTIAL_SUBSTITUTE", "NONE"];
+  if (patch.approvalStatus !== undefined && !STATUS.includes(patch.approvalStatus)) throw new Error(`approvalStatus must be one of ${STATUS.join(", ")}`);
+  if (patch.clinicalReviewStatus !== undefined && !REVIEW.includes(patch.clinicalReviewStatus)) throw new Error(`clinicalReviewStatus must be one of ${REVIEW.join(", ")}`);
+  if (patch.marketingReviewStatus !== undefined && !REVIEW.includes(patch.marketingReviewStatus)) throw new Error(`marketingReviewStatus must be one of ${REVIEW.join(", ")}`);
+  if (patch.equivalenceLevel !== undefined && !EQUIV.includes(patch.equivalenceLevel)) throw new Error(`equivalenceLevel must be one of ${EQUIV.join(", ")}`);
+  if (patch.effectiveFrom && patch.effectiveTo && patch.effectiveTo <= patch.effectiveFrom) throw new Error("effectiveTo must be after effectiveFrom");
   const approving = patch.approvalStatus === "APPROVED" && before.approvalStatus !== "APPROVED";
+  if (approving) {
+    // Approval requires both reviews (docs/BUSINESS_RULES.md); an "Alternative" must never be published as an equivalent on one signature.
+    const clinical = patch.clinicalReviewStatus ?? before.clinicalReviewStatus, marketing = patch.marketingReviewStatus ?? before.marketingReviewStatus;
+    if (!["APPROVED", "NOT_REQUIRED"].includes(clinical) || !["APPROVED", "NOT_REQUIRED"].includes(marketing)) throw new Error(`cannot approve: clinical review is ${clinical}, marketing review is ${marketing}; both must be APPROVED`);
+    if ((patch.equivalenceLevel ?? before.equivalenceLevel) === "NONE" || !(patch.equivalenceLevel ?? before.equivalenceLevel)) throw new Error("cannot approve a cross with no equivalence level");
+  }
   const row = await prisma.knownCross.update({ where: { id }, data: { ...patch, reviewerUserId: actorUserId, ...(approving ? { approvedByUserId: actorUserId, approvedAt: new Date() } : {}), version: { increment: 1 } } });
   await audit({ actorUserId, entityType: "KnownCross", entityId: id, action: approving ? "APPROVED" : "REVIEWED", before: { approvalStatus: before.approvalStatus, clinical: before.clinicalReviewStatus, marketing: before.marketingReviewStatus, equivalence: before.equivalenceLevel }, after: patch });
   return row;
@@ -70,6 +82,12 @@ export async function retireVersion(actorUserId: string | null, id: string) {
 
 /** A rep-sourced cross (from a proposal / request decision): enters as DRAFT, never auto-approved. */
 export async function proposeCross(actorUserId: string | null, input: { ownSku: string; competitorName: string; competitorCode: string; matchType: string; competitorDescription?: string | null; ownDescription?: string | null; category?: string | null; accountId?: string | null; justification?: string | null }) {
+  if (typeof input.ownSku !== "string" || !input.ownSku.trim() || typeof input.competitorCode !== "string" || !input.competitorCode.trim() || typeof input.competitorName !== "string" || !input.competitorName.trim()) throw new Error("ownSku, competitorName and competitorCode are required");
+  const MATCH_TYPES = ["Exact Match", "Close Match", "Alternative Match", "US Downsell Match", "No Match"];
+  if (!MATCH_TYPES.includes(input.matchType)) throw new Error(`matchType must be one of ${MATCH_TYPES.join(", ")}`);
+  if ((input.justification ?? "").length > 4000) throw new Error("justification is too long");
+  const own = await prisma.ownProduct.findFirst({ where: { sku: input.ownSku.trim().toUpperCase() }, select: { id: true } });
+  if (!own) throw new Error(`${input.ownSku} is not in our catalog`);
   const norm = normalizeCfn(input.competitorCode);
   const row = await prisma.knownCross.upsert({
     where: { ownSku_competitorCodeNorm_source: { ownSku: input.ownSku.toUpperCase(), competitorCodeNorm: norm, source: "rep" } },

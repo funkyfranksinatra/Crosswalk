@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { handle, body, date, str, num } from "@/lib/api";
+import { handle, body, date, str, num, requireText, optText, positiveMoney, currencyCode } from "@/lib/api";
 import { recordObservation, summaryFor, SOURCE_TYPES } from "@/lib/intelligence";
 import { compactCfn, normalizeCfn } from "@/lib/cfn";
 
@@ -23,6 +23,13 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   return handle("import_competitor_pricing", async (actor) => {
     const b = await body<Record<string, unknown>>(req);
-    return recordObservation(actor.id, { competitorName: String(b.competitorName), competitorSku: String(b.competitorSku), price: b.price, currency: str(b.currency) ?? "USD", uom: str(b.uom) ?? "EA", accountId: str(b.accountId), gpoId: str(b.gpoId), region: str(b.region), observedAt: date(b.observedAt) ?? new Date(), sourceType: String(b.sourceType ?? "REP_OBSERVED"), sourceRef: str(b.sourceRef), rawConfidence: num(b.rawConfidence), notes: str(b.notes) });
+    const competitorName = requireText(b.competitorName, "competitorName", 120), competitorSku = requireText(b.competitorSku, "competitorSku", 80);
+    const observedAt = b.observedAt ? date(b.observedAt) : new Date();
+    if (!observedAt) throw new Error("observedAt is not a date");
+    if (observedAt.getTime() > Date.now() + 86_400_000) throw new Error("observedAt is in the future");
+    const rawConfidence = num(b.rawConfidence);
+    if (rawConfidence !== null && (rawConfidence < 0 || rawConfidence > 1)) throw new Error("rawConfidence must be between 0 and 1");
+    if (str(b.accountId) && !(await prisma.account.findUnique({ where: { id: String(b.accountId) }, select: { id: true } }))) throw new Error("unknown accountId");
+    return recordObservation(actor.id, { competitorName, competitorSku, price: positiveMoney(b.price, "price"), currency: currencyCode(b.currency), uom: (optText(b.uom, "uom", 10) ?? "EA").toUpperCase(), accountId: str(b.accountId), gpoId: str(b.gpoId), region: optText(b.region, "region", 80), observedAt, sourceType: String(b.sourceType ?? "REP_OBSERVED"), sourceRef: optText(b.sourceRef, "sourceRef", 500), rawConfidence, notes: optText(b.notes, "notes", 4000) });
   });
 }

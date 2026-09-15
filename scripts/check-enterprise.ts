@@ -242,6 +242,10 @@ test("approval: required role vs actor roles; proposal status derives from reque
   assert.equal(proposalStatusFrom([]), "APPROVED");
   assert.equal(canFinalize({ status: "APPROVED", lines: [{ included: true, approvalState: "APPROVED", proposedPrice: d(1) }] }).ok, true);
   assert.equal(canFinalize({ status: "SUBMITTED", lines: [{ included: true, approvalState: "PENDING", proposedPrice: d(1) }] }).ok, false);
+  // An approved quote past its valid-through date cannot be exported, pushed or won; a WON deal is history and stays finalisable.
+  assert.match(canFinalize({ status: "APPROVED", validThrough: new Date("2026-01-01"), asOf: new Date("2026-02-01"), lines: [{ included: true, approvalState: "APPROVED", proposedPrice: d(1) }] }).reason, /expired/);
+  assert.equal(canFinalize({ status: "WON", validThrough: new Date("2026-01-01"), asOf: new Date("2026-02-01"), lines: [{ included: true, approvalState: "APPROVED", proposedPrice: d(1) }] }).ok, true);
+  assert.equal(canFinalize({ status: "APPROVED", validThrough: new Date("2026-03-01"), asOf: new Date("2026-02-01"), lines: [{ included: true, approvalState: "APPROVED", proposedPrice: d(1) }] }).ok, true);
   assert.equal(canFinalize({ status: "DRAFT", lines: [{ included: true, approvalState: "NOT_REQUIRED", proposedPrice: null }] }).ok, false);
 });
 
