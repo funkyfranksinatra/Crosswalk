@@ -10,6 +10,8 @@ export async function POST(req: Request) {
   const file = form.get("file");
   const sheetUrl = String(form.get("sheetUrl") ?? "");
   const csvText = String(form.get("csvText") ?? "");
+  if (file instanceof File && file.size > 20 * 1024 * 1024) return NextResponse.json({ error: "File is larger than 20 MB" }, { status: 400 });
+  if (csvText.length > 5 * 1024 * 1024) return NextResponse.json({ error: "Pasted text is larger than 5 MB" }, { status: 400 });
   const csvName = String(form.get("csvName") ?? "");
   try {
     const intake = await parseIntakeAny({ file: file instanceof File ? file : null, sheetUrl, csvText, csvName });

@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
 import { normalizeCfn } from "@/lib/cfn";
 import { num } from "@/lib/money";
 
-export type PricingImportResult = { updated: number; unknownSkus: string[]; pricebooks: string[]; rows: number };
+export type PricingImportResult = { updated: number; unknownSkus: string[]; invalid: string[]; pricebooks: string[]; rows: number };
 
 export async function importPricing(buffer: Buffer, companyId: string): Promise<PricingImportResult> {
   const wb = new ExcelJS.Workbook();
@@ -54,6 +54,7 @@ export async function importPricingRows(grid: (string | number | null | undefine
 
   let updated = 0;
   const unknown: string[] = [];
+  const invalid: string[] = [];
   let rows = 0;
   for (let r = 1; r < grid.length; r++) {
     const sku = normalizeCfn(cellAt(r, cols.sku));
@@ -61,14 +62,17 @@ export async function importPricingRows(grid: (string | number | null | undefine
     rows++;
     const id = bySku.get(sku);
     if (!id) { unknown.push(sku); continue; }
-    const num = (c?: number) => {
+    // A price or cost that is not a non-negative number is skipped for that cell and reported, never written.
+    const num = (c?: number, what = "value") => {
       if (!c) return undefined;
       const v = cellAt(r, c);
-      const n = typeof v === "number" ? v : Number(String(v ?? "").replace(/[$,\s]/g, ""));
-      return Number.isFinite(n) && String(v ?? "") !== "" ? n : undefined;
+      if (v === null || v === undefined || String(v).trim() === "") return undefined;
+      const n = typeof v === "number" ? v : Number(String(v).replace(/[$,\s]/g, ""));
+      if (!Number.isFinite(n) || n < 0 || n > 1e9) { invalid.push(`row ${r + 1} ${sku}: ${what} "${String(v)}" is not a usable number`); return undefined; }
+      return n;
     };
-    const listPrice = num(cols.list);
-    const cogs = num(cols.cogs);
+    const listPrice = num(cols.list, "list price");
+    const cogs = num(cols.cogs, "COGS");
     await prisma.ownProduct.update({ where: { id }, data: { ...(listPrice !== undefined ? { listPrice } : {}), ...(cogs !== undefined ? { cogs } : {}) } });
     for (const pb of pricebookCols) {
       const price = num(pb.col);
@@ -80,7 +84,7 @@ export async function importPricingRows(grid: (string | number | null | undefine
     }
     updated++;
   }
-  return { updated, unknownSkus: unknown, pricebooks: [...pricebooks.keys()], rows };
+  return { updated, unknownSkus: unknown, invalid, pricebooks: [...pricebooks.keys()], rows };
 }
 
 export async function pricingTemplateRows(companyId: string): Promise<(string | number | null)[][]> {

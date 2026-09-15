@@ -14,7 +14,7 @@ export function ApprovalQueue() {
   useEffect(() => { load(); }, [load]);
   async function decide(id: string, decision: string) {
     const r = await fetch(`/api/approvals/${id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision, comments: comments[id] ?? "" }) });
-    const j = await r.json(); if (!r.ok) setErr(j.error); else { setErr(null); load(); }
+    const j = await r.json(); if (!r.ok) { setErr(j.error); load(); } else { setErr(null); load(); }
   }
   return (
     <>

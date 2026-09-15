@@ -2,26 +2,29 @@ import { NextResponse } from "next/server";
 import { importCompetitorSizes, importCompetitorSizesRows } from "@/lib/excel/sizes";
 import { fetchSheetRows, parseSheetLink, SheetAccessError } from "@/lib/sheets/google";
 import { authorize } from "@/lib/api";
+import { audit } from "@/lib/audit";
 
 export async function POST(req: Request) {
-  const { deny } = await authorize("manage_catalog");
+  const { actor, deny } = await authorize("manage_catalog");
   if (deny) return deny;
   const form = await req.formData();
+  const done = async (r: { upserted?: number; rows?: number }) => { await audit({ actorUserId: actor.id, entityType: "CompetitorSpec", entityId: "import", action: "IMPORTED", after: { upserted: r.upserted ?? null, rows: r.rows ?? null } }); return NextResponse.json(r); };
   const file = form.get("file");
   const sheetUrl = String(form.get("sheetUrl") ?? "").trim();
+  if (file instanceof File && file.size > 20 * 1024 * 1024) return NextResponse.json({ error: "File is larger than 20 MB" }, { status: 400 });
   try {
     if (sheetUrl) {
       const ref = parseSheetLink(sheetUrl);
       if (!ref) return NextResponse.json({ error: "That doesn't look like a Google Sheets link" }, { status: 400 });
       const { rows } = await fetchSheetRows(ref);
-      return NextResponse.json(await importCompetitorSizesRows(rows));
+      return done(await importCompetitorSizesRows(rows));
     }
     if (!(file instanceof File)) return NextResponse.json({ error: "Attach a file or paste a Google Sheets link" }, { status: 400 });
     if (/\.csv$/i.test(file.name)) {
       const { parseCsv } = await import("@/lib/sheets/csv");
-      return NextResponse.json(await importCompetitorSizesRows(parseCsv(await file.text())));
+      return done(await importCompetitorSizesRows(parseCsv(await file.text())));
     }
-    return NextResponse.json(await importCompetitorSizes(Buffer.from(await file.arrayBuffer())));
+    return done(await importCompetitorSizes(Buffer.from(await file.arrayBuffer())));
   } catch (e) {
     if (e instanceof SheetAccessError) return NextResponse.json({ error: `${e.message} ${e.hint}` }, { status: 400 });
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 400 });

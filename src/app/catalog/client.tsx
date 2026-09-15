@@ -123,7 +123,7 @@ export function CatalogActions({ canManage = true, canImportCost = true }: { can
     if (url) fd.append("sheetUrl", url);
     const r = await fetch("/api/pricing/import", { method: "POST", body: fd }).then((r) => r.json());
     setBusy(false);
-    setResult(r.error ? r.error : `${r.updated} SKUs updated from ${r.rows} rows · pricebooks: ${r.pricebooks.join(", ") || "none"}${r.unknownSkus.length ? ` · ${r.unknownSkus.length} unknown SKUs skipped` : ""}`);
+    setResult(r.error ? r.error : `${r.updated} SKUs updated from ${r.rows} rows · pricebooks: ${r.pricebooks.join(", ") || "none"}${r.unknownSkus.length ? ` · ${r.unknownSkus.length} unknown SKUs skipped` : ""}${r.invalid?.length ? ` · ${r.invalid.length} unusable cells skipped (${r.invalid.slice(0, 3).join("; ")}${r.invalid.length > 3 ? "…" : ""})` : ""}`);
     router.refresh();
   }
   async function importSizes(f: File | null, url?: string) {

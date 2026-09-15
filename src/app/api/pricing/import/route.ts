@@ -11,6 +11,7 @@ export async function POST(req: Request) {
   const form = await req.formData();
   const file = form.get("file");
   const sheetUrl = String(form.get("sheetUrl") ?? "").trim();
+  if (file instanceof File && file.size > 20 * 1024 * 1024) return NextResponse.json({ error: "File is larger than 20 MB" }, { status: 400 });
   const company = await getCompany();
   try {
     if (sheetUrl) {
