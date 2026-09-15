@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Chip, Empty, relTime } from "@/components/ui";
 
@@ -272,8 +272,8 @@ export function ImportHistory({ imports, canManage }: { imports: ImportRow[]; ca
             const active = i.status === "RUNNING" || i.status === "QUEUED";
             const isOpen = open === i.id;
             return (
-              <>
-                <tr key={i.id} className={`cursor-pointer ${isOpen ? "bg-panel-2" : ""}`} onClick={() => setOpen(isOpen ? null : i.id)}>
+              <Fragment key={i.id}>
+                <tr className={`cursor-pointer ${isOpen ? "bg-panel-2" : ""}`} onClick={() => setOpen(isOpen ? null : i.id)}>
                   <td className="font-medium">{i.query}</td>
                   <td className="text-ink-2">{i.kind === "OWN" ? "Our products" : "Competitor"}</td>
                   <td><Chip tone={i.status === "DONE" ? "exact" : i.status === "FAILED" ? "alt" : active ? "info" : "none"}>{i.status.toLowerCase()}</Chip></td>
@@ -285,12 +285,12 @@ export function ImportHistory({ imports, canManage }: { imports: ImportRow[]; ca
                   <td className="text-right" onClick={(e) => e.stopPropagation()}>{active && canManage && <button className="btn-ghost btn-sm" onClick={() => cancel(i.id)}>Cancel</button>}</td>
                 </tr>
                 {isOpen && (
-                  <tr key={`${i.id}-log`} className="bg-panel-2"><td colSpan={9} className="!py-3">
+                  <tr className="bg-panel-2"><td colSpan={9} className="!py-3">
                     {i.error && <div className="text-alt text-[12.5px] mb-2">{i.error}</div>}
                     <pre className="mono text-[11px] text-muted whitespace-pre-wrap max-h-48 overflow-auto">{i.log.trim() || "(no log yet)"}</pre>
                   </td></tr>
                 )}
-              </>
+              </Fragment>
             );
           })}
         </tbody>
