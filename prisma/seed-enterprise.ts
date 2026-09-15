@@ -119,8 +119,17 @@ async function demoData() {
 
   // Products we price in the demo
   const skus = ["PPM1106X3", "PPM1510X3", "PPM4530", "PPDS12", "PPDS15", "PPDS1510", "PPDS2015", "PCO9X", "PCO2015X", "PCO2520X", "ABSTACK30X", "174006", "SIG60AMT", "SIG45AMT", "EGIA60AMT", "ONB12STF", "ONB5STF"];
-  // SKUs the demo prices that the curated sheets don't carry (they are auto-added by identity matches at run time otherwise).
-  const ensure: Record<string, [string, string]> = { PCO9X: ["Parietex — Optimized Composite Mesh, Skirted Polyester Mesh with Absorbable Collagen Film, 9 cm", "Hernia Mesh"], PCO2015X: ["Parietex — Optimized Composite Mesh, Skirted, 20 x 15 cm", "Hernia Mesh"], PCO2520X: ["Parietex — Optimized Composite Mesh, Polyester with Absorbable Collagen Film, 25 x 20 cm", "Hernia Mesh"], "174006": ["ProTack — Fixation Device", "Fixation"], ABSTACK30X: ["AbsorbaTack™ Fixation Device, 5 mm, single use, 30 tacks", "Fixation"] };
+  // Every SKU the demo prices is ensured to exist: the curated sheets carry most of them, but the demo
+  // must stand on its own where they are absent (CI, a fresh clone, a customer deployment before its
+  // catalog is loaded). Descriptions here are only a fallback — `create` never overwrites a real row.
+  const ensure: Record<string, [string, string]> = {
+    PPM1106X3: ["Parietene™ Macroporous Mesh 11 x 6 cm", "Synthetic Mesh"], PPM1510X3: ["Parietene™ Macroporous Mesh 15 x 10 cm", "Synthetic Mesh"], PPM4530: ["Parietene™ Macroporous Mesh 45 x 30 cm", "Synthetic Mesh"],
+    PPDS12: ["Mesh Parietene DS Round 12 cm x 1", "Synthetic Mesh"], PPDS15: ["Mesh Parietene DS Round 15 cm x 1", "Synthetic Mesh"], PPDS1510: ["Mesh Parietene DS 15 x 10 cm x 1", "Synthetic Mesh"], PPDS2015: ["Mesh Parietene DS 20 x 15 cm x 1", "Synthetic Mesh"],
+    PCO9X: ["Parietex — Optimized Composite Mesh, Skirted Polyester Mesh with Absorbable Collagen Film, 9 cm", "Hernia Mesh"], PCO2015X: ["Parietex — Optimized Composite Mesh, Skirted, 20 x 15 cm", "Hernia Mesh"], PCO2520X: ["Parietex — Optimized Composite Mesh, Polyester with Absorbable Collagen Film, 25 x 20 cm", "Hernia Mesh"],
+    "174006": ["ProTack — Fixation Device", "Fixation"], ABSTACK30X: ["AbsorbaTack™ Fixation Device, 5 mm, single use, 30 tacks", "Fixation"],
+    SIG60AMT: ["Signia™ 60 mm Articulating Medium/Thick Reload with Tri-Staple™ Technology", "Surgical Stapling Products"], SIG45AMT: ["Signia™ 45 mm Articulating Medium/Thick Reload with Tri-Staple™ Technology", "Surgical Stapling Products"], EGIA60AMT: ["Endo GIA™ 60 mm Articulating Medium/Thick SULU with Tri-Staple Technology", "Surgical Stapling Products"],
+    ONB12STF: ["VersaOne™ Optical Trocar with Fixation Cannula; 12 mm x 100 mm", "Trocar Products"], ONB5STF: ["VersaOne™ Optical Trocar with Fixation Cannula; 5 mm x 100 mm", "Trocar Products"],
+  };
   for (const [sku, [description, category]] of Object.entries(ensure)) await prisma.ownProduct.upsert({ where: { companyId_sku: { companyId: company.id, sku } }, create: { companyId: company.id, sku, description, category }, update: {} });
   const products = await prisma.ownProduct.findMany({ where: { companyId: company.id, sku: { in: skus } }, include: { costs: true } });
   const bySku = new Map(products.map((p) => [p.sku, p]));
@@ -155,14 +164,18 @@ async function demoData() {
   }
   if (!(await prisma.priceEntry.count({ where: { contractId: local.id } }))) {
     for (const [sku, price] of [["PPM1510X3", "72.50"], ["PPDS2015", "798.00"]]) {
-      const p = bySku.get(sku)!;
+      const p = bySku.get(sku);
+      if (!p) { console.warn(`Demo: ${sku} is not in the catalog; skipping its local price entry.`); continue; }
       await prisma.priceEntry.create({ data: { contractId: local.id, accountId: msk.id, productId: p.id, productFamily: p.category, price, currency: "USD", effectiveFrom: day("2026-03-01"), effectiveTo: day("2027-02-28"), source: "manual" } });
     }
     await prisma.contractCommitment.create({ data: { contractId: local.id, productFamily: "Synthetic Mesh", committedValue: "60000", periodStart: day("2026-03-01"), periodEnd: day("2027-02-28") } });
     await prisma.bundleTerm.create({ data: { contractId: local.id, name: "Stapling award unlocks 5% on mesh", description: "If MSK awards ≥ 200 stapler reloads/yr, mesh lines get a further 5% off.", conditionJson: JSON.stringify({ productFamily: "Surgical Stapling Products", minUnits: 200 }), benefitJson: JSON.stringify({ productFamily: "Synthetic Mesh", pricePct: -0.05 }) } });
     // Some purchases against the local contract so compliance has data
-    for (const [sku, qty, price, m] of [["PPM1510X3", "40", "72.50", 5], ["PPM1510X3", "35", "72.50", 3], ["PPDS2015", "12", "798.00", 4], ["PPDS2015", "9", "798.00", 1]] as [string, string, string, number][])
-      await prisma.purchaseRecord.create({ data: { accountId: msk.id, productId: bySku.get(sku)!.id, sku, quantity: qty, netPrice: price, currency: "USD", invoiceDate: monthsAgo(m), contractId: local.id, source: "import", externalId: `INV-${sku}-${m}` } });
+    for (const [sku, qty, price, m] of [["PPM1510X3", "40", "72.50", 5], ["PPM1510X3", "35", "72.50", 3], ["PPDS2015", "12", "798.00", 4], ["PPDS2015", "9", "798.00", 1]] as [string, string, string, number][]) {
+      const p = bySku.get(sku);
+      if (!p) continue;
+      await prisma.purchaseRecord.create({ data: { accountId: msk.id, productId: p.id, sku, quantity: qty, netPrice: price, currency: "USD", invoiceDate: monthsAgo(m), contractId: local.id, source: "import", externalId: `INV-${sku}-${m}` } });
+    }
   }
 
   // Competitor price observations at three hospitals; one six months old; one anecdotal.
