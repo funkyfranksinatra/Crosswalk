@@ -33,5 +33,9 @@ jobs:
       - name: Commercial engine checks (pure)
         run: npm run check:enterprise
       - run: npm run build
-      - name: Seed without reference data, then the enterprise backfill (must not fail)
-        run: npx tsx prisma/seed.ts && npx tsx prisma/seed-enterprise.ts --no-demo
+      - name: Seed without reference data, then the enterprise backfill with demo data (must not fail)
+        run: npx tsx prisma/seed.ts && npx tsx prisma/seed-enterprise.ts
+      - name: Adversarial / reliability suite (state machines, concurrency, authorization, money, imports)
+        run: npm run test:adversarial
+        env:
+          SESSION_SECRET: ci-only-secret
