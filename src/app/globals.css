@@ -136,6 +136,9 @@ body {
   .btn-ghost {
     @apply btn text-ink-2 hover:bg-line-2;
   }
+  .btn-sm {
+    @apply text-[12px] px-2.5 py-1;
+  }
   .btn-danger {
     @apply btn bg-none-soft text-none hover:bg-[#f8d7d3];
   }

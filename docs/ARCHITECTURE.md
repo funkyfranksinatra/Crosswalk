@@ -10,6 +10,7 @@
 | Competitor lookup | openFDA Device UDI first, LLM hints as fallback | AccessGUDID's own API only looks up by DI; openFDA searches by catalog number and returns the full GUDID record |
 | Own catalog | The MDT SKUs in `Endomechanical.xlsx` (+ hernia SKUs from the legacy BAT report), enriched from openFDA | Small, curated, matches the reference data; grows via **Add SKUs** |
 | Pricing | Optional import (List, COGS, pricebooks); ranking renormalises when missing | openFDA carries no pricing; the tool must be useful before finance data arrives |
+| GUDID library | Bulk import of a labeler's whole GUDID catalog (`GudidDevice`, keyed by openFDA record key; `GudidImport` job rows) behind `manage_catalog`; the resolver checks the library per variant before calling openFDA; "own" imports can adopt SKUs into `OwnProduct` (source `gudid-import`) filtered by family | A hospital list costs one openFDA round trip per variant (~300 ms, rate-limited); a competitor catalog held locally resolves in one indexed query, and product lookup no longer needs the FDA site. Catalog numbers collide across labelers, so the library is keyed by record, not by code. Whole-labeler adoption into our catalog is family-filtered so the matcher's candidate pool stays relevant |
 | Competitor sizes | Optional import keyed by competitor code (`CompetitorSpec`); template pre-filled with every unsized code seen | GUDID has no dimensions for Ethicon meshes and many reloads, so those lines tied to our smallest product; the rep knows the size from the competitor catalog |
 | Spreadsheets | Google Sheets first-class, tiered: link reads with no credentials, service-account Drive write-back when configured; .xlsx/.csv kept | Demo users shouldn't need an Excel licence; .xlsx is a format Sheets opens for free, so the real win is link-in / Sheet-out convenience without forcing every machine through Google Cloud setup |
 
@@ -20,7 +21,7 @@ intake.xlsx
   └─ parseIntake()            header detection, CFN normalisation, duplicate merge
 Request + RequestLine[]
   └─ runRequest()
-       ├─ pass 1  resolveCfn(strict)          exact / punctuation / zero-pad variants
+       ├─ pass 1  resolveCfn(strict)          exact / punctuation / zero-pad variants — GUDID library first, openFDA when the library has nothing
        ├─ buildContext()                       manufacturers, families, list-wide prefixes
        ├─ pass 2  resolveCfn(ctx)             prefix-stripped + wildcard tiers, scored with context
        │           └─ KnownCross description  └─ cfnHints() (LLM) → retry

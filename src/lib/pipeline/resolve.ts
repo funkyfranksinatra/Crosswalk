@@ -10,7 +10,8 @@
  */
 import { prisma } from "@/lib/db";
 import { compactCfn, normalizeCfn } from "@/lib/cfn";
-import { searchByCfn, searchOpenFda, searchByBrandAndCompany, summarizeRecord, displayManufacturer, type OpenFdaRecord } from "@/lib/gudid/openfda";
+import { searchByCfn, searchOpenFda, searchByBrandAndCompany, summarizeRecord, displayManufacturer, recordCode, type OpenFdaRecord } from "@/lib/gudid/openfda";
+import { localHits } from "@/lib/gudid/library";
 import { cfnHints } from "@/lib/llm/tasks";
 import { heuristicBin, type Family } from "@/lib/match/bin";
 
@@ -61,7 +62,7 @@ export function variantsFor(cfnNorm: string, ctx?: ResolutionContext, strict = f
   return out;
 }
 
-type Hit = { record: OpenFdaRecord; variant: Variant; score: number; reasons: string[] };
+type Hit = { record: OpenFdaRecord; variant: Variant; score: number; reasons: string[]; fromLibrary?: boolean };
 
 function scoreHit(record: OpenFdaRecord, variant: Variant, cfn: string, ctx: ResolutionContext | undefined): Hit {
   const reasons: string[] = [];
@@ -98,17 +99,27 @@ export async function gatherHits(cfnNorm: string, ctx: ResolutionContext | undef
   const variants = variantsFor(cfnNorm, ctx, strict);
   const hits: Hit[] = [];
   const seenKeys = new Set<string>();
+  const localVariants = new Set<string>();
   for (const v of variants) {
     // Stop early once a tier-0 hit exists (no point trying prefixes) unless in context pass
     if (hits.some((h) => h.variant.tier === 0) && v.tier >= 2) break;
-    const r = v.wildcard
-      ? await searchOpenFda(`catalog_number:${v.value}+OR+version_or_model_number:${v.value}`, 10)
-      : await searchByCfn(v.value, 10);
-    for (const rec of r.results) {
+    // GUDID library first (Catalog → GUDID library): a labeler catalog imported in bulk answers
+    // without a network round trip. Only when the library has nothing for this variant do we
+    // ask openFDA — so a library that holds Ethicon still resolves Bard codes live.
+    const local = await localHits(v.value, Boolean(v.wildcard), 10);
+    const results = local.length
+      ? local
+      : (v.wildcard
+        ? await searchOpenFda(`catalog_number:${v.value}+OR+version_or_model_number:${v.value}`, 10)
+        : await searchByCfn(v.value, 10)).results;
+    if (local.length) localVariants.add(v.value);
+    for (const rec of results) {
       const key = rec.public_device_record_key ?? `${rec.company_name}|${rec.version_or_model_number}`;
       if (seenKeys.has(key)) continue;
       seenKeys.add(key);
-      hits.push(scoreHit(rec, v, cfnNorm, ctx));
+      const h = scoreHit(rec, v, cfnNorm, ctx);
+      if (localVariants.has(v.value)) h.fromLibrary = true;
+      hits.push(h);
     }
   }
   return hits.sort((a, b) => b.score - a.score);
@@ -148,7 +159,8 @@ export async function resolveCfn(cfnNorm: string, opts: ResolveOptions) {
     const confidence = confidenceOf(best, hits[1]);
     if (opts.strict && (best.variant.tier > 1 || confidence < 0.75)) return null; // leave for pass 2
     const resolution = best.variant.tier === 0 ? "openfda" : "openfda-variant";
-    const note = best.variant.reason === "exact" ? `GUDID exact hit` : `GUDID hit via ${best.variant.reason}${best.reasons.length ? " — " + best.reasons.filter((r) => r !== best.variant.reason).join("; ") : ""}`;
+    const via = best.fromLibrary ? "GUDID library" : "GUDID";
+    const note = best.variant.reason === "exact" ? `${via} exact hit` : `${via} hit via ${best.variant.reason}${best.reasons.length ? " — " + best.reasons.filter((r) => r !== best.variant.reason).join("; ") : ""}`;
     return upsertFromRecord(cfnNorm, best.record, recordCode(best.record) ?? best.variant.value.replace(/\*/g, ""), resolution, note, confidence, hits.slice(1, 6).map((h) => h.record));
   }
   if (opts.strict) return null;
@@ -188,13 +200,7 @@ export async function resolveCfn(cfnNorm: string, opts: ResolveOptions) {
   return prisma.competitorProduct.upsert({ where: { cfnNorm }, create: { cfnNorm, ...data }, update: data });
 }
 
-/** The code as the labeler wrote it in GUDID (catalog number first, then version/model). */
-export function recordCode(r: OpenFdaRecord): string | null {
-  const c = (r.catalog_number ?? "").trim();
-  const v = (r.version_or_model_number ?? "").trim();
-  const bad = (x: string) => !x || /^(n\/?a|none|null)$/i.test(x);
-  return !bad(c) ? c.toUpperCase() : !bad(v) ? v.toUpperCase() : null;
-}
+export { recordCode };
 
 async function upsertFromRecord(cfnNorm: string, r: OpenFdaRecord, matched: string, resolution: string, note: string, confidence: number, alternates: OpenFdaRecord[]) {
   const s = summarizeRecord(r);

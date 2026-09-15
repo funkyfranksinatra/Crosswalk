@@ -39,6 +39,7 @@ export const PERMISSIONS = [
   "record_outcomes",
   "import_purchases",
   "run_cross_reference",
+  "manage_catalog",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -47,11 +48,11 @@ const ALL: Permission[] = [...PERMISSIONS];
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   SALES_REP: ["view_pricing", "edit_proposed_pricing", "import_competitor_pricing", "export_proposals", "record_outcomes", "run_cross_reference"],
   REGIONAL_MANAGER: ["view_pricing", "edit_proposed_pricing", "view_margin", "approve_discount", "import_competitor_pricing", "export_proposals", "record_outcomes", "view_analytics", "run_cross_reference"],
-  CONTRACTING_MANAGER: ["view_pricing", "edit_proposed_pricing", "edit_contract_pricing", "view_margin", "manage_contracts", "approve_discount", "export_proposals", "record_outcomes", "import_purchases", "view_analytics", "run_cross_reference"],
-  PRICING_ANALYST: ["view_pricing", "edit_proposed_pricing", "view_cost", "view_margin", "import_competitor_pricing", "verify_competitor_pricing", "view_analytics", "run_cross_reference"],
+  CONTRACTING_MANAGER: ["view_pricing", "edit_proposed_pricing", "edit_contract_pricing", "view_margin", "manage_contracts", "approve_discount", "export_proposals", "record_outcomes", "import_purchases", "view_analytics", "run_cross_reference", "manage_catalog"],
+  PRICING_ANALYST: ["view_pricing", "edit_proposed_pricing", "view_cost", "view_margin", "import_competitor_pricing", "verify_competitor_pricing", "view_analytics", "run_cross_reference", "manage_catalog"],
   PRICING_DIRECTOR: ["view_pricing", "edit_proposed_pricing", "edit_contract_pricing", "view_cost", "view_margin", "approve_discount", "approve_below_floor", "manage_contracts", "import_competitor_pricing", "verify_competitor_pricing", "export_proposals", "configure_pricing_rules", "view_analytics", "record_outcomes", "run_cross_reference"],
   PRICING_COMMITTEE: ["view_pricing", "view_cost", "view_margin", "approve_discount", "approve_below_floor", "view_analytics"],
-  PRODUCT_MARKETING: ["view_pricing", "manage_crosswalk", "publish_crosswalk", "view_analytics", "run_cross_reference"],
+  PRODUCT_MARKETING: ["view_pricing", "manage_crosswalk", "publish_crosswalk", "view_analytics", "run_cross_reference", "manage_catalog"],
   CLINICAL_REVIEWER: ["manage_crosswalk", "review_crosswalk_clinical"],
   FINANCE: ["view_pricing", "view_cost", "view_margin", "view_analytics", "import_purchases"],
   ADMIN: ALL,

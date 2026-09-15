@@ -28,37 +28,39 @@ model Company {
 /// Endomechanical sheet (313 SKUs), enriched from openFDA/GUDID, priced
 /// from an optional pricing import.
 model OwnProduct {
-  id            String   @id @default(cuid())
-  companyId     String
-  company       Company  @relation(fields: [companyId], references: [id])
-  sku           String
-  description   String
-  category      String? // Class of Trade / product family, e.g. "Trocar Products"
-  brand         String?
-  labeler       String? // openFDA company_name
-  status        String? // commercial_distribution_status
-  gudidDi       String?
-  gmdnName      String?
-  gmdnCode      String?
+  id             String           @id @default(cuid())
+  companyId      String
+  company        Company          @relation(fields: [companyId], references: [id])
+  sku            String
+  description    String
+  category       String? // Class of Trade / product family, e.g. "Trocar Products"
+  brand          String?
+  labeler        String? // openFDA company_name
+  status         String? // commercial_distribution_status
+  gudidDi        String?
+  gmdnName       String?
+  gmdnCode       String?
   fdaProductCode String?
-  gudidJson     String? // raw openFDA record (JSON)
-  gudidSyncedAt DateTime?
+  gudidJson      String? // raw openFDA record (JSON)
+  gudidSyncedAt  DateTime?
   /// Structured attribute bin (JSON, see src/lib/match/bin.ts)
-  binJson       String?
-  binSource     String? // "llm" | "heuristic"
-  binnedAt      DateTime?
+  binJson        String?
+  binSource      String? // "llm" | "heuristic"
+  binnedAt       DateTime?
   /// Money — all optional; the ranker renormalises weights when missing.
-  listPrice     Decimal? @db.Decimal(18, 4)
-  cogs          Decimal? @db.Decimal(18, 4) // legacy global standard cost; StandardCost rows take precedence
-  currency      String   @default("USD")
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  prices        PriceEntry[]
-  candidates    MatchCandidate[]
-  costs         StandardCost[]
-  proposalLines ProposalLine[]
-  purchases     PurchaseRecord[]
+  listPrice      Decimal?         @db.Decimal(18, 4)
+  cogs           Decimal?         @db.Decimal(18, 4) // legacy global standard cost; StandardCost rows take precedence
+  currency       String           @default("USD")
+  isActive       Boolean          @default(true)
+  /// "seed" (curated sheets) | "manual" (Add SKUs) | "gudid-import" (Catalog → GUDID library)
+  source         String           @default("seed")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  prices         PriceEntry[]
+  candidates     MatchCandidate[]
+  costs          StandardCost[]
+  proposalLines  ProposalLine[]
+  purchases      PurchaseRecord[]
 
   @@unique([companyId, sku])
   @@index([category])
@@ -66,8 +68,8 @@ model OwnProduct {
 
 /// A competitor product resolved from a CFN, cached across requests.
 model CompetitorProduct {
-  id             String   @id @default(cuid())
-  cfnNorm        String   @unique // normalised catalog number
+  id             String        @id @default(cuid())
+  cfnNorm        String        @unique // normalised catalog number
   cfnMatched     String? // the variant that actually hit (may differ from cfnNorm)
   manufacturer   String?
   labeler        String? // raw openFDA company_name
@@ -83,13 +85,13 @@ model CompetitorProduct {
   /// "openfda" | "openfda-variant" | "llm" | "known-cross" | "manual" | "not-found"
   resolution     String
   resolutionNote String?
-  confidence     Float?  // 0..1; < 0.75 is shown as "verify"
+  confidence     Float? // 0..1; < 0.75 is shown as "verify"
   alternatesJson String? // other openFDA hits for the same CFN (reprocessors etc.)
   binJson        String?
   binSource      String?
   binnedAt       DateTime?
-  resolvedAt     DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  resolvedAt     DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   lines          RequestLine[]
 }
 
@@ -109,25 +111,25 @@ model CompetitorSpec {
 
 /// Human-curated cross reference (ground truth). Seeded from Endomechanical.xlsx.
 model KnownCross {
-  id              String  @id @default(cuid())
-  ownSku          String
-  ownDescription  String?
-  category        String?
-  competitorName  String
-  competitorCode  String
-  competitorCodeNorm String
+  id                    String    @id @default(cuid())
+  ownSku                String
+  ownDescription        String?
+  category              String?
+  competitorName        String
+  competitorCode        String
+  competitorCodeNorm    String
   competitorDescription String?
-  matchType       String  // Exact Match | Close Match | Alternative Match | US Downsell Match
-  preferredOwnSku String? // reviewer's preferred cross when it differs from ownSku
-  additionalProducts String? // e.g. handle/shell needed
-  notes           String?
-  source          String  // sheet name | rep | import | proposal
-  isActive        Boolean @default(true)
+  matchType             String // Exact Match | Close Match | Alternative Match | US Downsell Match
+  preferredOwnSku       String? // reviewer's preferred cross when it differs from ownSku
+  additionalProducts    String? // e.g. handle/shell needed
+  notes                 String?
+  source                String // sheet name | rep | import | proposal
+  isActive              Boolean   @default(true)
   // ---- governance (Phase 7) ----
-  approvalStatus        String   @default("APPROVED") // DRAFT | IN_REVIEW | APPROVED | REJECTED | RETIRED
-  clinicalReviewStatus  String   @default("NOT_REQUIRED") // NOT_REQUIRED | PENDING | APPROVED | REJECTED
-  marketingReviewStatus String   @default("NOT_REQUIRED")
-  equivalenceLevel      String   @default("FUNCTIONAL") // EXACT | FUNCTIONAL | CLOSEST_ALTERNATIVE | PREMIUM_ALTERNATIVE | PARTIAL_SUBSTITUTE | NONE
+  approvalStatus        String    @default("APPROVED") // DRAFT | IN_REVIEW | APPROVED | REJECTED | RETIRED
+  clinicalReviewStatus  String    @default("NOT_REQUIRED") // NOT_REQUIRED | PENDING | APPROVED | REJECTED
+  marketingReviewStatus String    @default("NOT_REQUIRED")
+  equivalenceLevel      String    @default("FUNCTIONAL") // EXACT | FUNCTIONAL | CLOSEST_ALTERNATIVE | PREMIUM_ALTERNATIVE | PARTIAL_SUBSTITUTE | NONE
   approvedUsage         String?
   justification         String?
   evidenceJson          String?
@@ -136,11 +138,11 @@ model KnownCross {
   approvedAt            DateTime?
   effectiveFrom         DateTime?
   effectiveTo           DateTime?
-  version               Int      @default(1)
+  version               Int       @default(1)
   accountId             String? // rep-sourced crosses can be account-specific
   createdByUserId       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @default(now()) @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @default(now()) @updatedAt
 
   @@unique([ownSku, competitorCodeNorm, source])
   @@index([competitorCodeNorm])
@@ -160,31 +162,31 @@ model Pricebook {
 /// (contractId). Effective-dated, optionally quantity-banded. src/lib/contracts/resolve.ts
 /// walks List → GPO → IDN → LOCAL and explains which entry applied.
 model PriceEntry {
-  id            String     @id @default(cuid())
-  pricebookId   String?
-  pricebook     Pricebook? @relation(fields: [pricebookId], references: [id], onDelete: Cascade)
-  contractId    String?
-  contract      Contract?  @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  accountId     String?
-  account       Account?   @relation(fields: [accountId], references: [id])
-  gpoId         String?
-  gpo           Gpo?       @relation(fields: [gpoId], references: [id])
-  productId     String
-  product       OwnProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productFamily String?
-  price         Decimal    @db.Decimal(18, 4)
-  currency      String     @default("USD")
-  effectiveFrom DateTime   @default(now())
-  effectiveTo   DateTime?
-  tier          String?
-  minQty        Decimal?   @db.Decimal(18, 4)
-  maxQty        Decimal?   @db.Decimal(18, 4)
+  id             String     @id @default(cuid())
+  pricebookId    String?
+  pricebook      Pricebook? @relation(fields: [pricebookId], references: [id], onDelete: Cascade)
+  contractId     String?
+  contract       Contract?  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  accountId      String?
+  account        Account?   @relation(fields: [accountId], references: [id])
+  gpoId          String?
+  gpo            Gpo?       @relation(fields: [gpoId], references: [id])
+  productId      String
+  product        OwnProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productFamily  String?
+  price          Decimal    @db.Decimal(18, 4)
+  currency       String     @default("USD")
+  effectiveFrom  DateTime   @default(now())
+  effectiveTo    DateTime?
+  tier           String?
+  minQty         Decimal?   @db.Decimal(18, 4)
+  maxQty         Decimal?   @db.Decimal(18, 4)
   volumeTierName String?
-  source        String     @default("import") // import | erp | manual | proposal | backfill
-  status        String     @default("ACTIVE") // ACTIVE | PENDING | EXPIRED | SUPERSEDED
-  approvalState String     @default("APPROVED") // APPROVED | PENDING | REJECTED
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  source         String     @default("import") // import | erp | manual | proposal | backfill
+  status         String     @default("ACTIVE") // ACTIVE | PENDING | EXPIRED | SUPERSEDED
+  approvalState  String     @default("APPROVED") // APPROVED | PENDING | REJECTED
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   @@index([productId, effectiveFrom])
   @@index([contractId, productId])
@@ -193,32 +195,32 @@ model PriceEntry {
 
 /// One sales-rep submission (one intake spreadsheet).
 model Request {
-  id             String   @id @default(cuid())
+  id             String        @id @default(cuid())
   companyId      String
-  company        Company  @relation(fields: [companyId], references: [id])
-  reference      String   @unique // human id, e.g. REQ-0001
+  company        Company       @relation(fields: [companyId], references: [id])
+  reference      String        @unique // human id, e.g. REQ-0001
   accountNumber  String?
   accountName    String?
-  accountType    String?  // Sold-To | Ship-To | Group | IDN
+  accountType    String? // Sold-To | Ship-To | Group | IDN
   accountId      String?
-  account        Account? @relation(fields: [accountId], references: [id])
-  reportType     String   @default("Competitive Cross Reference with Pricebook")
+  account        Account?      @relation(fields: [accountId], references: [id])
+  reportType     String        @default("Competitive Cross Reference with Pricebook")
   pricebookId    String?
-  pricebook      Pricebook? @relation(fields: [pricebookId], references: [id])
+  pricebook      Pricebook?    @relation(fields: [pricebookId], references: [id])
   sourceFileName String?
-  sourceUrl      String?  // Google Sheets link when the intake came from one
-  xrefSheetUrl   String?  // Drive write-back links (when a service account is configured)
+  sourceUrl      String? // Google Sheets link when the intake came from one
+  xrefSheetUrl   String? // Drive write-back links (when a service account is configured)
   offerSheetUrl  String?
-  status         String   @default("draft") // draft | queued | running | complete | failed
-  stage          String?  // human-readable current stage
-  progress       Int      @default(0) // 0..100
+  status         String        @default("draft") // draft | queued | running | complete | failed
+  stage          String? // human-readable current stage
+  progress       Int           @default(0) // 0..100
   error          String?
-  useLlm         Boolean  @default(true)
-  optionsJson    String?  // ranking weights etc.
-  logJson        String   @default("[]")
+  useLlm         Boolean       @default(true)
+  optionsJson    String? // ranking weights etc.
+  logJson        String        @default("[]")
   createdBy      String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   startedAt      DateTime?
   completedAt    DateTime?
   lines          RequestLine[]
@@ -226,51 +228,51 @@ model Request {
 }
 
 model RequestLine {
-  id                  String   @id @default(cuid())
+  id                  String             @id @default(cuid())
   requestId           String
-  request             Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  request             Request            @relation(fields: [requestId], references: [id], onDelete: Cascade)
   lineNo              Int
   rawCode             String
   cfnNorm             String
   quantity            Float
-  estCompetitorPrice  Decimal? @db.Decimal(18, 4)
+  estCompetitorPrice  Decimal?           @db.Decimal(18, 4)
   competitorProductId String?
   competitorProduct   CompetitorProduct? @relation(fields: [competitorProductId], references: [id])
   /// pending | resolved | not-found | error
-  resolutionStatus    String   @default("pending")
+  resolutionStatus    String             @default("pending")
   resolutionNote      String?
   /// pending | matched | no-match | error
-  matchStatus         String   @default("pending")
+  matchStatus         String             @default("pending")
   selectedCandidateId String?
   overrideNote        String?
-  reviewed            Boolean  @default(false)
+  reviewed            Boolean            @default(false)
   candidates          MatchCandidate[]
 
   @@index([requestId, lineNo])
 }
 
 model MatchCandidate {
-  id           String      @id @default(cuid())
-  lineId       String
-  line         RequestLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
-  ownProductId String
-  ownProduct   OwnProduct  @relation(fields: [ownProductId], references: [id])
-  rank         Int
-  matchType    String      // Exact Match | Close Match | Alternative Match | No Match
+  id                 String      @id @default(cuid())
+  lineId             String
+  line               RequestLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  ownProductId       String
+  ownProduct         OwnProduct  @relation(fields: [ownProductId], references: [id])
+  rank               Int
+  matchType          String // Exact Match | Close Match | Alternative Match | No Match
   /// "known-cross" | "attribute" | "llm"
-  source       String
-  score        Float       // 0..1 composite
-  scoreBin     Float?
-  scorePrice   Float?
-  scoreCogs    Float?
-  scoreMargin  Float?
-  factorsJson  String?     // which factors were available + weights used
-  rationale    String?
+  source             String
+  score              Float // 0..1 composite
+  scoreBin           Float?
+  scorePrice         Float?
+  scoreCogs          Float?
+  scoreMargin        Float?
+  factorsJson        String? // which factors were available + weights used
+  rationale          String?
   additionalProducts String?
-  unitPrice    Decimal?    @db.Decimal(18, 4)
-  extended     Decimal?    @db.Decimal(18, 4)
-  isSelected   Boolean     @default(false)
-  createdAt    DateTime    @default(now())
+  unitPrice          Decimal?    @db.Decimal(18, 4)
+  extended           Decimal?    @db.Decimal(18, 4)
+  isSelected         Boolean     @default(false)
+  createdAt          DateTime    @default(now())
 
   @@index([lineId, rank])
 }
@@ -283,16 +285,16 @@ model Setting {
 
 /// Observability for every model call (FDE habit: you can't tune what you can't see).
 model LlmCall {
-  id         String   @id @default(cuid())
-  purpose    String
-  model      String
-  ok         Boolean
-  durationMs Int
+  id           String   @id @default(cuid())
+  purpose      String
+  model        String
+  ok           Boolean
+  durationMs   Int
   inputTokens  Int?
   outputTokens Int?
-  error      String?
-  subject    String?
-  createdAt  DateTime @default(now())
+  error        String?
+  subject      String?
+  createdAt    DateTime @default(now())
 }
 
 /// Cached model grading verdicts keyed by a hash of their exact inputs, so a
@@ -312,15 +314,16 @@ model LlmGrade {
 
 /// A person who can act in the platform. SSO populates it; the dev sign-in picks one.
 model User {
-  id         String     @id @default(cuid())
-  email      String     @unique
-  name       String
-  isActive   Boolean    @default(true)
-  externalId String? // SSO subject / CRM user id
-  territory  String?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  roles      UserRole[]
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String
+  isActive     Boolean       @default(true)
+  externalId   String? // SSO subject / CRM user id
+  territory    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  roles        UserRole[]
+  gudidImports GudidImport[]
 }
 
 /// Roles are the unit of authorization (permissions matrix in src/lib/auth/permissions.ts).
@@ -335,26 +338,26 @@ model UserRole {
 
 /// Customer account. CRM is the system of record; we keep what pricing needs.
 model Account {
-  id              String   @id @default(cuid())
+  id              String                       @id @default(cuid())
   name            String
-  accountNumber   String?  @unique
-  type            String   @default("SOLD_TO") // SOLD_TO | SHIP_TO | IDN | HEALTH_SYSTEM | GROUP
+  accountNumber   String?                      @unique
+  type            String                       @default("SOLD_TO") // SOLD_TO | SHIP_TO | IDN | HEALTH_SYSTEM | GROUP
   parentAccountId String?
-  parent          Account? @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
-  children        Account[] @relation("AccountHierarchy")
+  parent          Account?                     @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
+  children        Account[]                    @relation("AccountHierarchy")
   territory       String?
   segment         String?
   region          String?
-  country         String   @default("US")
-  currency        String   @default("USD")
-  isStrategic     Boolean  @default(false)
+  country         String                       @default("US")
+  currency        String                       @default("USD")
+  isStrategic     Boolean                      @default(false)
   ownerUserId     String?
-  externalCrmId   String?  @unique
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  externalCrmId   String?                      @unique
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
   memberships     GpoMembership[]
-  contracts       Contract[]        @relation("ContractAccount")
-  parentContracts Contract[]        @relation("ContractParentAccount")
+  contracts       Contract[]                   @relation("ContractAccount")
+  parentContracts Contract[]                   @relation("ContractParentAccount")
   opportunities   Opportunity[]
   requests        Request[]
   priceEntries    PriceEntry[]
@@ -367,12 +370,12 @@ model Account {
 }
 
 model Gpo {
-  id          String          @id @default(cuid())
-  name        String          @unique
-  code        String?         @unique
-  createdAt   DateTime        @default(now())
-  memberships GpoMembership[]
-  contracts   Contract[]
+  id           String                       @id @default(cuid())
+  name         String                       @unique
+  code         String?                      @unique
+  createdAt    DateTime                     @default(now())
+  memberships  GpoMembership[]
+  contracts    Contract[]
   priceEntries PriceEntry[]
   observations CompetitorPriceObservation[]
 }
@@ -396,61 +399,61 @@ model GpoMembership {
 }
 
 model Opportunity {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
   accountId     String
-  account       Account   @relation(fields: [accountId], references: [id])
+  account       Account    @relation(fields: [accountId], references: [id])
   name          String
-  stage         String    @default("Prospecting")
+  stage         String     @default("Prospecting")
   ownerUserId   String?
   closeDate     DateTime?
-  amount        Decimal?  @db.Decimal(18, 4)
-  currency      String    @default("USD")
-  externalCrmId String?   @unique
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  amount        Decimal?   @db.Decimal(18, 4)
+  currency      String     @default("USD")
+  externalCrmId String?    @unique
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
   proposals     Proposal[]
 }
 
 /// Contracts are the price *context*. Types form the waterfall: LIST → GPO → IDN → LOCAL.
 model Contract {
-  id                 String    @id @default(cuid())
-  contractNumber     String    @unique
-  name               String
-  type               String // LIST | GPO | IDN | LOCAL | NATIONAL
-  status             String    @default("DRAFT") // DRAFT | ACTIVE | EXPIRED | TERMINATED | SUPERSEDED
-  accountId          String?
-  account            Account?  @relation("ContractAccount", fields: [accountId], references: [id])
-  parentAccountId    String?
-  parentAccount      Account?  @relation("ContractParentAccount", fields: [parentAccountId], references: [id])
-  gpoId              String?
-  gpo                Gpo?      @relation(fields: [gpoId], references: [id])
-  tier               String?
-  currency           String    @default("USD")
-  effectiveFrom      DateTime
-  effectiveTo        DateTime?
+  id                  String               @id @default(cuid())
+  contractNumber      String               @unique
+  name                String
+  type                String // LIST | GPO | IDN | LOCAL | NATIONAL
+  status              String               @default("DRAFT") // DRAFT | ACTIVE | EXPIRED | TERMINATED | SUPERSEDED
+  accountId           String?
+  account             Account?             @relation("ContractAccount", fields: [accountId], references: [id])
+  parentAccountId     String?
+  parentAccount       Account?             @relation("ContractParentAccount", fields: [parentAccountId], references: [id])
+  gpoId               String?
+  gpo                 Gpo?                 @relation(fields: [gpoId], references: [id])
+  tier                String?
+  currency            String               @default("USD")
+  effectiveFrom       DateTime
+  effectiveTo         DateTime?
   /// Explicit override of the natural precedence (higher wins). 0 = natural order.
-  precedence         Int       @default(0)
-  committedVolume    Decimal?  @db.Decimal(18, 4)
-  committedValue     Decimal?  @db.Decimal(18, 4)
+  precedence          Int                  @default(0)
+  committedVolume     Decimal?             @db.Decimal(18, 4)
+  committedValue      Decimal?             @db.Decimal(18, 4)
   /// Structured clauses validated by zod (src/lib/contracts/clauses.ts)
-  renewalJson        String?
+  renewalJson         String?
   priceProtectionJson String?
-  escalationJson     String?
-  notes              String?
-  sourceSystem       String    @default("crosswalk") // crosswalk | crm | erp | import
-  externalId         String?
-  ownerUserId        String?
-  performanceJson    String? // cached compliance snapshot (src/lib/compliance)
-  createdByUserId    String?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  scopes             ContractScope[]
-  entries            PriceEntry[]
-  commitments        ContractCommitment[]
-  rebates            RebateSchedule[]
-  bundles            BundleTerm[]
-  proposals          Proposal[]
-  purchases          PurchaseRecord[]
+  escalationJson      String?
+  notes               String?
+  sourceSystem        String               @default("crosswalk") // crosswalk | crm | erp | import
+  externalId          String?
+  ownerUserId         String?
+  performanceJson     String? // cached compliance snapshot (src/lib/compliance)
+  createdByUserId     String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  scopes              ContractScope[]
+  entries             PriceEntry[]
+  commitments         ContractCommitment[]
+  rebates             RebateSchedule[]
+  bundles             BundleTerm[]
+  proposals           Proposal[]
+  purchases           PurchaseRecord[]
 
   @@index([accountId, status])
   @@index([gpoId, status])
@@ -564,23 +567,23 @@ model AuditEvent {
 // =============================================================================
 
 model Competitor {
-  id           String   @id @default(cuid())
-  name         String   @unique
-  aliasesJson  String   @default("[]")
-  createdAt    DateTime @default(now())
+  id           String                       @id @default(cuid())
+  name         String                       @unique
+  aliasesJson  String                       @default("[]")
+  createdAt    DateTime                     @default(now())
   observations CompetitorPriceObservation[]
   outcomes     DealOutcome[]
 }
 
 /// Uploaded evidence (invoice, PO, bid file, contract). Extracted values keep a link here.
 model Document {
-  id                   String   @id @default(cuid())
+  id                   String                       @id @default(cuid())
   kind                 String // INVOICE | PO | BID_FILE | CONTRACT | COMPETITOR_LIST | OTHER
   filename             String
   mimeType             String?
   storagePath          String?
   uploadedByUserId     String?
-  uploadedAt           DateTime @default(now())
+  uploadedAt           DateTime                     @default(now())
   extractedJson        String?
   extractionConfidence Float? // 0..1 — extraction quality, NOT commercial confidence
   notes                String?
@@ -629,27 +632,27 @@ model CompetitorPriceObservation {
 // =============================================================================
 
 model PricingPolicy {
-  id                  String   @id @default(cuid())
-  productFamily       String // "*" = default for families without their own policy
-  version             Int
-  status              String   @default("DRAFT") // DRAFT | ACTIVE | SUPERSEDED
-  name                String?
-  targetMarginPct     Decimal  @db.Decimal(7, 4) // 0.4500 = 45%
-  minMarginPct        Decimal  @db.Decimal(7, 4)
-  floorMethod         String   @default("COST_PLUS_MIN_MARGIN") // COST_PLUS_MIN_MARGIN | PCT_OF_LIST | FIXED
-  floorParamsJson     String   @default("{}")
-  defaultStrategy     String   @default("MATCH") // MATCH | UNDERCUT_AMOUNT | UNDERCUT_PCT | HOLD_PREMIUM | PRESERVE_CONTRACT | STRATEGIC_DISCOUNT | PENETRATION
-  defaultAdjustmentPct Decimal @default(0) @db.Decimal(7, 4)
-  classification      String   @default("DIFFERENTIATED") // COMMODITY | DIFFERENTIATED
-  strategicImportance Int      @default(3) // 1..5
+  id                   String    @id @default(cuid())
+  productFamily        String // "*" = default for families without their own policy
+  version              Int
+  status               String    @default("DRAFT") // DRAFT | ACTIVE | SUPERSEDED
+  name                 String?
+  targetMarginPct      Decimal   @db.Decimal(7, 4) // 0.4500 = 45%
+  minMarginPct         Decimal   @db.Decimal(7, 4)
+  floorMethod          String    @default("COST_PLUS_MIN_MARGIN") // COST_PLUS_MIN_MARGIN | PCT_OF_LIST | FIXED
+  floorParamsJson      String    @default("{}")
+  defaultStrategy      String    @default("MATCH") // MATCH | UNDERCUT_AMOUNT | UNDERCUT_PCT | HOLD_PREMIUM | PRESERVE_CONTRACT | STRATEGIC_DISCOUNT | PENETRATION
+  defaultAdjustmentPct Decimal   @default(0) @db.Decimal(7, 4)
+  classification       String    @default("DIFFERENTIATED") // COMMODITY | DIFFERENTIATED
+  strategicImportance  Int       @default(3) // 1..5
   /// { "SALES_REP": 0.15, "REGIONAL_MANAGER": 0.25, "PRICING_DIRECTOR": 0.40 } — max discount from list
-  authorityJson       String
+  authorityJson        String
   /// [{ when: { belowFloor?: true, dealValueOver?: n, strategicAccount?: true, contractMonthsOver?: n, marginBelow?: pct }, require: ROLE }]
-  approvalRulesJson   String   @default("[]")
-  effectiveFrom       DateTime @default(now())
-  supersededAt        DateTime?
-  createdByUserId     String?
-  createdAt           DateTime @default(now())
+  approvalRulesJson    String    @default("[]")
+  effectiveFrom        DateTime  @default(now())
+  supersededAt         DateTime?
+  createdByUserId      String?
+  createdAt            DateTime  @default(now())
 
   @@unique([productFamily, version])
   @@index([productFamily, status])
@@ -660,111 +663,111 @@ model PricingPolicy {
 // =============================================================================
 
 model Proposal {
-  id                   String   @id @default(cuid())
-  reference            String   @unique // PRP-0001
-  version              Int      @default(1)
-  parentProposalId     String?
-  requestId            String?
-  request              Request? @relation(fields: [requestId], references: [id])
-  accountId            String
-  account              Account  @relation(fields: [accountId], references: [id])
-  opportunityId        String?
-  opportunity          Opportunity? @relation(fields: [opportunityId], references: [id])
-  gpoIdSnapshot        String?
-  gpoNameSnapshot      String?
-  contractId           String?
-  contract             Contract? @relation(fields: [contractId], references: [id])
-  currency             String   @default("USD")
-  status               String   @default("DRAFT") // DRAFT | APPROVAL_REQUIRED | SUBMITTED | PARTIALLY_APPROVED | APPROVED | REJECTED | CHANGES_REQUESTED | EXPIRED | WON | LOST
-  validThrough         DateTime?
-  ownerUserId          String?
-  policyVersionsJson   String   @default("{}") // { family: policyId }
-  crosswalkVersionId   String?
-  crosswalkVersion     CrosswalkVersion? @relation(fields: [crosswalkVersionId], references: [id])
-  economicsJson        String? // last computed rollup (src/lib/proposals/economics.ts)
-  objectivesJson       String? // user-entered strategic objectives
-  lockedAt             DateTime?
-  submittedAt          DateTime?
-  decidedAt            DateTime?
-  createdByUserId      String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  lines                ProposalLine[]
-  scenarios            Scenario[]
-  approvals            ApprovalRequest[]
-  outcome              DealOutcome?
-  purchases            PurchaseRecord[]
+  id                 String            @id @default(cuid())
+  reference          String            @unique // PRP-0001
+  version            Int               @default(1)
+  parentProposalId   String?
+  requestId          String?
+  request            Request?          @relation(fields: [requestId], references: [id])
+  accountId          String
+  account            Account           @relation(fields: [accountId], references: [id])
+  opportunityId      String?
+  opportunity        Opportunity?      @relation(fields: [opportunityId], references: [id])
+  gpoIdSnapshot      String?
+  gpoNameSnapshot    String?
+  contractId         String?
+  contract           Contract?         @relation(fields: [contractId], references: [id])
+  currency           String            @default("USD")
+  status             String            @default("DRAFT") // DRAFT | APPROVAL_REQUIRED | SUBMITTED | PARTIALLY_APPROVED | APPROVED | REJECTED | CHANGES_REQUESTED | EXPIRED | WON | LOST
+  validThrough       DateTime?
+  ownerUserId        String?
+  policyVersionsJson String            @default("{}") // { family: policyId }
+  crosswalkVersionId String?
+  crosswalkVersion   CrosswalkVersion? @relation(fields: [crosswalkVersionId], references: [id])
+  economicsJson      String? // last computed rollup (src/lib/proposals/economics.ts)
+  objectivesJson     String? // user-entered strategic objectives
+  lockedAt           DateTime?
+  submittedAt        DateTime?
+  decidedAt          DateTime?
+  createdByUserId    String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  lines              ProposalLine[]
+  scenarios          Scenario[]
+  approvals          ApprovalRequest[]
+  outcome            DealOutcome?
+  purchases          PurchaseRecord[]
 
   @@index([accountId, status])
 }
 
 /// Everything a line depended on is copied here. A quote never re-reads live tables.
 model ProposalLine {
-  id                       String     @id @default(cuid())
-  proposalId               String
-  proposal                 Proposal   @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  lineNo                   Int
-  included                 Boolean    @default(true)
-  competitorCode           String
-  competitorDescription    String?
-  competitorName           String?
-  competitorProductId      String?
-  competitorId             String?
-  crossId                  String? // KnownCross id used
-  crosswalkVersionId       String?
-  equivalenceLevel         String? // EXACT | FUNCTIONAL | CLOSEST_ALTERNATIVE | PREMIUM_ALTERNATIVE | PARTIAL_SUBSTITUTE | NONE
-  matchType                String? // cross-reference verdict as shown to the rep
-  productId                String?
-  product                  OwnProduct? @relation(fields: [productId], references: [id])
-  sku                      String?
-  description              String?
-  productFamily            String?
-  quantity                 Decimal    @db.Decimal(18, 4)
-  uom                      String     @default("EA")
-  listPrice                Decimal?   @db.Decimal(18, 4)
-  contractPrice            Decimal?   @db.Decimal(18, 4)
-  contractPriceSource      String? // LIST | GPO | IDN | LOCAL
-  waterfallJson            String?
-  competitorPrice          Decimal?   @db.Decimal(18, 4)
+  id                        String            @id @default(cuid())
+  proposalId                String
+  proposal                  Proposal          @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  lineNo                    Int
+  included                  Boolean           @default(true)
+  competitorCode            String
+  competitorDescription     String?
+  competitorName            String?
+  competitorProductId       String?
+  competitorId              String?
+  crossId                   String? // KnownCross id used
+  crosswalkVersionId        String?
+  equivalenceLevel          String? // EXACT | FUNCTIONAL | CLOSEST_ALTERNATIVE | PREMIUM_ALTERNATIVE | PARTIAL_SUBSTITUTE | NONE
+  matchType                 String? // cross-reference verdict as shown to the rep
+  productId                 String?
+  product                   OwnProduct?       @relation(fields: [productId], references: [id])
+  sku                       String?
+  description               String?
+  productFamily             String?
+  quantity                  Decimal           @db.Decimal(18, 4)
+  uom                       String            @default("EA")
+  listPrice                 Decimal?          @db.Decimal(18, 4)
+  contractPrice             Decimal?          @db.Decimal(18, 4)
+  contractPriceSource       String? // LIST | GPO | IDN | LOCAL
+  waterfallJson             String?
+  competitorPrice           Decimal?          @db.Decimal(18, 4)
   competitorPriceConfidence Float?
-  competitorPriceBasis     String? // KNOWN_ACCOUNT | MARKET_ESTIMATE | WEAK | NONE
-  competitorIntelJson      String?
-  cost                     Decimal?   @db.Decimal(18, 4)
-  costBasisJson            String?
-  floorPrice               Decimal?   @db.Decimal(18, 4)
-  targetPrice              Decimal?   @db.Decimal(18, 4)
-  ceilingPrice             Decimal?   @db.Decimal(18, 4)
-  recommendedPrice         Decimal?   @db.Decimal(18, 4)
-  recommendationJson       String?
-  policyId                 String?
-  proposedPrice            Decimal?   @db.Decimal(18, 4)
-  marginAmount             Decimal?   @db.Decimal(18, 4)
-  marginPct                Decimal?   @db.Decimal(9, 6)
-  discountFromListPct      Decimal?   @db.Decimal(9, 6)
-  discountFromContractPct  Decimal?   @db.Decimal(9, 6)
-  requiredAuthority        String? // role
-  approvalState            String     @default("NOT_REQUIRED") // NOT_REQUIRED | REQUIRED | PENDING | APPROVED | REJECTED
-  justification            String? // premium / clinical justification
-  notes                    String?
-  createdAt                DateTime   @default(now())
-  updatedAt                DateTime   @updatedAt
-  scenarioLines            ScenarioLine[]
-  approvals                ApprovalRequest[]
-  decisions                MatchDecision[]
+  competitorPriceBasis      String? // KNOWN_ACCOUNT | MARKET_ESTIMATE | WEAK | NONE
+  competitorIntelJson       String?
+  cost                      Decimal?          @db.Decimal(18, 4)
+  costBasisJson             String?
+  floorPrice                Decimal?          @db.Decimal(18, 4)
+  targetPrice               Decimal?          @db.Decimal(18, 4)
+  ceilingPrice              Decimal?          @db.Decimal(18, 4)
+  recommendedPrice          Decimal?          @db.Decimal(18, 4)
+  recommendationJson        String?
+  policyId                  String?
+  proposedPrice             Decimal?          @db.Decimal(18, 4)
+  marginAmount              Decimal?          @db.Decimal(18, 4)
+  marginPct                 Decimal?          @db.Decimal(9, 6)
+  discountFromListPct       Decimal?          @db.Decimal(9, 6)
+  discountFromContractPct   Decimal?          @db.Decimal(9, 6)
+  requiredAuthority         String? // role
+  approvalState             String            @default("NOT_REQUIRED") // NOT_REQUIRED | REQUIRED | PENDING | APPROVED | REJECTED
+  justification             String? // premium / clinical justification
+  notes                     String?
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
+  scenarioLines             ScenarioLine[]
+  approvals                 ApprovalRequest[]
+  decisions                 MatchDecision[]
 
   @@index([proposalId, lineNo])
 }
 
 /// What-if. Never touches ProposalLine.proposedPrice until explicitly applied.
 model Scenario {
-  id              String   @id @default(cuid())
+  id              String         @id @default(cuid())
   proposalId      String
-  proposal        Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  proposal        Proposal       @relation(fields: [proposalId], references: [id], onDelete: Cascade)
   name            String
-  kind            String   @default("CUSTOM") // RECOMMENDED | AGGRESSIVE | MARGIN_OPTIMIZED | CUSTOMER_REQUESTED | CUSTOM | FINAL
+  kind            String         @default("CUSTOM") // RECOMMENDED | AGGRESSIVE | MARGIN_OPTIMIZED | CUSTOMER_REQUESTED | CUSTOM | FINAL
   createdByUserId String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   lines           ScenarioLine[]
 
   @@index([proposalId])
@@ -782,22 +785,22 @@ model ScenarioLine {
 }
 
 model ApprovalRequest {
-  id               String        @id @default(cuid())
-  proposalId       String
-  proposal         Proposal      @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  proposalLineId   String?
-  proposalLine     ProposalLine? @relation(fields: [proposalLineId], references: [id], onDelete: Cascade)
-  requiredRole     String
-  reason           String
-  notes            String?
+  id                String        @id @default(cuid())
+  proposalId        String
+  proposal          Proposal      @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  proposalLineId    String?
+  proposalLine      ProposalLine? @relation(fields: [proposalLineId], references: [id], onDelete: Cascade)
+  requiredRole      String
+  reason            String
+  notes             String?
   requestedByUserId String?
-  requestedAt      DateTime      @default(now())
-  status           String        @default("PENDING") // PENDING | APPROVED | REJECTED | CHANGES_REQUESTED | WITHDRAWN | EXPIRED
-  decidedByUserId  String?
-  decidedAt        DateTime?
-  decisionComments String?
-  snapshotJson     String? // price, recommendation, floor, margin, policy version at request time
-  policyId         String?
+  requestedAt       DateTime      @default(now())
+  status            String        @default("PENDING") // PENDING | APPROVED | REJECTED | CHANGES_REQUESTED | WITHDRAWN | EXPIRED
+  decidedByUserId   String?
+  decidedAt         DateTime?
+  decisionComments  String?
+  snapshotJson      String? // price, recommendation, floor, margin, policy version at request time
+  policyId          String?
 
   @@index([proposalId, status])
   @@index([status, requiredRole])
@@ -808,12 +811,12 @@ model ApprovalRequest {
 // =============================================================================
 
 model CrosswalkVersion {
-  id                String   @id @default(cuid())
-  number            Int      @unique
-  status            String   @default("DRAFT") // DRAFT | IN_REVIEW | PUBLISHED | SUPERSEDED | RETIRED
+  id                String                  @id @default(cuid())
+  number            Int                     @unique
+  status            String                  @default("DRAFT") // DRAFT | IN_REVIEW | PUBLISHED | SUPERSEDED | RETIRED
   notes             String?
   createdByUserId   String?
-  createdAt         DateTime @default(now())
+  createdAt         DateTime                @default(now())
   publishedAt       DateTime?
   publishedByUserId String?
   supersededAt      DateTime?
@@ -877,25 +880,25 @@ model SyncLog {
 
 /// Actual purchases (ERP order feed or import). Compliance is computed from these.
 model PurchaseRecord {
-  id          String     @id @default(cuid())
+  id          String      @id @default(cuid())
   accountId   String
-  account     Account    @relation(fields: [accountId], references: [id])
+  account     Account     @relation(fields: [accountId], references: [id])
   productId   String?
   product     OwnProduct? @relation(fields: [productId], references: [id])
   sku         String
-  quantity    Decimal    @db.Decimal(18, 4)
-  netPrice    Decimal    @db.Decimal(18, 4)
-  currency    String     @default("USD")
+  quantity    Decimal     @db.Decimal(18, 4)
+  netPrice    Decimal     @db.Decimal(18, 4)
+  currency    String      @default("USD")
   invoiceDate DateTime
   contractId  String?
-  contract    Contract?  @relation(fields: [contractId], references: [id])
+  contract    Contract?   @relation(fields: [contractId], references: [id])
   proposalId  String?
-  proposal    Proposal?  @relation(fields: [proposalId], references: [id])
-  source      String     @default("import") // import | erp
+  proposal    Proposal?   @relation(fields: [proposalId], references: [id])
+  source      String      @default("import") // import | erp
   externalId  String?
   documentId  String?
-  document    Document?  @relation(fields: [documentId], references: [id])
-  createdAt   DateTime   @default(now())
+  document    Document?   @relation(fields: [documentId], references: [id])
+  createdAt   DateTime    @default(now())
 
   @@index([accountId, invoiceDate])
   @@index([contractId])
@@ -919,20 +922,90 @@ model DealOutcome {
 
 /// Every cross-reference choice a person made. "Rep acceptance" and "validated accuracy" are different columns.
 model MatchDecision {
-  id                 String        @id @default(cuid())
-  requestLineId      String?
-  proposalLineId     String?
-  proposalLine       ProposalLine? @relation(fields: [proposalLineId], references: [id])
-  topRecommendedSku  String?
-  chosenSku          String?
-  acceptedTop        Boolean
-  overrideReason     String?
-  productFamily      String?
-  competitorName     String?
-  confidence         Float?
-  decidedByUserId    String?
-  at                 DateTime      @default(now())
-  groundTruth        String        @default("UNKNOWN") // VALIDATED_CORRECT | VALIDATED_INCORRECT | UNKNOWN
+  id                String        @id @default(cuid())
+  requestLineId     String?
+  proposalLineId    String?
+  proposalLine      ProposalLine? @relation(fields: [proposalLineId], references: [id])
+  topRecommendedSku String?
+  chosenSku         String?
+  acceptedTop       Boolean
+  overrideReason    String?
+  productFamily     String?
+  competitorName    String?
+  confidence        Float?
+  decidedByUserId   String?
+  at                DateTime      @default(now())
+  groundTruth       String        @default("UNKNOWN") // VALIDATED_CORRECT | VALIDATED_INCORRECT | UNKNOWN
 
   @@index([productFamily, at])
+}
+
+/// ---- GUDID library (Catalog → GUDID library) -------------------------------------
+/// A labeler's whole GUDID catalog pulled from openFDA in bulk so the resolver can answer
+/// from the database first (no network per code) and people can look products up.
+/// Keyed by openFDA's public_device_record_key: a catalog number is NOT unique across
+/// labelers, so cfnNorm is only indexed and the resolver ranks colliding hits exactly
+/// as it ranks live openFDA hits.
+model GudidDevice {
+  id             String       @id @default(cuid())
+  recordKey      String       @unique
+  primaryDi      String?
+  labeler        String // raw company_name
+  manufacturer   String // displayManufacturer(labeler)
+  catalogNumber  String?
+  versionModel   String?
+  cfnNorm        String? // normalised catalogNumber ?? versionModel (what a rep types)
+  cfnCompact     String? // cfnNorm without punctuation
+  brand          String?
+  description    String?
+  gmdnName       String?
+  gmdnCode       String?
+  fdaProductCode String?
+  status         String?
+  family         String? // heuristic bin family, for the library filter
+  sizesJson      String?
+  singleUse      Boolean?
+  sterile        Boolean?
+  implantable    Boolean?
+  gudidJson      String
+  publishDate    String?
+  versionDate    String?
+  importId       String?
+  import         GudidImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
+  importedAt     DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([cfnNorm])
+  @@index([cfnCompact])
+  @@index([primaryDi])
+  @@index([manufacturer])
+  @@index([brand])
+}
+
+/// One bulk import run (a labeler query against openFDA). Progress is persisted so it
+/// survives a page reload; the runner is in-process (see PRODUCTION_READINESS §3.1).
+model GudidImport {
+  id                 String        @id @default(cuid())
+  query              String // openFDA company_name phrase, e.g. "Ethicon"
+  /// "COMPETITOR" | "OWN"
+  kind               String
+  addToOwnCatalog    Boolean       @default(false)
+  familiesJson       String? // Family[] filter for addToOwnCatalog (null = all)
+  productCodesJson   String? // FDA product-code filter (null = all)
+  inDistributionOnly Boolean       @default(true)
+  /// QUEUED | RUNNING | DONE | FAILED | CANCELLED
+  status             String        @default("QUEUED")
+  expected           Int?
+  fetched            Int           @default(0)
+  created            Int           @default(0)
+  updated            Int           @default(0)
+  ownAdded           Int           @default(0)
+  errors             Int           @default(0)
+  log                String        @default("")
+  error              String?
+  startedById        String?
+  startedBy          User?         @relation(fields: [startedById], references: [id], onDelete: SetNull)
+  startedAt          DateTime      @default(now())
+  finishedAt         DateTime?
+  devices            GudidDevice[]
 }

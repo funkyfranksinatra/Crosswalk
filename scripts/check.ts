@@ -12,6 +12,7 @@ import { siblingKey, groupSiblings } from "../src/lib/match/grading";
 import { normalizeCfn, compactCfn } from "../src/lib/cfn";
 import { variantsFor } from "../src/lib/pipeline/resolve";
 import { toCsv, parseCsv } from "../src/lib/sheets/csv";
+import { toDeviceRow, baseSearch } from "../src/lib/gudid/library-model";
 
 let passed = 0;
 const failures: string[] = [];
@@ -120,6 +121,31 @@ test("CSV round-trips quotes and commas", () => {
   const back = parseCsv(toCsv(rows).replace(/^﻿/, ""));
   assert.equal(back[0][1], 'he said "hi", ok');
   assert.equal(back[1][2], "2");
+});
+
+// ---- GUDID library -------------------------------------------------------------
+test("GUDID library rows key on the record, normalise the code, and classify the family", () => {
+  const row = toDeviceRow({
+    public_device_record_key: "abc-123", company_name: "ETHICON, LLC", brand_name: "PROCEED", catalog_number: "pcdx15",
+    version_or_model_number: "PCDX15", device_description: "PROCEED Surgical Mesh 15 cm x 15 cm", commercial_distribution_status: "In Commercial Distribution",
+    identifiers: [{ id: "10705031005158", type: "Primary" }], gmdn_terms: [{ code: "35386", name: "Polypropylene surgical mesh, non-bioabsorbable", implantable: "true" }],
+    device_sizes: [{ type: "Width", value: "15", unit: "Centimeter" }, { type: "Length", value: "15", unit: "Centimeter" }], public_version_date: "2024-01-05",
+  });
+  assert.equal(row.recordKey, "abc-123");
+  assert.equal(row.cfnNorm, "PCDX15");
+  assert.equal(row.cfnCompact, "PCDX15");
+  assert.equal(row.manufacturer, "Ethicon");
+  assert.equal(row.primaryDi, "10705031005158");
+  assert.equal(row.family, "Hernia Mesh");
+  assert.equal(row.implantable, true);
+  assert.ok(row.sizesJson && JSON.parse(row.sizesJson).length === 2);
+  // A record without a catalog number falls back to version/model; one with neither has no code (lookup only by DI/brand).
+  assert.equal(toDeviceRow({ public_device_record_key: "k", company_name: "X", version_or_model_number: "ab-12" }).cfnNorm, "AB-12");
+  assert.equal(toDeviceRow({ public_device_record_key: "k", company_name: "X", catalog_number: "N/A" }).cfnNorm, null);
+});
+test("GUDID import search clause is a quoted labeler phrase, in-distribution by default", () => {
+  assert.equal(baseSearch({ query: "Applied Medical" }), 'company_name:"Applied%20Medical"+AND+commercial_distribution_status:"In%20Commercial%20Distribution"');
+  assert.equal(baseSearch({ query: 'Gore "Inc"', inDistributionOnly: false }), 'company_name:"Gore%20Inc"');
 });
 
 // ---- Report ------------------------------------------------------------------

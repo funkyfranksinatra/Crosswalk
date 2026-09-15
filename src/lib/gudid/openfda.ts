@@ -145,3 +145,11 @@ export function displayManufacturer(name?: string | null): string {
   return name.replace(/,?\s*(inc\.?|llc|l\.p\.|lp|corporation|corp\.?|ltd\.?|limited|gmbh|s\.a\.)\s*$/i, "").replace(/\s+/g, " ").trim()
     .split(" ").map((w) => (w.length > 3 && w === w.toUpperCase() ? w[0] + w.slice(1).toLowerCase() : w)).join(" ");
 }
+
+/** The code as the labeler wrote it in GUDID (catalog number first, then version/model). */
+export function recordCode(r: OpenFdaRecord): string | null {
+  const c = (r.catalog_number ?? "").trim();
+  const v = (r.version_or_model_number ?? "").trim();
+  const bad = (x: string) => !x || /^(n\/?a|none|null)$/i.test(x);
+  return !bad(c) ? c.toUpperCase() : !bad(v) ? v.toUpperCase() : null;
+}

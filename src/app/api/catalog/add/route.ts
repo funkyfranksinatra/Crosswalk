@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { handle } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { getCompany } from "@/lib/settings";
 import { normalizeCfn } from "@/lib/cfn";
@@ -7,6 +7,7 @@ import { heuristicBin } from "@/lib/match/bin";
 
 /** Add own SKUs by catalog number; each is looked up in GUDID under our labelers. */
 export async function POST(req: Request) {
+  return handle("manage_catalog", async () => {
   const body = (await req.json()) as { skus: string; category?: string };
   const company = await getCompany();
   const prefer = JSON.parse(company.labelers || "[]") as string[];
@@ -30,5 +31,6 @@ export async function POST(req: Request) {
     results.push({ sku, status: "added", description: s.description ?? undefined });
     await new Promise((res) => setTimeout(res, 260));
   }
-  return NextResponse.json({ results });
+  return { results };
+  });
 }
