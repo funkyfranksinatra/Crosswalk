@@ -29,7 +29,8 @@ import { createFromRequest, setProposedPrice, setLineIncluded, refreshEconomics,
 import { submitForApproval, decide, finalizeCheck, queueFor } from "../src/lib/approvals/service";
 import { recordOutcome } from "../src/lib/proposals/outcome";
 import { loadPricingContext } from "../src/lib/contracts/context";
-import { pushQuote, syncCrmAccounts } from "../src/lib/integrations/sync";
+import { pushQuote, syncCrmAccounts, syncGpoMemberships, crmAdapter } from "../src/lib/integrations/sync";
+import os from "node:os";
 import { contractPerformance, proposalConversion } from "../src/lib/compliance";
 import { winLoss, pricingEffectiveness, conversion, crossReferenceAccuracy } from "../src/lib/analytics";
 import { proposeCross, setReview, publishVersion, approvedCross } from "../src/lib/xref/governance";
@@ -66,6 +67,10 @@ async function cleanup() {
   await prisma.crosswalkVersionEntry.deleteMany({ where: { competitorCodeNorm: "E2E-TEST-CODE" } });
   await prisma.knownCross.deleteMany({ where: { source: "rep", competitorCode: "E2E-TEST-CODE" } });
   await prisma.externalRef.deleteMany({ where: { system: "dev", entityType: "Proposal" } });
+  await prisma.externalRef.deleteMany({ where: { system: "file" } });
+  await prisma.syncLog.deleteMany({ where: { system: "file" } });
+  const fileAcc = await prisma.account.findUnique({ where: { accountNumber: "E2E-FILE-0001" } });
+  if (fileAcc) { await prisma.gpoMembership.deleteMany({ where: { accountId: fileAcc.id } }); await prisma.account.delete({ where: { id: fileAcc.id } }); }
   await prisma.competitorProduct.deleteMany({ where: { cfnNorm: { in: ["E2E-LIB-9001", "E2ELIB9001"] } } });
   await prisma.gudidDevice.deleteMany({ where: { recordKey: { startsWith: "e2e-lib-" } } });
   await prisma.ownProduct.deleteMany({ where: { sku: "E2E-OWN-7001", source: "gudid-import" } });
@@ -214,7 +219,11 @@ async function main() {
 
   // ---- 6. CRM push, win, contract, compliance ---------------------------------------------
   await step("approved quote pushes to CRM idempotently (dev adapter) and syncs are logged", async () => {
-    await syncCrmAccounts(rep.id);
+    const crm = await syncCrmAccounts(rep.id);
+    assert.equal(crm.failed, 0, `CRM sync failures: ${crm.errors.join("; ")}`);
+    // The seeded MSK account and the CRM fixture are the same hospital: linked by account number, never duplicated.
+    assert.equal(await prisma.account.count({ where: { accountNumber: "0001880967" } }), 1);
+    assert.equal((await prisma.account.findUnique({ where: { accountNumber: "0001880967" } }))?.externalCrmId, "001DEV0000MSK001");
     const first = await pushQuote(rep.id, proposal.id);
     const second = await pushQuote(rep.id, proposal.id);
     assert.equal(first.skipped, false);
@@ -268,6 +277,38 @@ async function main() {
     const pe = await pricingEffectiveness(); assert.ok(pe.linesWon >= 1);
     const cv = await conversion(); assert.ok(cv.converted >= 1);
     const acc = await crossReferenceAccuracy(); assert.ok(acc.decisions >= 30 && acc.top1AcceptanceRate !== null);
+  });
+
+  await step("file feed: CSV exports in INTEGRATION_FEED_DIR sync accounts and GPO memberships through the same idempotent path; existing accounts are linked, not duplicated", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "crosswalk-feed-"));
+    fs.writeFileSync(path.join(dir, "crm-accounts.csv"), [
+      "externalId,name,accountNumber,type,region,isStrategic,gpoName,gpoTier,extraColumn",
+      "001DEV0000MSK001,Memorial Sloan Kettering,0001880967,SOLD_TO,US-East,yes,Premier,Tier 2,ignored",
+      "001FILE0000NEW001,E2E File Hospital,E2E-FILE-0001,SOLD_TO,US-West,no,,,",
+      "001FILE0000DUPE01,Someone Else's MSK,0001880967,SOLD_TO,US-East,no,,,",
+    ].join("\n"));
+    fs.writeFileSync(path.join(dir, "gpo-memberships.csv"), "gpoName,gpoCode,accountNumber,tier,effectiveFrom\nVizient,VIZ,E2E-FILE-0001,Tier 1,2026-01-01\n");
+    const before = await prisma.account.count();
+    process.env.INTEGRATION_FEED_DIR = dir;
+    try {
+      assert.equal(crmAdapter().system, "file");
+      const rep1 = await syncCrmAccounts(null);
+      assert.equal(rep1.created + rep1.updated, 2, rep1.errors.join("; "));
+      assert.equal(await prisma.account.count(), before + 1, "MSK must be linked to the file record, not duplicated");
+      // A number already bound to a different CRM record is refused loudly — never silently re-pointed.
+      assert.equal(rep1.failed, 1);
+      assert.match(rep1.errors[0], /already linked to CRM record 001DEV0000MSK001/);
+      assert.equal((await prisma.account.findUnique({ where: { accountNumber: "0001880967" } }))?.externalCrmId, "001DEV0000MSK001");
+      const rep2 = await syncCrmAccounts(null);
+      assert.equal(rep2.skipped, 2, "second sync of unchanged rows is a no-op");
+      const gpo = await syncGpoMemberships(null);
+      assert.equal(gpo.created, 1);
+      const m = await prisma.gpoMembership.findFirst({ where: { account: { accountNumber: "E2E-FILE-0001" } }, include: { gpo: true } });
+      assert.ok(m && m.gpo.name === "Vizient" && m.tier === "Tier 1");
+    } finally {
+      delete process.env.INTEGRATION_FEED_DIR;
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   await step("GUDID library: a bulk-imported labeler catalog resolves codes without openFDA, and library records can join our catalog", async () => {

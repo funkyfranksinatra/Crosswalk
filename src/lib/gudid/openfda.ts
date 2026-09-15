@@ -117,6 +117,7 @@ export function summarizeRecord(r: OpenFdaRecord) {
     fdaProductCode: pc?.code ?? null,
     status: r.commercial_distribution_status ?? null,
     sizes: r.device_sizes ?? [],
+    specialties: [...new Set((r.product_codes ?? []).map((p) => p.openfda?.medical_specialty_description).filter((x): x is string => Boolean(x)))],
     singleUse: r.is_single_use === "true" ? true : r.is_single_use === "false" ? false : null,
     sterile: r.sterilization?.is_sterile === "true" ? true : r.sterilization?.is_sterile === "false" ? false : null,
     implantable: gmdn?.implantable === "true" ? true : gmdn?.implantable === "false" ? false : null,

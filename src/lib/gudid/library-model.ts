@@ -23,7 +23,7 @@ export function toDeviceRow(r: OpenFdaRecord) {
   const s = summarizeRecord(r);
   const code = recordCode(r);
   const cfnNorm = code ? normalizeCfn(code) : null;
-  const family = heuristicBin({ sku: code ?? undefined, brand: s.brand, description: s.description, gmdnName: s.gmdnName, sizes: s.sizes, singleUse: s.singleUse, sterile: s.sterile, implantable: s.implantable }).family;
+  const family = heuristicBin({ sku: code ?? undefined, brand: s.brand, description: s.description, gmdnName: s.gmdnName, specialties: s.specialties, sizes: s.sizes, singleUse: s.singleUse, sterile: s.sterile, implantable: s.implantable }).family;
   return {
     recordKey: r.public_device_record_key ?? `${r.company_name}|${r.version_or_model_number}|${r.catalog_number}`,
     primaryDi: s.gudidDi,

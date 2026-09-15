@@ -118,7 +118,11 @@ LLM_MODEL=gpt-5.6-astra        # any model ID your endpoint accepts
    whole labeler's GUDID catalog (competitors' and our own) into the database;
    the resolver answers from it first — no network round trip per code — and
    anyone can look a product up by code, DI, brand or description. Codes the
-   library does not hold still go to openFDA live.
+   library does not hold still go to openFDA live. For *your own* products
+   import the surgical labeler (Covidien), not the whole corporation, and only
+   the families you sell into — adopted SKUs enter the matcher's candidate
+   pool (ranked below curated SKUs, flagged as unpriced); **Clean up imported
+   SKUs** removes anything the binner now classifies as another division.
 3. **Retrieve** — curated crosses for the code + top attribute neighbours in
    the same family.
 4. **Rank** — composite of attribute fit, competitive price, COGS, margin

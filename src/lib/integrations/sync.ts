@@ -12,18 +12,55 @@ import type { CrmAdapter, ErpAdapter, GpoAdapter, CrmQuotePush } from "./types";
 import { DevCrmAdapter, DevErpAdapter, DevGpoAdapter } from "./dev";
 import { SalesforceCrmAdapter } from "./salesforce";
 import { SapErpAdapter } from "./sap";
+import { FileCrmAdapter, FileErpAdapter, FileGpoAdapter, FEED_FILES, feedDir, feedFilesPresent } from "./file";
 import { audit } from "@/lib/audit";
 import { economicsToJson } from "@/lib/proposals/economics";
 
-export function crmAdapter(): CrmAdapter { return SalesforceCrmAdapter.configured() ? new SalesforceCrmAdapter() : new DevCrmAdapter(); }
-export function erpAdapter(): ErpAdapter { return SapErpAdapter.configured() ? new SapErpAdapter() : new DevErpAdapter(); }
-export function gpoAdapter(): GpoAdapter { return new DevGpoAdapter(); }
+/** Adapter selection: API adapter when its credentials exist → file feed when INTEGRATION_FEED_DIR is set → labelled dev fixtures. */
+export function crmAdapter(): CrmAdapter { return SalesforceCrmAdapter.configured() ? new SalesforceCrmAdapter() : FileCrmAdapter.configured() ? new FileCrmAdapter() : new DevCrmAdapter(); }
+export function erpAdapter(): ErpAdapter { return SapErpAdapter.configured() ? new SapErpAdapter() : FileErpAdapter.configured() ? new FileErpAdapter() : new DevErpAdapter(); }
+export function gpoAdapter(): GpoAdapter { return FileGpoAdapter.configured() ? new FileGpoAdapter() : new DevGpoAdapter(); }
 
-export function integrationStatus() {
+const envSet = (names: string[]) => names.map((name) => ({ name, set: Boolean(process.env[name]) }));
+
+export type IntegrationSystemStatus = {
+  adapter: string;
+  configured: boolean;
+  /** false when credentials are present but the API adapter is still a skeleton */
+  implemented: boolean;
+  note: string;
+  /** How to connect: the API route (env vars) and the file-feed route (files in INTEGRATION_FEED_DIR) */
+  api: { name: string; env: { name: string; set: boolean }[]; implemented: boolean };
+  feed: { files: { name: string; present: boolean }[] };
+};
+
+export function integrationStatus(): Record<"crm" | "erp" | "gpo", IntegrationSystemStatus> & { feedDir: string | null } {
+  const present = feedFilesPresent();
+  const dir = feedDir();
+  const feed = (k: keyof typeof FEED_FILES) => ({ files: FEED_FILES[k].map((name) => ({ name, present: Boolean(present[name]) })) });
+  const sf = SalesforceCrmAdapter.configured();
+  const sap = SapErpAdapter.configured();
+  const file = Boolean(dir);
   return {
-    crm: { adapter: crmAdapter().system, configured: SalesforceCrmAdapter.configured(), note: SalesforceCrmAdapter.configured() ? "Salesforce" : "DEVELOPMENT adapter (fixtures) — no CRM connected" },
-    erp: { adapter: erpAdapter().system, configured: SapErpAdapter.configured(), note: SapErpAdapter.configured() ? "SAP" : "DEVELOPMENT adapter (fixtures) — no ERP connected" },
-    gpo: { adapter: "dev", configured: false, note: "DEVELOPMENT adapter (fixtures) — no membership feed connected" },
+    feedDir: dir,
+    crm: {
+      adapter: crmAdapter().system, configured: sf || file, implemented: !sf,
+      note: sf ? "Salesforce credentials present — the Salesforce adapter is a skeleton; syncs fail until it is implemented" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no CRM connected",
+      api: { name: "Salesforce", env: envSet(["SF_LOGIN_URL", "SF_CLIENT_ID", "SF_CLIENT_SECRET", "SF_API_VERSION"]), implemented: false },
+      feed: feed("crm"),
+    },
+    erp: {
+      adapter: erpAdapter().system, configured: sap || file, implemented: !sap,
+      note: sap ? "SAP credentials present — the SAP adapter is a skeleton; syncs fail until it is implemented" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no ERP connected",
+      api: { name: "SAP (OData)", env: envSet(["SAP_ODATA_BASE_URL", "SAP_CLIENT", "SAP_USER", "SAP_PASSWORD"]), implemented: false },
+      feed: feed("erp"),
+    },
+    gpo: {
+      adapter: gpoAdapter().system, configured: file, implemented: true,
+      note: file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no membership feed connected",
+      api: { name: "GPO roster API", env: [], implemented: false },
+      feed: feed("gpo"),
+    },
   };
 }
 
@@ -62,7 +99,16 @@ export async function syncCrmAccounts(actorUserId: string | null): Promise<SyncR
       const parent = a.parentExternalId ? await prisma.externalRef.findUnique({ where: { system_entityType_externalId: { system: crm.system, entityType: "Account", externalId: a.parentExternalId } } }) : null;
       const owner = a.ownerEmail ? await prisma.user.findUnique({ where: { email: a.ownerEmail } }) : null;
       const data = { name: a.name, accountNumber: a.accountNumber ?? undefined, type: a.type ?? "SOLD_TO", parentAccountId: parent?.entityId ?? null, territory: a.territory ?? null, segment: a.segment ?? null, region: a.region ?? null, country: a.country ?? "US", currency: a.currency ?? "USD", isStrategic: Boolean(a.isStrategic), ownerUserId: owner?.id ?? null, externalCrmId: a.externalId };
-      const acc = ref ? await prisma.account.update({ where: { id: ref.entityId }, data }) : await prisma.account.upsert({ where: { externalCrmId: a.externalId }, create: data, update: data });
+      // Reconcile: ExternalRef → externalCrmId → the account number (accounts created before the
+      // CRM was connected — from seeds, requests or a purchase feed — get linked, not duplicated).
+      // An account number already bound to a *different* CRM record is a real conflict and fails loudly.
+      let targetId = ref?.entityId ?? (await prisma.account.findUnique({ where: { externalCrmId: a.externalId }, select: { id: true } }))?.id ?? null;
+      if (!targetId && a.accountNumber) {
+        const byNumber = await prisma.account.findUnique({ where: { accountNumber: a.accountNumber }, select: { id: true, externalCrmId: true } });
+        if (byNumber?.externalCrmId && byNumber.externalCrmId !== a.externalId) throw new Error(`account number ${a.accountNumber} is already linked to CRM record ${byNumber.externalCrmId}; resolve in CRM before syncing`);
+        targetId = byNumber?.id ?? null;
+      }
+      const acc = targetId ? await prisma.account.update({ where: { id: targetId }, data }) : await prisma.account.create({ data });
       if (a.gpoName) {
         const gpo = await prisma.gpo.upsert({ where: { name: a.gpoName }, create: { name: a.gpoName }, update: {} });
         const existing = await prisma.gpoMembership.findFirst({ where: { accountId: acc.id, gpoId: gpo.id, effectiveTo: null } });

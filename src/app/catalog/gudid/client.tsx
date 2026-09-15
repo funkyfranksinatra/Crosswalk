@@ -134,6 +134,9 @@ export function ImportPanel({ families, ownLabelers, running }: { families: stri
   const [planning, setPlanning] = useState(false);
   const [job, setJob] = useState<Job | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [pruneFams, setPruneFams] = useState<string[]>([]);
+  const [pruneMsg, setPruneMsg] = useState<string | null>(null);
+  const [pruning, setPruning] = useState(false);
 
   // Follow a running job (this one, or one started by someone else).
   const jobId = job?.id ?? running?.id ?? null;
@@ -171,6 +174,15 @@ export function ImportPanel({ families, ownLabelers, running }: { families: stri
     await fetch(`/api/catalog/gudid/${jobId}`, { method: "DELETE" });
   }
 
+  async function prune(dryRun: boolean) {
+    setPruning(true); setPruneMsg(null);
+    const r = await fetch("/api/catalog/gudid/prune", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ families: pruneFams, dryRun }) }).then((x) => x.json());
+    setPruning(false);
+    if (r.error) { setPruneMsg(r.error); return; }
+    setPruneMsg(`${dryRun ? "Would remove" : "Removed"} ${r.deleted.toLocaleString()} unused SKU${r.deleted === 1 ? "" : "s"}${r.deactivated ? `, ${dryRun ? "would deactivate" : "deactivated"} ${r.deactivated.toLocaleString()} referenced` : ""}; ${r.kept.toLocaleString()} kept${!dryRun && r.rebinned ? ` (${r.rebinned.toLocaleString()} re-binned)` : ""}.`);
+    if (!dryRun) router.refresh();
+  }
+
   const active = job && ["QUEUED", "RUNNING"].includes(job.status);
   const pct = job?.expected ? Math.min(100, Math.round((job.fetched / job.expected) * 100)) : null;
   const ownHint = ownLabelers.length ? `our labelers: ${ownLabelers.join(", ")}` : "set our labelers in Settings first";
@@ -202,7 +214,8 @@ export function ImportPanel({ families, ownLabelers, running }: { families: stri
             <div className="mt-2">
               <div className="label">Only add SKUs in these families (keeps the matcher&apos;s candidate pool relevant)</div>
               <div className="flex flex-wrap gap-1.5">
-                {families.map((f) => <button key={f} className={`btn-secondary btn-sm ${fams.includes(f) ? "ring-2 ring-accent" : "opacity-60"}`} onClick={() => setFams(fams.includes(f) ? fams.filter((x) => x !== f) : [...fams, f])}>{f}</button>)}
+                {families.filter((f) => f !== "Other").map((f) => <button key={f} className={`btn-secondary btn-sm ${fams.includes(f) ? "ring-2 ring-accent" : "opacity-60"}`} onClick={() => setFams(fams.includes(f) ? fams.filter((x) => x !== f) : [...fams, f])}>{f}</button>)}
+                <span className="text-[11.5px] text-muted self-center">“Other” (unclassified, other divisions) is never added.</span>
               </div>
             </div>
           )}
@@ -232,6 +245,21 @@ export function ImportPanel({ families, ownLabelers, running }: { families: stri
               {job.log && <pre className="mono text-[11px] text-muted mt-2 max-h-24 overflow-auto whitespace-pre-wrap">{job.log.trim().split("\n").slice(-4).join("\n")}</pre>}
             </div>
           )}
+
+          <details className="mt-3 text-[12.5px]">
+            <summary className="cursor-pointer text-muted">Clean up SKUs added to our catalog by imports</summary>
+            <div className="mt-2 rounded-md bg-panel-2 px-3 py-2">
+              <p className="text-muted mb-2">Re-bins every imported SKU with the current rules and removes what does not belong: anything now classified <b>Other</b> (other divisions — cranial, spinal, cardiac…) plus the families you tick. SKUs already used by a match, proposal, price or purchase are deactivated instead of deleted.</p>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {families.filter((f) => f !== "Other").map((f) => <button key={f} className={`btn-secondary btn-sm ${pruneFams.includes(f) ? "ring-2 ring-accent" : "opacity-60"}`} onClick={() => setPruneFams(pruneFams.includes(f) ? pruneFams.filter((x) => x !== f) : [...pruneFams, f])}>{f}</button>)}
+              </div>
+              <div className="flex gap-2">
+                <button className="btn-secondary btn-sm" disabled={pruning} onClick={() => prune(true)}>{pruning ? "Working…" : "Preview"}</button>
+                <button className="btn-secondary btn-sm" disabled={pruning} onClick={() => prune(false)}>Remove</button>
+              </div>
+              {pruneMsg && <div className="mt-2 text-accent-ink">{pruneMsg}</div>}
+            </div>
+          </details>
 
           <div className="flex justify-end gap-2 mt-3">
             <button className="btn-ghost" onClick={() => setOpen(false)}>Close</button>

@@ -78,7 +78,7 @@ resolution, binning and grading rules. The short version:
 ## Conventions
 
 * **Rule bumps.** Change the heuristic binner → bump `BIN_VERSION` in
-  `bin.ts`. Change the grading prompt → bump `GRADE_PROMPT_VERSION` in
+  `bin.ts` (v6: FDA review-panel and other-division exclusions). Change the grading prompt → bump `GRADE_PROMPT_VERSION` in
   `grading.ts`. Both invalidate cached bins/verdicts on the next run; forgetting
   is the #1 way a fix silently doesn't ship.
 * **Pin regressions.** Every deterministic fix that came out of a

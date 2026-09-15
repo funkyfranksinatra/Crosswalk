@@ -30,7 +30,7 @@ export const DimensionSchema = z.object({
  * Model bins record the heuristic version they were drafted from (`hv`); a bump rebuilds those
  * too, because the model corrects the heuristic first pass rather than starting from nothing.
  */
-export const BIN_VERSION = 5;
+export const BIN_VERSION = 6;
 
 export const BinSchema = z.object({
   v: z.number().optional().describe("internal: binner rule version"),
@@ -149,6 +149,10 @@ const FEATURES: [RegExp, string][] = [
 
 const FAMILY_RULES: [RegExp, Family][] = [
   // Order matters: fixation devices mention "mesh" in their GMDN term, staplers mention "tissue".
+  // Other specialties first: a whole-labeler GUDID import brings cranial mesh, spinal cages, pedicle
+  // plugs, vascular grafts and cardiac leads that would otherwise land in the surgical families on a
+  // single keyword. They are not candidates for anything on a hospital's surgical list.
+  [/cranial|craniofacial|cranioplasty|neurosurg|\bspinal?\b|\bspine\b|vertebr|pedicle|interbody|intervertebral|orthop|osteo|\bbone\b|dental|maxillofacial|cardiac|pacemaker|defibrillat|\blead\b|stent|vascular graft|endovascular|catheter|guidewire|insulin|glucose|infusion pump|ventilator|oxygenator|hemodialysis|ophthalm|cochlear|stimulat|deep brain|pulse generator|cardioverter|ablation catheter|surgical mesh, metal|metal mesh|titanium mesh|instrument tray|sterilization container|\bcaddy\b|\bcase\b.*\b(tray|lid|instruments?)\b|\blid\b/i, "Other"],
   [/\btack|fastener|helical|protack|absorbatack|securestrap|capsure|fixation device|mesh fixation/i, "Fixation"],
   [/stapl|reload|cartridge|loading unit|sulu|\bgia\b|\bta\b|\beea\b|echelon|endopath ets|aeon|signia|tri-staple|contour|proximate/i, "Surgical Stapling Products"],
   [/\bmesh\b|patch|biomaterial|hernia|dualmesh|dulamesh|parietene|parietex|phasix|prolene|ultrapro|ventralight|symbotex|progrip|composix|bard soft|perfix|plug/i, "Hernia Mesh"],
@@ -322,6 +326,14 @@ export function constructionSignature(bin: Bin): string {
   return [...mats, ...feats].join(",") || "-";
 }
 
+/**
+ * FDA review-panel specialties (openFDA `product_codes[].openfda.medical_specialty_description`)
+ * that never hold endomechanical / hernia products. A record carrying any of them is "Other"
+ * whatever its description says — Pyramesh is a spinal cage that GUDID also files under
+ * "Mesh, Surgical, Metal", and a cardiopulmonary bypass "PLUG" is not a hernia plug.
+ */
+export const OFF_SPECIALTIES = /orthopedic|neurolog|cardiovascular|ear, nose|dental|ophthalm|radiolog|anesthesiolog|physical medicine|hematolog|clinical chemistry|immunolog|microbiolog|patholog|toxicolog|clinical toxicology/i;
+
 export function heuristicBin(input: {
   sku?: string | null;
   name?: string | null;
@@ -329,6 +341,8 @@ export function heuristicBin(input: {
   brand?: string | null;
   gmdnName?: string | null;
   category?: string | null;
+  /** FDA medical specialties of the record's product codes (see OFF_SPECIALTIES) */
+  specialties?: string[] | null;
   sizes?: { type?: string; value?: string; unit?: string }[] | null;
   /** Sizes the rep imported for this competitor code — trusted over GUDID and regex. */
   importedSizes?: Dimension[] | null;
@@ -341,10 +355,13 @@ export function heuristicBin(input: {
 
   // Rules first (they read the product itself), sales category as the fallback.
   let family: Family = "Other";
-  for (const [re, fam] of FAMILY_RULES) {
-    if (re.test(text)) { family = fam; break; }
+  const offSpecialty = (input.specialties ?? []).some((sp) => OFF_SPECIALTIES.test(sp));
+  if (!offSpecialty) {
+    for (const [re, fam] of FAMILY_RULES) {
+      if (re.test(text)) { family = fam; break; }
+    }
+    if (family === "Other") family = familyFromCategory(input.category) ?? "Other";
   }
-  if (family === "Other") family = familyFromCategory(input.category) ?? "Other";
 
   const materials = MATERIALS.filter((mat) => lower.includes(mat));
   // Brand names carry the primary material even when the record doesn't spell it out.

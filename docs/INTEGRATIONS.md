@@ -11,10 +11,34 @@
 | Purchase / billing history | **ERP** | `PurchaseRecord` |
 | Crosswalk versions, competitor price observations, pricing policies, proposals, recommendations, approvals, outcomes, audit | **Crosswalk** | everything else |
 
+## How to connect a system
+
+There are three adapters per system and the app picks one automatically, in this order:
+
+1. **Vendor API adapter** — selected when its credentials are in `.env` (`SF_LOGIN_URL` + `SF_CLIENT_ID` for Salesforce, `SAP_ODATA_BASE_URL` for SAP). Today these are *skeletons*: they document the contract and throw `NotConfigured`; an engineer implements `pullAccounts` / `pullSkuMaster` / … against the vendor API once the organisation grants access. Settings → Integrations shows "not implemented" when credentials are present but the adapter is a skeleton.
+2. **File feed adapter** (`file.ts`) — selected when `INTEGRATION_FEED_DIR` points to a folder. This is the route most organisations can use immediately: Salesforce reports, SAP extracts and GPO member rosters are all exportable as CSV, and an iPaaS or a scheduled job can drop them into a share. Files and columns:
+
+   | File | Columns |
+   | --- | --- |
+   | `crm-accounts.csv` | externalId, name, accountNumber, parentExternalId, type, territory, segment, region, country, currency, isStrategic, ownerEmail, gpoName, gpoTier |
+   | `crm-opportunities.csv` | externalId, accountExternalId, name, stage, ownerEmail, closeDate, amount, currency |
+   | `erp-skus.csv` | sku, description, productFamily, uom, listPrice, currency, status, discontinued |
+   | `erp-costs.csv` | sku, plant, region, currency, costType, cost, effectiveFrom, effectiveTo |
+   | `erp-purchases.csv` | externalId, accountExternalId, accountNumber, sku, quantity, netPrice, currency, invoiceDate, contractNumber |
+   | `gpo-memberships.csv` | gpoName, gpoCode, accountExternalId, accountNumber, tier, effectiveFrom, effectiveTo, source |
+
+   Extra columns are ignored; booleans accept true/yes/1. Approved quotes pushed "to CRM" are written to `<dir>/outbound/quotes/<reference>.json` for the CRM team or the integration job to load. Records are tagged `system = "file"`.
+3. **Development adapter** (`dev.ts`) — fixtures under `data/fixtures/integrations/`, used when neither of the above is configured. Clearly labelled in the UI; never a network call.
+
+All three feed the same idempotent sync (`sync.ts`): records are keyed by external id, unchanged payloads are skipped by hash, each attempt is logged, and accounts that already exist (seeded, created from a request, or from a purchase feed) are **linked by account number** rather than duplicated — an account number already bound to a different CRM record fails loudly instead of being overwritten. Switching from the file feed to the API adapter later changes nothing downstream.
+
+**Who does what.** A contracting manager or admin sets `INTEGRATION_FEED_DIR` (or the API credentials) in `.env` and restarts the app; anyone with `manage_contracts` can press **Sync now** in Settings → Integrations, and the same calls (`POST /api/integrations/sync` with `{ system: "crm" | "erp" | "gpo" }`) can be scheduled from a job runner. Data owners keep the exports current.
+
 ## Adapters (`src/lib/integrations/`)
 
 * `types.ts` — `CrmAdapter`, `ErpAdapter`, `GpoAdapter` interfaces and DTOs. The domain only ever sees these.
 * `dev.ts` — **DEVELOPMENT** adapters backed by JSON fixtures under `data/fixtures/integrations/` (`crm-accounts.json`, `crm-opportunities.json`, `erp-skus.json`, `erp-costs.json`, `erp-purchases.json`, `gpo-memberships.json`); quote pushes are written to `pushed-quotes/`. Records are tagged `system = "dev"`. Nothing here is a network call.
+* `file.ts` — CSV feed adapters for all three systems (see above).
 * `salesforce.ts`, `sap.ts` — skeletons that throw `NotConfigured` naming the credentials they need. They are selected automatically when their env vars exist.
 * `sync.ts` — idempotent upserts keyed by (`system`, `entityType`, `externalId`) with payload hashes (unchanged records are skipped), 3-attempt exponential backoff, per-record `SyncLog`, partial-failure tolerance (one bad row never stops a feed), and the outbound quote push (`pushQuote`) which is skipped when the payload hash is unchanged.
 
