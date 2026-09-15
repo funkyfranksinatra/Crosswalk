@@ -901,6 +901,7 @@ model PurchaseRecord {
   createdAt   DateTime    @default(now())
 
   @@index([accountId, invoiceDate])
+  @@index([accountId, externalId])
   @@index([contractId])
 }
 

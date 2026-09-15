@@ -14,6 +14,7 @@ import { SalesforceCrmAdapter } from "./salesforce";
 import { SapErpAdapter } from "./sap";
 import { FileCrmAdapter, FileErpAdapter, FileGpoAdapter, FEED_FILES, feedDir, feedFilesPresent } from "./file";
 import { audit } from "@/lib/audit";
+import { publicErrorMessage } from "@/lib/api";
 import { economicsToJson } from "@/lib/proposals/economics";
 
 /** Adapter selection: API adapter when its credentials exist → file feed when INTEGRATION_FEED_DIR is set → labelled dev fixtures. */
@@ -69,7 +70,7 @@ const hash = (o: unknown) => createHash("sha256").update(JSON.stringify(o)).dige
 async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<{ ok: true; value: T; attempt: number } | { ok: false; error: string; attempt: number }> {
   let last = "";
   for (let i = 1; i <= attempts; i++) {
-    try { return { ok: true, value: await fn(), attempt: i }; } catch (e) { last = e instanceof Error ? e.message : String(e); if (i < attempts) await new Promise((r) => setTimeout(r, 200 * 2 ** (i - 1))); }
+    try { return { ok: true, value: await fn(), attempt: i }; } catch (e) { last = publicErrorMessage(e); if (i < attempts) await new Promise((r) => setTimeout(r, 200 * 2 ** (i - 1))); }
   }
   return { ok: false, error: last, attempt: attempts };
 }

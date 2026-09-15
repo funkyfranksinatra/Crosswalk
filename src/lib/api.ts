@@ -17,10 +17,30 @@ export async function handle<T>(perm: Permission | null, fn: (actor: Actor) => P
     return NextResponse.json(plain(out ?? { ok: true }));
   } catch (e) {
     if (e instanceof AuthError) return NextResponse.json({ error: e.message }, { status: e.status });
-    const msg = e instanceof Error ? e.message : String(e);
-    const status = /not found/i.test(msg) ? 404 : 400;
+    const msg = publicErrorMessage(e);
+    const status = /not found/i.test(msg) ? 404 : /already|changed|decided by someone|being submitted|conflict/i.test(msg) ? 409 : 400;
     return NextResponse.json({ error: msg }, { status });
   }
+}
+
+/**
+ * What a client may see of an error. Domain errors are plain sentences and pass through; a
+ * database/driver error would carry the query, file paths and column names — those are logged
+ * server-side and replaced with a generic message.
+ */
+export function publicErrorMessage(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  const name = e instanceof Error ? e.constructor.name : "";
+  if (/^Prisma/.test(name) || /Invalid `prisma\.|Invalid `__TURBOPACK|invocation in\n|PrismaClient/i.test(msg) || /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|connection terminated|Connection terminated/i.test(msg)) {
+    console.error("[api]", e);
+    if (/Unique constraint/i.test(msg)) return "That record already exists (a unique value is taken)";
+    if (/Foreign key constraint/i.test(msg)) return "That change would break a link to another record";
+    if (/numeric field overflow/i.test(msg)) return "A value is out of the supported numeric range";
+    if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND|terminated/i.test(msg)) return "The database is unreachable right now; try again";
+    if (/not found|No record/i.test(msg)) return "not found";
+    return "The request could not be completed (database error; see server log)";
+  }
+  return msg.split("\n")[0].slice(0, 500);
 }
 
 /**
