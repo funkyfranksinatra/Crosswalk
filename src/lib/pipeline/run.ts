@@ -141,7 +141,7 @@ export async function runRequest(requestId: string) {
     if (!exists) {
       const raw = cp.gudidJson ? (JSON.parse(cp.gudidJson) as OpenFdaRecord) : null;
       const s = raw ? summarizeRecord(raw) : null;
-      const bin = heuristicBin({ sku, brand: cp.brand, description: cp.description, gmdnName: cp.gmdnName, sizes: s?.sizes, singleUse: s?.singleUse, sterile: s?.sterile, implantable: s?.implantable });
+      const bin = heuristicBin({ sku, brand: cp.brand, description: cp.description, gmdnName: cp.gmdnName, specialties: s?.specialties, sizes: s?.sizes, singleUse: s?.singleUse, sterile: s?.sterile, implantable: s?.implantable });
       await prisma.ownProduct.create({ data: { companyId: request.companyId, sku, description: cp.description ?? sku, category: bin.family, brand: cp.brand, labeler: cp.labeler, status: cp.status, gudidDi: cp.gudidDi, gmdnName: cp.gmdnName, gmdnCode: cp.gmdnCode, fdaProductCode: cp.fdaProductCode, gudidJson: cp.gudidJson, gudidSyncedAt: new Date(), binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date() } });
       await log(requestId, `Added our own SKU ${sku} to the catalog (customer already buys it from us)`);
     }
@@ -181,6 +181,7 @@ export async function runRequest(requestId: string) {
         singleUse: s?.singleUse ?? null,
         sterile: s?.sterile ?? null,
         implantable: s?.implantable ?? null,
+        specialties: s?.specialties ?? null,
         useLlm,
       });
       await prisma.competitorProduct.update({ where: { id: cp.id }, data: { binJson: JSON.stringify(bin), binSource: source, binnedAt: new Date(), category: cp.category ?? bin.family } });
@@ -191,17 +192,28 @@ export async function runRequest(requestId: string) {
 
   // ---- Stage 3: match & rank ---------------------------------------------
   await setStage(requestId, "Matching against our catalog", 60);
-  const ownProducts = await prisma.ownProduct.findMany({ where: { companyId: request.companyId, isActive: true }, include: { prices: request.pricebookId ? { where: { pricebookId: request.pricebookId } } : false } });
+  // Candidate pool: every curated / hand-added SKU, plus SKUs adopted from GUDID imports only in the
+  // families this list is about (a whole-labeler import can be tens of thousands of rows). gudidJson
+  // is fetched lazily — only for rows that need (re)binning.
+  const requestFamilies = new Set<string>();
+  for (const cp of uniqueCps.values()) { const b = parseBin(cp.binJson, { allowStale: true }); if (b && b.family !== "Other") requestFamilies.add(b.family); }
+  const ownProducts = await prisma.ownProduct.findMany({
+    where: { companyId: request.companyId, isActive: true, OR: [{ source: { not: "gudid-import" } }, { category: { in: [...requestFamilies] } }] },
+    omit: { gudidJson: true },
+    include: { prices: request.pricebookId ? { where: { pricebookId: request.pricebookId } } : false },
+  });
+  await log(requestId, `Candidate pool: ${ownProducts.length} SKUs (${ownProducts.filter((p) => p.source === "gudid-import").length} from GUDID imports in ${[...requestFamilies].join(", ") || "no families"})`);
   // Own bins: keep model bins and current-version heuristic bins; rebuild stale ones (with GUDID sizes) and persist.
-  const ownWithBins = await Promise.all(ownProducts.map(async (p) => {
+  const ownWithBins = await mapLimit(ownProducts, 8, async (p) => {
     const existing = parseBin(p.binJson);
     if (existing) return { p, bin: existing };
-    const raw = p.gudidJson ? (JSON.parse(p.gudidJson) as OpenFdaRecord) : null;
+    const full = await prisma.ownProduct.findUnique({ where: { id: p.id }, select: { gudidJson: true } });
+    const raw = full?.gudidJson ? (JSON.parse(full.gudidJson) as OpenFdaRecord) : null;
     const g = raw ? summarizeRecord(raw) : null;
-    const bin = heuristicBin({ sku: p.sku, brand: p.brand, description: g ? `${p.description} ; ${g.description ?? ""}` : p.description, category: p.category, gmdnName: p.gmdnName, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
-    await prisma.ownProduct.update({ where: { id: p.id }, data: { binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date() } });
+    const bin = heuristicBin({ sku: p.sku, brand: p.brand, description: g ? `${p.description} ; ${g.description ?? ""}` : p.description, category: p.category, gmdnName: p.gmdnName, specialties: g?.specialties, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
+    await prisma.ownProduct.update({ where: { id: p.id }, data: { binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date(), ...(p.source === "gudid-import" ? { category: bin.family } : {}) } });
     return { p, bin };
-  }));
+  });
   const knownCrosses = await prisma.knownCross.findMany({ where: { isActive: true } });
   const crossesByCode = new Map<string, typeof knownCrosses>();
   for (const k of knownCrosses) {
@@ -261,9 +273,10 @@ export async function runRequest(requestId: string) {
       if (useLlm) {
         await mapLimit(candidates, 3, async (c) => {
           if (c.p.binSource === "llm") return;
-          const raw = c.p.gudidJson ? (JSON.parse(c.p.gudidJson) as OpenFdaRecord) : null;
+          const full = await prisma.ownProduct.findUnique({ where: { id: c.p.id }, select: { gudidJson: true } });
+          const raw = full?.gudidJson ? (JSON.parse(full.gudidJson) as OpenFdaRecord) : null;
           const s = raw ? summarizeRecord(raw) : null;
-          const { bin, source } = await binProduct({ subject: c.p.sku, sku: c.p.sku, name: c.p.brand, brand: c.p.brand, description: c.p.description, manufacturer: c.p.labeler ?? request.company.name, gmdnName: c.p.gmdnName, gmdnDefinition: raw?.gmdn_terms?.[0]?.definition ?? null, category: c.p.category, sizes: s?.sizes ?? null, singleUse: s?.singleUse, sterile: s?.sterile, implantable: s?.implantable, useLlm });
+          const { bin, source } = await binProduct({ subject: c.p.sku, sku: c.p.sku, name: c.p.brand, brand: c.p.brand, description: c.p.description, manufacturer: c.p.labeler ?? request.company.name, gmdnName: c.p.gmdnName, gmdnDefinition: raw?.gmdn_terms?.[0]?.definition ?? null, category: c.p.category, sizes: s?.sizes ?? null, singleUse: s?.singleUse, sterile: s?.sterile, implantable: s?.implantable, specialties: s?.specialties ?? null, useLlm });
           c.bin = bin;
           c.p.binSource = source;
           await prisma.ownProduct.update({ where: { id: c.p.id }, data: { binJson: JSON.stringify(bin), binSource: source, binnedAt: new Date() } });
@@ -282,6 +295,7 @@ export async function runRequest(requestId: string) {
           unitPrice: num(pb?.price ?? c.p.listPrice),
           cogs: num(c.p.cogs),
           identity: selfSku != null && c.p.sku.toUpperCase() === selfSku,
+          provenance: c.p.source,
           knownCross: k ? { matchType: k.matchType, preferredOwnSku: k.preferredOwnSku, additionalProducts: k.additionalProducts, notes: k.notes, source: k.source } : null,
         };
       });

@@ -123,6 +123,27 @@ test("CSV round-trips quotes and commas", () => {
   assert.equal(back[1][2], "2");
 });
 
+// ---- Other divisions never land in a surgical family ----------------------------
+test("cranial / spinal / cardiac devices from a whole-labeler import bin as Other, not mesh or trocar", () => {
+  assert.equal(heuristicBin({ brand: "TiMesh®", description: "PANEL 016-128 CRANIAL MESH 128 X 79MM" }).family, "Other");
+  assert.equal(heuristicBin({ brand: "Pyramesh® Implant System", description: "MESH 905-904 PYRM 25 X 150 ANGLED", gmdnName: "Spinal interbody fusion cage" }).family, "Other");
+  assert.equal(heuristicBin({ description: "PLUG X0809252 PEDICLE" }).family, "Other");
+  assert.equal(heuristicBin({ description: "Introducer sheath, vascular access port, catheter" }).family, "Other");
+  // The FDA review panel is decisive when GUDID's own classification is misleading.
+  assert.equal(heuristicBin({ brand: "Pyramesh", description: "MESH 905-101 PYRM 10MM X 100MM ROUND", gmdnName: "Extra-gynaecological surgical mesh, metal", specialties: ["General, Plastic Surgery", "Orthopedic"] }).family, "Other");
+  assert.equal(heuristicBin({ description: "PLUG 5344 1/4 INCH", specialties: ["Cardiovascular"] }).family, "Other");
+  assert.equal(heuristicBin({ description: "TRAY 7069080 5.5/6.0 HOOK INSTRUMENTS", gmdnName: "Instrument tray, reusable" }).family, "Other");
+  assert.equal(heuristicBin({ brand: "Pyramesh® Implant System", description: "MESH 905-309 PYRM 25MM X 100MM ROUND", gmdnName: "Extra-gynaecological surgical mesh, metal", specialties: ["General, Plastic Surgery"] }).family, "Other");
+  assert.equal(heuristicBin({ description: "ACCY B31060 BORE PLUG US EMAN", gmdnName: "Deep brain electrical stimulation system" }).family, "Other");
+  assert.equal(heuristicBin({ brand: "TYRX", description: "ENVELOPE CMRM6122 ABSORB MED US", gmdnName: "Implantable pulse generator mesh bag, bioabsorbable", specialties: ["General, Plastic Surgery"] }).family, "Other");
+  assert.equal(heuristicBin({ brand: "Endo GIA", description: "ENDO GIA 60MM ARTICULATING RELOAD, TITANIUM STAPLES, MEDIUM/THICK" }).family, "Surgical Stapling Products");
+  assert.equal(heuristicBin({ brand: "Endo Clinch", description: "ENDO CLINCH II 5MM GRASPER, 31 CM", specialties: ["General, Plastic Surgery"] }).family, "Laparoscopic Instruments (Hand)");
+  assert.equal(heuristicBin({ brand: "GORE DUALMESH Biomaterial", description: "GORE DUALMESH BIOMATERIAL 7.5cmX10.0cmX1.0mm", specialties: ["General, Plastic Surgery"] }).family, "Hernia Mesh");
+  // …while the real surgical products still classify.
+  assert.equal(heuristicBin({ brand: "Parietex", description: "PARIETEX COMPOSITE MESH 15CM X 20CM" }).family, "Hernia Mesh");
+  assert.equal(heuristicBin({ brand: "VersaOne", description: "VERSAONE OPTICAL TROCAR 12MM X 100MM" }).family, "Trocar Products");
+});
+
 // ---- GUDID library -------------------------------------------------------------
 test("GUDID library rows key on the record, normalise the code, and classify the family", () => {
   const row = toDeviceRow({

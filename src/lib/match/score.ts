@@ -23,6 +23,8 @@ export type CandidateInput = {
   unitPrice: number | null; // from selected pricebook or list price
   cogs: number | null;
   identity?: boolean; // the competitor code *is* this SKU
+  /** "seed" | "manual" | "gudid-import" — imported SKUs rank below curated ones at equal match quality */
+  provenance?: string | null;
   knownCross?: { matchType: string; preferredOwnSku?: string | null; additionalProducts?: string | null; notes?: string | null; source: string } | null;
 };
 
@@ -53,6 +55,7 @@ export function scoreCandidates(
     let matchType = matchTypeFromScore(scoreBin, sim.dimensions, sim.cap);
     let source: ScoredCandidate["source"] = "attribute";
     const notes = [...sim.notes];
+    if (c.provenance === "gudid-import") notes.push("SKU added from a GUDID import — not in the curated catalog, no price on file");
 
     if (c.identity) {
       scoreBin = 1;
@@ -124,11 +127,16 @@ export function scoreCandidates(
 
   // Order: match quality, then evidence strength, then composite score.
   const SOURCE_ORDER: Record<string, number> = { identity: 0, "known-cross": 1, attribute: 2 };
+  // Curated / hand-added SKUs are verified commercial products; SKUs adopted from a GUDID import are
+  // not (unpriced, uncurated) and lose ties.
+  const provenanceRank = (c: ScoredCandidate) => (c.provenance === "gudid-import" ? 1 : 0);
   scored.sort((a, b) => {
     const m = (MATCH_ORDER[a.matchType] ?? 3) - (MATCH_ORDER[b.matchType] ?? 3);
     if (m !== 0) return m;
     const so = (SOURCE_ORDER[a.source] ?? 2) - (SOURCE_ORDER[b.source] ?? 2);
     if (so !== 0) return so;
+    const pr = provenanceRank(a) - provenanceRank(b);
+    if (pr !== 0) return pr;
     return b.score - a.score;
   });
   return scored;

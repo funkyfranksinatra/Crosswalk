@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { structured, llmConfig } from "./client";
-import { BinSchema, heuristicBin, normaliseDimensions, type Bin, type Dimension, FAMILIES, BIN_VERSION } from "@/lib/match/bin";
+import { BinSchema, heuristicBin, normaliseDimensions, type Bin, type Dimension, FAMILIES, BIN_VERSION, OFF_SPECIALTIES } from "@/lib/match/bin";
 
 const BIN_SYSTEM = `You are a surgical product specialist helping a medical-device sales team cross-reference products.
 Reduce the product to a precise, comparable attribute bin. Rules:
@@ -31,10 +31,13 @@ export async function binProduct(input: {
   singleUse?: boolean | null;
   sterile?: boolean | null;
   implantable?: boolean | null;
+  specialties?: string[] | null;
   useLlm?: boolean;
 }): Promise<{ bin: Bin; source: "llm" | "heuristic" }> {
   const heuristic = heuristicBin({ ...input, sku: input.sku ?? null });
   if (input.useLlm === false || !llmConfig().available) return { bin: heuristic, source: "heuristic" };
+  // An FDA review panel outside surgery is decisive (see OFF_SPECIALTIES): no model call, no candidate.
+  if (heuristic.family === "Other" && (input.specialties ?? []).some((sp) => OFF_SPECIALTIES.test(sp))) return { bin: heuristic, source: "heuristic" };
 
   const user = [
     `Catalog number: ${input.subject}`,

@@ -208,7 +208,9 @@ async function upsertDevices(importId: string, recs: OpenFdaRecord[]) {
 export async function adoptIntoOwnCatalog(rows: DeviceRow[], families: Family[] | null) {
   const { getCompany } = await import("@/lib/settings");
   const company = await getCompany();
-  const wanted = rows.filter((r) => r.cfnNorm && (!families || families.includes(r.family as Family)));
+  // "Other" is never adopted: the binner could not place the product in a family the matcher knows,
+  // so it would only dilute the candidate pool (a whole-labeler import is mostly other divisions).
+  const wanted = rows.filter((r) => r.cfnNorm && r.family && r.family !== "Other" && (!families || families.includes(r.family as Family)));
   if (!wanted.length) return 0;
   // One row per SKU: prefer the record with sizes, then the most recent version.
   const bySku = new Map<string, DeviceRow>();
@@ -222,7 +224,7 @@ export async function adoptIntoOwnCatalog(rows: DeviceRow[], families: Family[] 
     const r = bySku.get(sku)!;
     const raw = JSON.parse(r.gudidJson) as OpenFdaRecord;
     const s = summarizeRecord(raw);
-    const bin = heuristicBin({ sku, brand: r.brand, description: r.description, gmdnName: r.gmdnName, sizes: s.sizes, singleUse: s.singleUse, sterile: s.sterile, implantable: s.implantable });
+    const bin = heuristicBin({ sku, brand: r.brand, description: r.description, gmdnName: r.gmdnName, specialties: s.specialties, sizes: s.sizes, singleUse: s.singleUse, sterile: s.sterile, implantable: s.implantable });
     return {
       companyId: company.id, sku, description: r.description ?? sku, category: bin.family, brand: r.brand, labeler: r.labeler, status: r.status,
       gudidDi: r.primaryDi, gmdnName: r.gmdnName, gmdnCode: r.gmdnCode, fdaProductCode: r.fdaProductCode, gudidJson: r.gudidJson, gudidSyncedAt: new Date(),
@@ -238,6 +240,50 @@ export async function adoptIntoOwnCatalog(rows: DeviceRow[], families: Family[] 
 export async function adoptRecords(recordKeys: string[]) {
   const devices = await prisma.gudidDevice.findMany({ where: { recordKey: { in: recordKeys } } });
   return adoptIntoOwnCatalog(devices, null);
+}
+
+/**
+ * Re-evaluate SKUs that imports added to our catalog with the current binning rules, and
+ * remove the ones that do not belong: everything now classified "Other", plus (optionally)
+ * whole families. SKUs already referenced by a match, proposal, price, cost or purchase are
+ * deactivated instead of deleted so history stays intact.
+ */
+export async function pruneAdopted(opts: { families?: string[] | null; dryRun?: boolean } = {}) {
+  const { getCompany } = await import("@/lib/settings");
+  const company = await getCompany();
+  const drop = new Set(opts.families ?? []);
+  let rebinned = 0, deleted = 0, deactivated = 0, kept = 0;
+  const PAGE = 500;
+  let cursor: string | undefined;
+  for (;;) {
+    const batch = await prisma.ownProduct.findMany({ where: { companyId: company.id, source: "gudid-import", ...(cursor ? { id: { gt: cursor } } : {}) }, orderBy: { id: "asc" }, take: PAGE, select: { id: true, sku: true, brand: true, description: true, gmdnName: true, gudidJson: true, category: true, binJson: true, binSource: true, isActive: true, _count: { select: { candidates: true, proposalLines: true, prices: true, costs: true, purchases: true } } } });
+    if (!batch.length) break;
+    cursor = batch[batch.length - 1].id;
+    const toDelete: string[] = [];
+    const toDeactivate: string[] = [];
+    for (const p of batch) {
+      const raw = p.gudidJson ? (JSON.parse(p.gudidJson) as OpenFdaRecord) : null;
+      const g = raw ? summarizeRecord(raw) : null;
+      const bin = heuristicBin({ sku: p.sku, brand: p.brand, description: p.description, gmdnName: p.gmdnName, specialties: g?.specialties, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
+      const referenced = Object.values(p._count).some((n) => n > 0);
+      if (bin.family === "Other" || drop.has(bin.family)) {
+        if (referenced) toDeactivate.push(p.id); else toDelete.push(p.id);
+        continue;
+      }
+      kept++;
+      if (!opts.dryRun && (p.category !== bin.family || p.binSource !== "llm")) {
+        await prisma.ownProduct.update({ where: { id: p.id }, data: { category: bin.family, ...(p.binSource !== "llm" ? { binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date() } : {}) } });
+        rebinned++;
+      }
+    }
+    if (!opts.dryRun) {
+      if (toDelete.length) await prisma.ownProduct.deleteMany({ where: { id: { in: toDelete } } });
+      if (toDeactivate.length) await prisma.ownProduct.updateMany({ where: { id: { in: toDeactivate } }, data: { isActive: false } });
+    }
+    deleted += toDelete.length;
+    deactivated += toDeactivate.length;
+  }
+  return { kept, rebinned, deleted, deactivated };
 }
 
 /* ------------------------------------------------------------------------------------ */

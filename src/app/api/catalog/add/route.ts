@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       continue;
     }
     const s = summarizeRecord(best);
-    const bin = heuristicBin({ sku, brand: s.brand, description: s.description, category: body.category, gmdnName: s.gmdnName, sizes: s.sizes, singleUse: s.singleUse, sterile: s.sterile, implantable: s.implantable });
+    const bin = heuristicBin({ sku, brand: s.brand, description: s.description, category: body.category, gmdnName: s.gmdnName, specialties: s.specialties, sizes: s.sizes, singleUse: s.singleUse, sterile: s.sterile, implantable: s.implantable });
     await prisma.ownProduct.create({
       data: { companyId: company.id, sku, description: s.description ?? sku, category: body.category || bin.family, brand: s.brand, labeler: s.manufacturer, status: s.status, gudidDi: s.gudidDi, gmdnName: s.gmdnName, gmdnCode: s.gmdnCode, fdaProductCode: s.fdaProductCode, gudidJson: JSON.stringify(best), gudidSyncedAt: new Date(), binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date() },
     });
