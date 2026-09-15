@@ -5,13 +5,18 @@ import { SheetAccessError } from "@/lib/sheets/google";
 import { getCompany } from "@/lib/settings";
 import { nextReference } from "@/lib/requests";
 import { startRun } from "@/lib/pipeline/run";
+import { authorize } from "@/lib/api";
 
 export async function GET() {
+  const { deny } = await authorize("run_cross_reference");
+  if (deny) return deny;
   const requests = await prisma.request.findMany({ orderBy: { createdAt: "desc" }, include: { _count: { select: { lines: true } }, pricebook: true } });
   return NextResponse.json(requests);
 }
 
 export async function POST(req: Request) {
+  const { actor, deny } = await authorize("run_cross_reference");
+  if (deny) return deny;
   const form = await req.formData();
   const file = form.get("file");
   const sheetUrl = String(form.get("sheetUrl") ?? "");
@@ -40,7 +45,7 @@ export async function POST(req: Request) {
       sourceFileName: intake.source.kind === "google-sheet" ? `${intake.source.name} (Google Sheet)` : intake.source.name,
       sourceUrl: intake.source.url ?? null,
       useLlm: form.get("useLlm") !== "false",
-      createdBy: String(form.get("createdBy") ?? "") || null,
+      createdBy: actor.name,
       status: "queued",
       lines: { create: intake.lines.map((l, i) => ({ lineNo: i + 1, rawCode: l.rawCode, cfnNorm: l.cfnNorm, quantity: l.quantity, estCompetitorPrice: l.estPrice })) },
     },

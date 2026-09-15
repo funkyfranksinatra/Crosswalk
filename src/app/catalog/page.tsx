@@ -4,9 +4,12 @@ import { PageHeader, Card, Stat } from "@/components/ui";
 import { parseBin } from "@/lib/match/bin";
 import { num } from "@/lib/money";
 import { CatalogTable, CatalogActions } from "./client";
+import { getActor, can } from "@/lib/auth";
 
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<{ q?: string; cat?: string; only?: string }> }) {
   const { q = "", cat = "", only = "" } = await searchParams;
+  const actor = await getActor();
+  const showCost = can(actor, "view_cost");
   const company = await getCompany();
   const where = {
     companyId: company.id,
@@ -28,7 +31,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const unsized = competitors.filter((c) => c.manufacturer !== company.name && !parseBin(c.binJson, { allowStale: true })?.dimensions.some((d) => ["width", "length", "diameter"].includes(d.name))).length;
   return (
     <>
-      <PageHeader eyebrow={company.name} title="Our catalog" description="Every SKU Crosswalk can propose. Seeded from the curated cross-reference sheets, enriched from FDA GUDID, priced from your import." actions={<CatalogActions />} />
+      <PageHeader eyebrow={company.name} title="Our catalog" description="Every SKU Crosswalk can propose. Seeded from the curated cross-reference sheets, enriched from FDA GUDID, priced from your import." actions={<CatalogActions canManage={can(actor, "manage_catalog")} canImportCost={can(actor, "import_cost_data")} />} />
       <div className="grid grid-cols-5 gap-3 mb-5">
         <Stat label="SKUs" value={total} />
         <Stat label="With GUDID record" value={withGudid} hint={withGudid < total ? `${total - withGudid} to enrich` : "complete"} tone="accent" />
@@ -38,7 +41,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       </div>
       <Card padded={false}>
         <CatalogTable
-          products={products.map((p) => ({ id: p.id, sku: p.sku, description: p.description, category: p.category, brand: p.brand, labeler: p.labeler, status: p.status, gudidDi: p.gudidDi, gmdnName: p.gmdnName, listPrice: num(p.listPrice), cogs: num(p.cogs), binJson: p.binJson, binSource: p.binSource, prices: p.prices.filter((e) => e.pricebook).map((e) => ({ name: e.pricebook!.name, price: num(e.price) ?? 0 })), used: p._count.candidates }))}
+          products={products.map((p) => ({ id: p.id, sku: p.sku, description: p.description, category: p.category, brand: p.brand, labeler: p.labeler, status: p.status, gudidDi: p.gudidDi, gmdnName: p.gmdnName, listPrice: num(p.listPrice), cogs: showCost ? num(p.cogs) : null, binJson: p.binJson, binSource: p.binSource, prices: p.prices.filter((e) => e.pricebook).map((e) => ({ name: e.pricebook!.name, price: num(e.price) ?? 0 })), used: p._count.candidates }))}
           categories={categories.map((c) => ({ name: c.category ?? "Uncategorised", count: c._count._all }))}
           q={q} cat={cat} only={only} total={total}
         />

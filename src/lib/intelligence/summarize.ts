@@ -44,7 +44,7 @@ export type ObservationInput = {
   verificationStatus: string;
 };
 
-export type Context = { accountId: string | null; gpoId: string | null; region: string | null; asOf: Date; currency: string };
+export type Context = { accountId: string | null; gpoId: string | null; region: string | null; asOf: Date; currency: string; /** unit the reference price must be in (default EA); observations in another UOM are excluded, never converted */ uom?: string };
 
 export type WeightedObservation = ObservationInput & { ageDays: number; ageFactor: number; relevance: number; verificationFactor: number; currentConfidence: number; weight: number; relation: "ACCOUNT" | "GPO" | "REGION" | "MARKET" };
 
@@ -89,9 +89,13 @@ function weightedMedian(items: { v: Decimal; w: number }[]): Decimal | null {
 }
 
 export function summarize(observations: ObservationInput[], ctx: Context): PriceSummary {
-  const sameCcy = observations.filter((o) => o.currency === ctx.currency);
+  // Same currency AND same unit of measure: a case price compared with a unit price manufactures a
+  // discount that does not exist. Nothing converts UOMs silently.
+  const uom = (ctx.uom ?? "EA").toUpperCase();
+  const sameCcy = observations.filter((o) => o.currency === ctx.currency && (o.uom ?? "EA").toUpperCase() === uom);
+  const uomMismatch = observations.filter((o) => o.currency === ctx.currency && (o.uom ?? "EA").toUpperCase() !== uom).length;
   const weighted = sameCcy.map((o) => weigh(o, ctx)).sort((a, b) => b.weight - a.weight);
-  const empty: PriceSummary = { competitorSku: observations[0]?.competitorSku ?? "", currency: ctx.currency, basis: "NONE", reference: null, confidence: 0, accountPrice: null, gpoPrice: null, mostRecent: null, median: null, weightedAverage: null, min: null, max: null, count: observations.length, countUsed: 0, trend: "UNKNOWN", observations: weighted, explanation: observations.length ? `${observations.length} observation(s) exist but none in ${ctx.currency}` : "no competitor price observations" };
+  const empty: PriceSummary = { competitorSku: observations[0]?.competitorSku ?? "", currency: ctx.currency, basis: "NONE", reference: null, confidence: 0, accountPrice: null, gpoPrice: null, mostRecent: null, median: null, weightedAverage: null, min: null, max: null, count: observations.length, countUsed: 0, trend: "UNKNOWN", observations: weighted, explanation: observations.length ? `${observations.length} observation(s) exist but none in ${ctx.currency} per ${uom}${uomMismatch ? ` (${uomMismatch} in another unit of measure — not comparable)` : ""}` : "no competitor price observations" };
   if (!weighted.length) return empty;
 
   const used = weighted.filter((o) => o.currentConfidence >= 0.05);

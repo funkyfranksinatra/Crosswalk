@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { handle, body, date, str } from "@/lib/api";
+import { handle, body, date, str, oneOf, optText, nonNegativeMoney } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { toDb } from "@/lib/money";
 import { RenewalSchema, PriceProtectionSchema, EscalationSchema, parseClause } from "@/lib/contracts/clauses";
@@ -18,10 +18,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const b = await body<Record<string, unknown>>(req);
     const before = await prisma.contract.findUniqueOrThrow({ where: { id } });
     const data: Record<string, unknown> = {};
-    for (const k of ["name", "status", "tier", "notes", "type"]) if (k in b) data[k] = str(b[k]);
-    if ("effectiveTo" in b) data.effectiveTo = date(b.effectiveTo);
-    if ("precedence" in b) data.precedence = Number(b.precedence);
-    if ("committedValue" in b) data.committedValue = toDb(b.committedValue as never);
+    if ("name" in b) data.name = optText(b.name, "name", 200) ?? before.name;
+    if ("tier" in b) data.tier = optText(b.tier, "tier", 40);
+    if ("notes" in b) data.notes = optText(b.notes, "notes", 4000);
+    if ("type" in b) data.type = oneOf(b.type, ["NATIONAL", "GPO", "IDN", "LOCAL"] as const, "type");
+    if ("status" in b) {
+      const status = oneOf(b.status, ["DRAFT", "ACTIVE", "EXPIRED", "TERMINATED", "SUPERSEDED"] as const, "status");
+      // Contract state machine: a terminated or superseded contract does not come back to life.
+      if (["TERMINATED", "SUPERSEDED"].includes(before.status) && status !== before.status) throw new Error(`a ${before.status.toLowerCase()} contract cannot be reactivated; create a new contract`);
+      if (status === "ACTIVE" && before.effectiveTo && before.effectiveTo < new Date() && !("effectiveTo" in b)) throw new Error("this contract has already expired; extend effectiveTo to reactivate it");
+      data.status = status;
+    }
+    if ("effectiveTo" in b) { const to = date(b.effectiveTo); if (b.effectiveTo && !to) throw new Error("effectiveTo is not a date"); if (to && to <= before.effectiveFrom) throw new Error("effectiveTo must be after effectiveFrom"); data.effectiveTo = to; }
+    if ("precedence" in b) { const pr = Number(b.precedence); if (!Number.isInteger(pr) || pr < 0 || pr > 100) throw new Error("precedence must be an integer 0–100"); data.precedence = pr; }
+    if ("committedValue" in b) data.committedValue = toDb(nonNegativeMoney(b.committedValue, "committedValue"));
     if ("renewal" in b) data.renewalJson = b.renewal ? JSON.stringify(RenewalSchema.parse(b.renewal)) : null;
     if ("priceProtection" in b) data.priceProtectionJson = b.priceProtection ? JSON.stringify(PriceProtectionSchema.parse(b.priceProtection)) : null;
     if ("escalation" in b) data.escalationJson = b.escalation ? JSON.stringify(EscalationSchema.parse(b.escalation)) : null;

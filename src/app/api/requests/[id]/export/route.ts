@@ -1,5 +1,7 @@
 import { buildCrossReferenceWorkbook, buildContractOfferWorkbook, buildCrossReferenceRows, buildContractOfferRows } from "@/lib/excel/export";
 import { toCsv } from "@/lib/sheets/csv";
+import { authorize } from "@/lib/api";
+import { can } from "@/lib/auth";
 
 /**
  * ?type=xref|offer&format=xlsx|csv
@@ -8,16 +10,19 @@ import { toCsv } from "@/lib/sheets/csv";
  */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { actor, deny } = await authorize("run_cross_reference");
+  if (deny) return deny;
+  const hide = { cost: !can(actor, "view_cost"), margin: !can(actor, "view_margin") };
   const sp = new URL(req.url).searchParams;
   const type = sp.get("type") ?? "xref";
   const format = sp.get("format") ?? "xlsx";
   if (format === "csv") {
-    const { rows, filename } = type === "offer" ? await buildContractOfferRows(id) : await buildCrossReferenceRows(id);
+    const { rows, filename } = type === "offer" ? await buildContractOfferRows(id) : await buildCrossReferenceRows(id, hide);
     return new Response(toCsv(rows), {
       headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${filename.replace(/\.xlsx$/, ".csv")}"` },
     });
   }
-  const { buffer, filename } = type === "offer" ? await buildContractOfferWorkbook(id) : await buildCrossReferenceWorkbook(id);
+  const { buffer, filename } = type === "offer" ? await buildContractOfferWorkbook(id) : await buildCrossReferenceWorkbook(id, hide);
   return new Response(new Uint8Array(buffer), {
     headers: {
       "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

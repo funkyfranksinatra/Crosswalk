@@ -41,7 +41,9 @@ function border(row: ExcelJS.Row, count: number) {
   for (let c = 1; c <= count; c++) row.getCell(c).border = { bottom: { style: "thin", color: { argb: LINE } } };
 }
 
-export async function buildCrossReferenceWorkbook(requestId: string): Promise<{ buffer: Buffer; filename: string }> {
+export type Hide = { cost?: boolean; margin?: boolean };
+
+export async function buildCrossReferenceWorkbook(requestId: string, hide: Hide = {}): Promise<{ buffer: Buffer; filename: string }> {
   const r = await loadRequest(requestId);
   const us = r.company.name;
   const wb = new ExcelJS.Workbook();
@@ -82,7 +84,7 @@ export async function buildCrossReferenceWorkbook(requestId: string): Promise<{ 
     for (const c of line.candidates) {
       const row = wc.addRow([
         line.rawCode, line.competitorProduct?.description ?? "", c.rank, c.ownProduct.sku, c.ownProduct.description, c.matchType, c.source,
-        c.score, c.scoreBin, c.scorePrice, c.scoreCogs, c.scoreMargin, num(c.unitPrice), cents(num(times(c.unitPrice, line.quantity))),
+        c.score, c.scoreBin, c.scorePrice, hide.cost ? null : c.scoreCogs, hide.margin ? null : c.scoreMargin, num(c.unitPrice), cents(num(times(c.unitPrice, line.quantity))),
         line.selectedCandidateId === c.id ? "Yes" : "", c.rationale ?? "",
       ]);
       for (const k of [8, 9, 10, 11, 12]) row.getCell(k).numFmt = "0%";
@@ -257,7 +259,8 @@ function offerRows(r: Loaded): { rows: CellValue[][]; total: number; notes: stri
 }
 
 /** CSV-friendly rows for the rep workbook (main sheet only). */
-export async function buildCrossReferenceRows(requestId: string): Promise<{ rows: CellValue[][]; filename: string }> {
+export async function buildCrossReferenceRows(requestId: string, _hide: Hide = {}): Promise<{ rows: CellValue[][]; filename: string }> {
+  // The main sheet carries no cost or margin columns; `_hide` is accepted for symmetry with the workbook.
   const r = await loadRequest(requestId);
   const x = xrefRows(r);
   return { rows: [xrefHeaders(r.company.name), ...x.rows.map((row) => row.cells), x.total], filename: `Crosswalk_XrefReport_${r.reference}_${stamp()}.xlsx` };

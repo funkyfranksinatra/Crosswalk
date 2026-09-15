@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { lookupByDi, summarizeRecord, displayManufacturer } from "@/lib/gudid/openfda";
+import { authorize } from "@/lib/api";
 
 /** Manual correction of a competitor product: pick one of the alternates (by GUDID DI) or type a description. */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = (await req.json()) as { di?: string; manufacturer?: string; description?: string };
+  const { deny } = await authorize("run_cross_reference");
+  if (deny) return deny;
+  const body = (await req.json().catch(() => ({}))) as { di?: string; manufacturer?: string; description?: string };
+  if ((body.manufacturer && body.manufacturer.length > 200) || (body.description && body.description.length > 2000)) return NextResponse.json({ error: "text too long" }, { status: 400 });
   const cp = await prisma.competitorProduct.findUnique({ where: { id } });
   if (!cp) return NextResponse.json({ error: "not found" }, { status: 404 });
   if (body.di) {

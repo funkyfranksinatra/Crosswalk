@@ -2,8 +2,11 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PageHeader, Card, StatusPill, relTime, Empty, money } from "@/components/ui";
 import { summarizeLines } from "@/lib/requests";
+import { getActor, can } from "@/lib/auth";
 
 export default async function RequestsPage() {
+  const actor = await getActor();
+  if (!can(actor, "run_cross_reference")) return <Empty title="Cross-reference requests need the run_cross_reference permission" />;
   const requests = await prisma.request.findMany({ orderBy: { createdAt: "desc" }, include: { pricebook: true, lines: { include: { candidates: { select: { id: true, matchType: true, unitPrice: true } } } } } });
   return (
     <>

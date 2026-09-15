@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "ProposalLine" ALTER COLUMN "marginPct" SET DATA TYPE DECIMAL(12,6),
+ALTER COLUMN "discountFromListPct" SET DATA TYPE DECIMAL(12,6),
+ALTER COLUMN "discountFromContractPct" SET DATA TYPE DECIMAL(12,6);
+

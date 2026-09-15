@@ -11,7 +11,7 @@
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { type Actor, requirePermission, can } from "@/lib/auth";
-import { D, money, toDb, type Money, ZERO } from "@/lib/money";
+import { D, money, toDb, toDbPct, type Money, ZERO } from "@/lib/money";
 import { loadPricingContext } from "@/lib/contracts/context";
 import { summariesFor, type PriceSummary } from "@/lib/intelligence";
 import { activePolicies, policyFor } from "@/lib/pricing/policy";
@@ -31,6 +31,9 @@ export async function nextProposalReference(): Promise<string> {
 }
 
 const EDITABLE = new Set(["DRAFT", "CHANGES_REQUESTED"]);
+
+/** Sanity ceiling for a unit price; Decimal(18,4) allows far more, but nothing sold here costs a billion. */
+export const MAX_UNIT_PRICE = D("1000000000");
 
 export async function assertEditable(proposalId: string) {
   const p = await prisma.proposal.findUnique({ where: { id: proposalId }, select: { status: true, lockedAt: true } });
@@ -111,7 +114,7 @@ export async function createFromRequest(actor: Actor, requestId: string, opts: {
         floorPrice: toDb(rec?.floorPrice ?? null), targetPrice: toDb(rec?.targetPrice ?? null), ceilingPrice: toDb(rec?.ceilingPrice ?? null), recommendedPrice: toDb(rec?.recommendedPrice ?? null),
         recommendationJson: rec ? JSON.stringify(recToJson(rec)) : null, policyId: policy.id,
         proposedPrice: toDb(rec?.recommendedPrice ?? null),
-        marginAmount: toDb(rec?.marginAmount ?? null), marginPct: toDb(rec?.marginPct ?? null), discountFromListPct: toDb(rec?.discountFromListPct ?? null), discountFromContractPct: toDb(rec?.discountFromContractPct ?? null),
+        marginAmount: toDb(rec?.marginAmount ?? null), marginPct: toDbPct(rec?.marginPct ?? null), discountFromListPct: toDbPct(rec?.discountFromListPct ?? null), discountFromContractPct: toDbPct(rec?.discountFromContractPct ?? null),
         requiredAuthority: rec?.requiredAuthority ?? null, approvalState: rec?.requiredAuthority ? "REQUIRED" : "NOT_REQUIRED",
         notes: !product ? "No product selected on the cross-reference; excluded" : !entry && matchType ? `Cross-reference verdict "${matchType}" is not in the published crosswalk (v${version?.number ?? "—"}); shown as unapproved` : null,
       },
@@ -177,14 +180,19 @@ async function policyForLine(l: LineRow): Promise<Policy> {
   return policyFor(await activePolicies(), l.productFamily);
 }
 
+/** The derived columns for a line at a given price — pure economics on snapshot inputs, one implementation. */
+async function derivedFor(l: LineRow & { proposal: { account: { isStrategic: boolean } } }, price: Money | null, included: boolean, opts: { dealValue?: Money | null; strategicAccount?: boolean } = {}) {
+  const policy = await policyForLine(l);
+  const floor = money(l.floorPrice) ?? floorFor(policy, money(l.cost), money(l.listPrice));
+  const econ = economicsAt(price, { listPrice: money(l.listPrice), contractPrice: money(l.contractPrice), cost: money(l.cost), quantity: money(l.quantity)!, policy, strategicAccount: opts.strategicAccount ?? l.proposal.account.isStrategic, dealValue: opts.dealValue ?? null, contractMonths: null }, floor);
+  const state = !included || !price ? "NOT_REQUIRED" : econ.requiredAuthority ? (l.approvalState === "APPROVED" || l.approvalState === "PENDING" ? l.approvalState : "REQUIRED") : "NOT_REQUIRED";
+  return { marginAmount: toDb(econ.marginAmount), marginPct: toDbPct(econ.marginPct), discountFromListPct: toDbPct(econ.discountFromListPct), discountFromContractPct: toDbPct(econ.discountFromContractPct), requiredAuthority: econ.requiredAuthority, approvalState: state };
+}
+
 /** Recompute a line's margin/discount/approval fields for its current proposedPrice (pure economics, snapshot inputs). */
 export async function recomputeLine(lineId: string, opts: { dealValue?: Money | null; strategicAccount?: boolean } = {}) {
   const l = await prisma.proposalLine.findUniqueOrThrow({ where: { id: lineId }, include: { proposal: { include: { account: true } } } });
-  const policy = await policyForLine(l);
-  const floor = money(l.floorPrice) ?? floorFor(policy, money(l.cost), money(l.listPrice));
-  const econ = economicsAt(money(l.proposedPrice), { listPrice: money(l.listPrice), contractPrice: money(l.contractPrice), cost: money(l.cost), quantity: money(l.quantity)!, policy, strategicAccount: opts.strategicAccount ?? l.proposal.account.isStrategic, dealValue: opts.dealValue ?? null, contractMonths: null }, floor);
-  const state = !l.included || !money(l.proposedPrice) ? "NOT_REQUIRED" : econ.requiredAuthority ? (l.approvalState === "APPROVED" || l.approvalState === "PENDING" ? l.approvalState : "REQUIRED") : "NOT_REQUIRED";
-  return prisma.proposalLine.update({ where: { id: lineId }, data: { marginAmount: toDb(econ.marginAmount), marginPct: toDb(econ.marginPct), discountFromListPct: toDb(econ.discountFromListPct), discountFromContractPct: toDb(econ.discountFromContractPct), requiredAuthority: econ.requiredAuthority, approvalState: state } });
+  return prisma.proposalLine.update({ where: { id: lineId }, data: await derivedFor(l, money(l.proposedPrice), l.included, opts) });
 }
 
 export async function setProposedPrice(actor: Actor, lineId: string, price: Money | null, reason?: string | null) {
@@ -192,8 +200,17 @@ export async function setProposedPrice(actor: Actor, lineId: string, price: Mone
   const before = await prisma.proposalLine.findUniqueOrThrow({ where: { id: lineId } });
   await assertEditable(before.proposalId);
   if (price !== null && price.lte(0)) throw new Error("price must be positive");
-  await prisma.proposalLine.update({ where: { id: lineId }, data: { proposedPrice: toDb(price), approvalState: "NOT_REQUIRED" } });
-  const after = await recomputeLine(lineId);
+  if (price !== null && price.gt(MAX_UNIT_PRICE)) throw new Error(`price exceeds the supported range (max ${MAX_UNIT_PRICE.toString()})`);
+  const list = money(before.listPrice);
+  if (price !== null && list && list.gt(0) && price.gt(list.times(10))) throw new Error(`price ${price.toFixed(2)} is more than 10× the list price ${list.toFixed(2)} — check the decimal point`);
+  // Price and its derived fields are computed first and written in ONE statement: a line is never
+  // left with a new price and stale margins (or a failed write after the price landed).
+  const full = await prisma.proposalLine.findUniqueOrThrow({ where: { id: lineId }, include: { proposal: { include: { account: true } } } });
+  const derived = await derivedFor({ ...full, approvalState: "NOT_REQUIRED" }, price, full.included);
+  const after = await prisma.proposalLine.update({ where: { id: lineId }, data: { proposedPrice: toDb(price), ...derived } });
+  // A pending approval request is for the *old* price; it is void now and the line must be resubmitted.
+  const voided = await prisma.approvalRequest.updateMany({ where: { proposalLineId: lineId, status: "PENDING" }, data: { status: "WITHDRAWN", decisionComments: "price changed before decision" } });
+  if (voided.count) await audit({ actorUserId: actor.id, entityType: "ProposalLine", entityId: lineId, action: "APPROVAL_REQUEST_VOIDED", reason: "price changed while a request was pending" });
   await refreshEconomics(before.proposalId);
   await audit({
     actorUserId: actor.id, entityType: "ProposalLine", entityId: lineId, action: "PRICE_CHANGED", reason: reason ?? null,
@@ -208,6 +225,7 @@ export async function setLineIncluded(actor: Actor, lineId: string, included: bo
   const before = await prisma.proposalLine.findUniqueOrThrow({ where: { id: lineId } });
   await assertEditable(before.proposalId);
   await prisma.proposalLine.update({ where: { id: lineId }, data: { included } });
+  if (!included) await prisma.approvalRequest.updateMany({ where: { proposalLineId: lineId, status: "PENDING" }, data: { status: "WITHDRAWN", decisionComments: "line excluded before decision" } });
   await recomputeLine(lineId);
   await refreshEconomics(before.proposalId);
   await audit({ actorUserId: actor.id, entityType: "ProposalLine", entityId: lineId, action: included ? "INCLUDED" : "EXCLUDED" });

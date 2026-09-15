@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { startRun, isRunning } from "@/lib/pipeline/run";
+import { authorize } from "@/lib/api";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { deny } = await authorize("run_cross_reference");
+  if (deny) return deny;
   const body = await req.json().catch(() => ({}));
   const r = await prisma.request.findUnique({ where: { id } });
   if (!r) return NextResponse.json({ error: "not found" }, { status: 404 });

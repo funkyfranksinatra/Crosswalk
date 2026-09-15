@@ -38,7 +38,19 @@ export async function approvedCross(competitorCode: string, versionId?: string |
 export async function setReview(actorUserId: string, id: string, patch: { approvalStatus?: string; clinicalReviewStatus?: string; marketingReviewStatus?: string; equivalenceLevel?: string; approvedUsage?: string | null; justification?: string | null; effectiveFrom?: Date | null; effectiveTo?: Date | null }) {
   const before = await prisma.knownCross.findUnique({ where: { id } });
   if (!before) throw new Error("cross not found");
+  const STATUS = ["DRAFT", "IN_REVIEW", "APPROVED", "REJECTED", "RETIRED"], REVIEW = ["PENDING", "APPROVED", "REJECTED", "NOT_REQUIRED"], EQUIV = ["EXACT", "FUNCTIONAL", "CLOSEST_ALTERNATIVE", "PREMIUM_ALTERNATIVE", "PARTIAL_SUBSTITUTE", "NONE"];
+  if (patch.approvalStatus !== undefined && !STATUS.includes(patch.approvalStatus)) throw new Error(`approvalStatus must be one of ${STATUS.join(", ")}`);
+  if (patch.clinicalReviewStatus !== undefined && !REVIEW.includes(patch.clinicalReviewStatus)) throw new Error(`clinicalReviewStatus must be one of ${REVIEW.join(", ")}`);
+  if (patch.marketingReviewStatus !== undefined && !REVIEW.includes(patch.marketingReviewStatus)) throw new Error(`marketingReviewStatus must be one of ${REVIEW.join(", ")}`);
+  if (patch.equivalenceLevel !== undefined && !EQUIV.includes(patch.equivalenceLevel)) throw new Error(`equivalenceLevel must be one of ${EQUIV.join(", ")}`);
+  if (patch.effectiveFrom && patch.effectiveTo && patch.effectiveTo <= patch.effectiveFrom) throw new Error("effectiveTo must be after effectiveFrom");
   const approving = patch.approvalStatus === "APPROVED" && before.approvalStatus !== "APPROVED";
+  if (approving) {
+    // Approval requires both reviews (docs/BUSINESS_RULES.md); an "Alternative" must never be published as an equivalent on one signature.
+    const clinical = patch.clinicalReviewStatus ?? before.clinicalReviewStatus, marketing = patch.marketingReviewStatus ?? before.marketingReviewStatus;
+    if (!["APPROVED", "NOT_REQUIRED"].includes(clinical) || !["APPROVED", "NOT_REQUIRED"].includes(marketing)) throw new Error(`cannot approve: clinical review is ${clinical}, marketing review is ${marketing}; both must be APPROVED`);
+    if ((patch.equivalenceLevel ?? before.equivalenceLevel) === "NONE" || !(patch.equivalenceLevel ?? before.equivalenceLevel)) throw new Error("cannot approve a cross with no equivalence level");
+  }
   const row = await prisma.knownCross.update({ where: { id }, data: { ...patch, reviewerUserId: actorUserId, ...(approving ? { approvedByUserId: actorUserId, approvedAt: new Date() } : {}), version: { increment: 1 } } });
   await audit({ actorUserId, entityType: "KnownCross", entityId: id, action: approving ? "APPROVED" : "REVIEWED", before: { approvalStatus: before.approvalStatus, clinical: before.clinicalReviewStatus, marketing: before.marketingReviewStatus, equivalence: before.equivalenceLevel }, after: patch });
   return row;

@@ -48,3 +48,4 @@ docs/crosswalk-build-notes.md
 crosswalk.bundle
 push-to-github.ps1
 data/fixtures/integrations/pushed-quotes/
+.env.debug

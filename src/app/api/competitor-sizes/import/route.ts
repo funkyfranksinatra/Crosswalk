@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { importCompetitorSizes, importCompetitorSizesRows } from "@/lib/excel/sizes";
 import { fetchSheetRows, parseSheetLink, SheetAccessError } from "@/lib/sheets/google";
+import { authorize } from "@/lib/api";
 
 export async function POST(req: Request) {
+  const { deny } = await authorize("manage_catalog");
+  if (deny) return deny;
   const form = await req.formData();
   const file = form.get("file");
   const sheetUrl = String(form.get("sheetUrl") ?? "").trim();

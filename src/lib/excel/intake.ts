@@ -85,7 +85,11 @@ export function parseIntakeGrid(grid: Cell[][], sheet: string, source: IntakeRes
     const norm = normalizeCfn(typeof rawVal === "number" ? rawVal : raw);
     if (!looksLikeCfn(norm)) { skipped.push({ row: r + 1, reason: "does not look like a catalog number", value: raw }); continue; }
     const qty = qtyCol != null ? cellNumber(row[qtyCol] ?? null) : null;
-    const price = priceCol != null ? cellNumber(row[priceCol] ?? null) : null;
+    const priceRaw = priceCol != null ? cellNumber(row[priceCol] ?? null) : null;
+    // Negative usage is a return or a credit, not demand; an implausible figure is a units/currency mix-up.
+    if (qty != null && (!Number.isFinite(qty) || qty <= 0)) { skipped.push({ row: r + 1, reason: `quantity ${qty} is not a positive number`, value: raw }); continue; }
+    if (qty != null && qty > 10_000_000) { skipped.push({ row: r + 1, reason: `quantity ${qty} is implausible for one line`, value: raw }); continue; }
+    const price = priceRaw != null && Number.isFinite(priceRaw) && priceRaw > 0 && priceRaw < 1e9 ? priceRaw : null;
     const quantity = qty ?? 1;
     const existing = byCode.get(norm);
     if (existing) {

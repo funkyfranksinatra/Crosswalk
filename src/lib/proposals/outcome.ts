@@ -13,8 +13,12 @@ import { finalizeCheck } from "@/lib/approvals/service";
 
 export async function recordOutcome(actor: Actor, proposalId: string, input: { outcome: "WON" | "LOST" | "NO_DECISION"; competitorName?: string | null; priceReason?: string | null; commercialReason?: string | null; finalValue?: string | null; notes?: string | null; competitorWinningPrices?: { competitorCode: string; price: string }[]; createContract?: boolean; contractMonths?: number }) {
   requirePermission(actor, "record_outcomes");
-  const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { lines: true, account: true } });
+  const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { lines: true, account: true, outcome: true } });
+  if (!["WON", "LOST", "NO_DECISION"].includes(input.outcome)) throw new Error("outcome must be WON, LOST or NO_DECISION");
+  // A closed proposal stays closed: a won deal already became a contract, a lost one already fed intelligence.
+  if (["WON", "LOST"].includes(p.status) || (p.outcome && ["WON", "LOST"].includes(p.outcome.outcome))) throw new Error(`Proposal is already ${p.status.toLowerCase()}; record a new version for a new outcome`);
   if (input.outcome === "WON") { const f = await finalizeCheck(proposalId); if (!f.ok) throw new Error(`Cannot mark as won: ${f.reason}`); }
+  if (input.outcome === "LOST" && !["APPROVED", "SUBMITTED", "PARTIALLY_APPROVED", "REJECTED", "CHANGES_REQUESTED", "EXPIRED"].includes(p.status)) throw new Error(`Cannot mark a ${p.status.toLowerCase()} proposal as lost; submit it first`);
   const competitor = input.competitorName ? await competitorByName(input.competitorName) : null;
   const econ = p.economicsJson ? JSON.parse(p.economicsJson) : null;
   const outcome = await prisma.dealOutcome.upsert({

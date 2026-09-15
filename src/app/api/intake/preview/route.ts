@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { parseIntakeAny } from "@/lib/excel/intake";
 import { SheetAccessError } from "@/lib/sheets/google";
+import { authorize } from "@/lib/api";
 
 export async function POST(req: Request) {
+  const { deny } = await authorize("run_cross_reference");
+  if (deny) return deny;
   const form = await req.formData();
   const file = form.get("file");
   const sheetUrl = String(form.get("sheetUrl") ?? "");
