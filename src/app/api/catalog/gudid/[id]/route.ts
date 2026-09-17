@@ -18,7 +18,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     const job = await prisma.gudidImport.findUnique({ where: { id } });
     if (!job) throw new Error("Import not found");
     if (!["QUEUED", "RUNNING"].includes(job.status)) throw new Error("Import is not running");
-    cancelImport(id);
+    await cancelImport(id);
     return { ok: true };
   });
 }

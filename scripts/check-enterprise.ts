@@ -20,11 +20,7 @@ import { permissionsFor, satisfiesAuthority, highestAuthority } from "../src/lib
 import { rollup, type EconLine } from "../src/lib/proposals/economics";
 import { requiredRoleFor, proposalStatusFrom, canFinalize } from "../src/lib/approvals/rules";
 
-let passed = 0;
-const failures: string[] = [];
-function test(name: string, fn: () => void) {
-  try { fn(); passed++; } catch (e) { failures.push(`${name}\n    ${e instanceof Error ? e.message : String(e)}`); }
-}
+import { test, report } from "./lib/harness";
 const d = (v: string | number) => new Decimal(v);
 const day = (s: string) => new Date(s + "T00:00:00Z");
 
@@ -261,6 +257,4 @@ test("RBAC: reps cannot see cost; directors approve below floor; authority order
   assert.equal(highestAuthority(["SALES_REP", "PRICING_DIRECTOR", "FINANCE"]), "PRICING_DIRECTOR");
 });
 
-console.log(`${passed} passed, ${failures.length} failed`);
-for (const f of failures) console.log(`  ✗ ${f}`);
-if (failures.length) process.exit(1);
+report();

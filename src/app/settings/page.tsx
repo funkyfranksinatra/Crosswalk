@@ -5,6 +5,7 @@ import { PageHeader, Card, Chip } from "@/components/ui";
 import { SettingsForm } from "./form";
 import { GoogleCard } from "./google";
 import { IntegrationsCard } from "./integrations";
+import { SystemCard } from "./system";
 import { getActor, can } from "@/lib/auth";
 import { googleStatus } from "@/lib/sheets/google";
 
@@ -44,6 +45,7 @@ export default async function SettingsPage() {
               </div>
             )}
           </Card>
+          {can(actor, "configure_settings") && <SystemCard />}
           <IntegrationsCard canSync={can(actor, "manage_contracts")} />
           <GoogleCard status={googleStatus()} />
           <Card title="Data sources">
@@ -51,7 +53,8 @@ export default async function SettingsPage() {
               <li><b>openFDA Device UDI</b> — searchable mirror of AccessGUDID; used for catalog-number lookup and own-catalog enrichment. Optional <span className="kbd">OPENFDA_API_KEY</span> raises the rate limit.</li>
               <li><b>Google Sheets</b> — link-shared sheets are read with no credentials; a service account (above) adds private reads and Drive write-back. .xlsx/.csv downloads always open in Sheets for free.</li>
               <li><b>Curated sheets</b> — <span className="mono">data/reference/Endomechanical.xlsx</span>; re-seed with <span className="kbd">npm run db:seed</span> after editing.</li>
-              <li><b>Local database</b> — SQLite via Prisma at <span className="mono">prisma/dev.db</span>; browse with <span className="kbd">npm run db:studio</span>.</li>
+              <li><b>Database</b> — PostgreSQL via Prisma (<span className="mono">DATABASE_URL</span>); browse with <span className="kbd">npm run db:studio</span>. Background jobs live in the <span className="mono">pgboss</span> schema of the same database.</li>
+              <li><b>Scheduled feeds</b> — drop CSV exports in <span className="mono">INTEGRATION_FEED_DIR</span> (crm-*, erp-*, gpo-*, pricing, competitor-sizes, competitor-prices) and they are ingested on the schedules shown under System; <span className="mono">FEED_&lt;NAME&gt;_CRON</span> overrides, <span className="mono">off</span> disables.</li>
             </ul>
           </Card>
         </div>

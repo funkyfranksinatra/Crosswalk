@@ -25,8 +25,11 @@ export type CandidateInput = {
   identity?: boolean; // the competitor code *is* this SKU
   /** "seed" | "manual" | "gudid-import" — imported SKUs rank below curated ones at equal match quality */
   provenance?: string | null;
-  knownCross?: { matchType: string; preferredOwnSku?: string | null; additionalProducts?: string | null; notes?: string | null; source: string } | null;
+  knownCross?: { matchType: string; preferredOwnSku?: string | null; additionalProducts?: string | null; notes?: string | null; source: string; /** DRAFT / IN_REVIEW rep proposals are a soft prior, never a tier floor */ approvalStatus?: string; endorsements?: number } | null;
 };
+
+/** How much a rep-proposed (unreviewed) cross lifts the bin score: enough to surface it, never enough to change the tier on its own. */
+export const REP_PRIOR_BOOST = 0.12;
 
 export type ScoredCandidate = CandidateInput & {
   matchType: string;
@@ -64,12 +67,20 @@ export function scoreCandidates(
       notes.unshift("this is already our product — retain");
     }
 
-    if (c.knownCross && !c.identity) {
+    const unreviewed = c.knownCross && c.knownCross.approvalStatus !== undefined && c.knownCross.approvalStatus !== "APPROVED";
+    if (c.knownCross && !c.identity && !unreviewed) {
       const floor = KNOWN_CROSS_FLOOR[c.knownCross.matchType] ?? 0.6;
       scoreBin = Math.max(scoreBin, floor);
       matchType = c.knownCross.matchType === "US Downsell Match" ? "Alternative Match" : c.knownCross.matchType;
       source = "known-cross";
       notes.unshift(`curated cross reference (${c.knownCross.source})`);
+    } else if (c.knownCross && !c.identity && unreviewed) {
+      // Learning loop: a rep chose this SKU for this code before. It earns a place on the shortlist and
+      // a small lift, but the tier still comes from the attributes until clinical/marketing review approves it.
+      scoreBin = Math.min(1, scoreBin + REP_PRIOR_BOOST);
+      matchType = matchTypeFromScore(scoreBin, sim.dimensions, sim.cap);
+      const n = c.knownCross.endorsements ?? 1;
+      notes.unshift(`chosen by ${n === 1 ? "a rep" : `${n} reps`} before (pending review)`);
     }
 
     // Price competitiveness: how does our price compare with what they pay today?

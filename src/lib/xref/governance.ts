@@ -95,5 +95,6 @@ export async function proposeCross(actorUserId: string | null, input: { ownSku: 
     update: { matchType: input.matchType, justification: input.justification ?? undefined },
   });
   await audit({ actorUserId, entityType: "KnownCross", entityId: row.id, action: "PROPOSED_BY_REP", after: { ownSku: row.ownSku, competitorCode: row.competitorCode, matchType: row.matchType } });
+  { const { notifyCrossProposed } = await import("@/lib/notifications"); await notifyCrossProposed(row.id).catch(() => undefined); }
   return row;
 }

@@ -1,9 +1,19 @@
 /**
- * The request pipeline: resolve → bin → match → rank. Runs in-process in the
- * Next.js server (this is a local tool), persists every step to SQLite so the
- * UI can poll progress and nothing is lost if the tab closes.
+ * The request pipeline: resolve → bin → match → rank. Executed by the `request.run`
+ * queue (src/lib/jobs) so a server restart cannot lose a run: every stage writes a
+ * checkpoint, and a retried job resumes after the last completed stage instead of
+ * starting over. Every step is persisted so the UI can poll progress.
+ *
+ * Resumability rules (checked by scripts/test-tier1.ts):
+ *   - resolve: lines already resolved / not-found are kept; only pending lines are looked up
+ *   - bin: bins are cached on the CompetitorProduct row; a re-run re-uses them
+ *   - match/grade: deterministic and cached (LlmGrade); the previous candidates are only
+ *     replaced at the very end, so an interrupted run leaves the last complete result visible
+ *   - cancel: `cancelRequested` on the request is honoured between stages and inside loops
  */
 import { prisma } from "@/lib/db";
+import { log as slog } from "@/lib/log";
+import { runsFinished, lastRunResolution, lastRunMatch } from "@/lib/observability/metrics";
 import { specFor } from "@/lib/excel/sizes";
 import { compactCfn } from "@/lib/cfn";
 import { num, toDb, times } from "@/lib/money";
@@ -16,21 +26,50 @@ import { parseBin, binSimilarity, type Bin, heuristicBin } from "@/lib/match/bin
 import { scoreCandidates, DEFAULT_WEIGHTS, type Weights, type CandidateInput, type ScoredCandidate } from "@/lib/match/score";
 import { getSettings } from "@/lib/settings";
 
-const running = new Set<string>();
-
-export function isRunning(id: string) {
-  return running.has(id);
+export class RunCancelled extends Error {
+  constructor() { super("cancelled"); this.name = "RunCancelled"; }
 }
 
-export function startRun(requestId: string) {
-  if (running.has(requestId)) return;
-  running.add(requestId);
-  runRequest(requestId)
-    .catch(async (e) => {
-      await prisma.request.update({ where: { id: requestId }, data: { status: "failed", error: e instanceof Error ? e.message : String(e) } });
-    })
-    .finally(() => running.delete(requestId));
+export type RunOptions = { jobId?: string | null; attempt?: number; freshGrades?: boolean; signal?: AbortSignal; /** continue from the checkpoint even on attempt 1 (orphan recovery) */ resume?: boolean };
+
+/**
+ * Queue a run. Idempotent per request: while a job for this request is queued or running,
+ * a second call returns `{ alreadyQueued: true }` instead of starting another.
+ */
+export async function enqueueRun(requestId: string, opts: { freshGrades?: boolean; useLlm?: boolean } = {}) {
+  const { enqueue } = await import("@/lib/jobs/boss");
+  const r = await prisma.request.findUniqueOrThrow({ where: { id: requestId }, select: { optionsJson: true } });
+  const options = r.optionsJson ? JSON.parse(r.optionsJson) : {};
+  await prisma.request.update({ where: { id: requestId }, data: { status: "queued", progress: 0, stage: "Queued", error: null, checkpoint: null, cancelRequested: false, attempt: 0, optionsJson: JSON.stringify({ ...options, freshGrades: Boolean(opts.freshGrades) }), ...(typeof opts.useLlm === "boolean" ? { useLlm: opts.useLlm } : {}) } });
+  const { jobId, deduplicated } = await enqueue("request.run", { requestId, freshGrades: Boolean(opts.freshGrades) }, { singletonKey: requestId });
+  if (jobId) await prisma.request.update({ where: { id: requestId }, data: { jobId } });
+  return { jobId, alreadyQueued: deduplicated };
 }
+
+/** Ask a queued or running run to stop. Queued jobs are cancelled outright; running ones stop at the next checkpoint. */
+export async function cancelRun(requestId: string) {
+  const r = await prisma.request.findUniqueOrThrow({ where: { id: requestId }, select: { status: true, jobId: true } });
+  if (!["queued", "running"].includes(r.status)) return { cancelled: false, status: r.status };
+  await prisma.request.update({ where: { id: requestId }, data: { cancelRequested: true } });
+  if (r.status === "queued" && r.jobId) {
+    const { getBoss } = await import("@/lib/jobs/boss");
+    const boss = await getBoss();
+    await boss.cancel("request.run", r.jobId).catch(() => undefined);
+    await prisma.request.update({ where: { id: requestId }, data: { status: "cancelled", stage: "Cancelled", cancelRequested: false } });
+    return { cancelled: true, status: "cancelled" };
+  }
+  return { cancelled: true, status: "running" };
+}
+
+async function checkCancelled(requestId: string, signal?: AbortSignal) {
+  if (signal?.aborted) throw new RunCancelled();
+  const r = await prisma.request.findUnique({ where: { id: requestId }, select: { cancelRequested: true } });
+  if (r?.cancelRequested) throw new RunCancelled();
+}
+
+const STAGE_ORDER = ["resolve", "bin", "match"] as const;
+type Stage = (typeof STAGE_ORDER)[number];
+const stageDone = (checkpoint: string | null, stage: Stage) => checkpoint !== null && STAGE_ORDER.indexOf(checkpoint as Stage) >= STAGE_ORDER.indexOf(stage);
 
 async function log(requestId: string, message: string) {
   const r = await prisma.request.findUnique({ where: { id: requestId }, select: { logJson: true } });
@@ -56,13 +95,45 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, i: number
   return out;
 }
 
-export async function runRequest(requestId: string) {
+export async function runRequest(requestId: string, runOpts: RunOptions = {}) {
+  try {
+    await runRequestInner(requestId, runOpts);
+  } catch (e) {
+    if (e instanceof RunCancelled) {
+      await prisma.request.update({ where: { id: requestId }, data: { status: "cancelled", stage: "Cancelled", cancelRequested: false, completedAt: new Date() } });
+      await log(requestId, "Cancelled by request");
+      runsFinished.inc({ outcome: "cancelled" });
+      await notifyFinished(requestId).catch(() => undefined);
+      return;
+    }
+    const message = e instanceof Error ? e.message : String(e);
+    await prisma.request.update({ where: { id: requestId }, data: { status: "failed", error: message } });
+    await log(requestId, `Failed (attempt ${runOpts.attempt ?? 1}): ${message}`);
+    runsFinished.inc({ outcome: "failed" });
+    slog.error("run.failed", { requestId, attempt: runOpts.attempt ?? 1, error: message });
+    throw e; // let the queue retry from the checkpoint
+  }
+}
+
+async function notifyFinished(requestId: string) {
+  const { notifyRunFinished } = await import("@/lib/notifications");
+  await notifyRunFinished(requestId);
+}
+
+async function runRequestInner(requestId: string, runOpts: RunOptions) {
   const request = await prisma.request.findUniqueOrThrow({ where: { id: requestId }, include: { lines: { orderBy: { lineNo: "asc" } }, company: true } });
   const settings = await getSettings();
   const weights: Weights = { ...DEFAULT_WEIGHTS, ...(request.optionsJson ? JSON.parse(request.optionsJson).weights ?? {} : settings.weights) };
   let useLlm = request.useLlm && llmConfig().available;
+  const attempt = runOpts.attempt ?? 1;
+  // A retry (or a recovered orphan) resumes after the last completed stage; a fresh run starts clean.
+  const resumeFrom = attempt > 1 || runOpts.resume ? request.checkpoint : null;
+  if (!resumeFrom && request.checkpoint) await prisma.request.update({ where: { id: requestId }, data: { checkpoint: null } });
 
-  await prisma.request.update({ where: { id: requestId }, data: { status: "running", startedAt: new Date(), error: null, progress: 0 } });
+  // A cancel that arrived while the job sat in the queue is honoured before any work starts.
+  await checkCancelled(requestId, runOpts.signal);
+  await prisma.request.update({ where: { id: requestId }, data: { status: "running", startedAt: resumeFrom ? request.startedAt ?? new Date() : new Date(), error: null, progress: 0, attempt, jobId: runOpts.jobId ?? request.jobId } });
+  if (resumeFrom) await log(requestId, `Resumed (attempt ${attempt}) after an interrupted run — stage "${resumeFrom}" was complete, continuing from there`);
 
   // Prove the model works before we depend on it, and record the outcome on the request so the UI can say so.
   const options = request.optionsJson ? JSON.parse(request.optionsJson) : {};
@@ -78,16 +149,19 @@ export async function runRequest(requestId: string) {
   await prisma.request.update({ where: { id: requestId }, data: { optionsJson: JSON.stringify({ ...options, model: modelStatus, freshGrades: false }) } });
   await log(requestId, useLlm ? `Run started · ${request.lines.length} lines · model ${modelStatus.model} (preflight OK)` : `Run started · ${request.lines.length} lines · heuristic matching${modelStatus.error ? ` — MODEL UNAVAILABLE: ${modelStatus.error}` : ""}`);
 
-  // Reset previous results (re-runs are expected while tuning)
-  await prisma.matchCandidate.deleteMany({ where: { line: { requestId } } });
-
+  // Previous candidates stay visible until the new result is complete (see header).
   const siblingCfns = request.lines.map((l) => l.cfnNorm);
   const preferCompanies = JSON.parse(request.company.labelers || "[]") as string[];
 
   // ---- Stage 1: resolve (two passes) --------------------------------------
-  await setStage(requestId, "Resolving competitor products in GUDID", 2);
   const total = request.lines.length;
   let done = 0;
+  const skipResolve = stageDone(resumeFrom, "resolve");
+  if (skipResolve) await log(requestId, "Resolution stage already complete — reusing it");
+  else await setStage(requestId, "Resolving competitor products in GUDID", 2);
+  // On a retry, lines that already have an answer are not looked up again.
+  const toResolve = skipResolve ? [] : resumeFrom ? request.lines.filter((l) => !["resolved", "not-found"].includes(l.resolutionStatus)) : request.lines;
+  if (resumeFrom && !skipResolve) await log(requestId, `Resolving ${toResolve.length} of ${total} lines (the rest were resolved before the interruption)`);
   const applyResolution = async (line: (typeof request.lines)[number], cp: Awaited<ReturnType<typeof resolveCfn>>) => {
     if (!cp) return;
     await prisma.requestLine.update({
@@ -97,7 +171,8 @@ export async function runRequest(requestId: string) {
   };
   // Pass 1: unambiguous codes only.
   const pending: typeof request.lines = [];
-  await mapLimit(request.lines, 3, async (line) => {
+  await mapLimit(toResolve, 3, async (line, i) => {
+    if (i % 10 === 9) await checkCancelled(requestId, runOpts.signal);
     try {
       const cp = await resolveCfn(line.cfnNorm, { useLlm, strict: true, siblingCfns, accountName: request.accountName });
       if (cp) await applyResolution(line, cp); else pending.push(line);
@@ -106,8 +181,9 @@ export async function runRequest(requestId: string) {
       await log(requestId, `  ${line.cfnNorm}: ${e instanceof Error ? e.message : String(e)}`);
     }
     done++;
-    await setStage(requestId, `Resolving competitor products in GUDID (${done}/${total})`, 2 + (done / total) * 20);
+    await setStage(requestId, `Resolving competitor products in GUDID (${done}/${toResolve.length})`, 2 + (done / Math.max(1, toResolve.length)) * 20);
   });
+  await checkCancelled(requestId, runOpts.signal);
   // Build the request context from what we know so far, then pass 2.
   const firstPass = await prisma.requestLine.findMany({ where: { requestId, resolutionStatus: "resolved" }, include: { competitorProduct: true } });
   const ctx: ResolutionContext = buildContext(
@@ -119,7 +195,8 @@ export async function runRequest(requestId: string) {
   if (ctx.commonPrefixes.length) await log(requestId, `Detected list-wide item-number prefix ${ctx.commonPrefixes.join(", ")}`);
   if (pending.length) await log(requestId, `Pass 2: ${pending.length} ambiguous codes resolved with list context (${[...ctx.manufacturers.keys()].join(", ") || "no manufacturers yet"})`);
   done = 0;
-  await mapLimit(pending, 3, async (line) => {
+  await mapLimit(pending, 3, async (line, i) => {
+    if (i % 10 === 9) await checkCancelled(requestId, runOpts.signal);
     try {
       const cp = await resolveCfn(line.cfnNorm, { useLlm, ctx, siblingCfns, accountName: request.accountName });
       await applyResolution(line, cp);
@@ -130,7 +207,9 @@ export async function runRequest(requestId: string) {
     await setStage(requestId, `Resolving ambiguous codes with list context (${done}/${pending.length})`, 22 + (done / Math.max(1, pending.length)) * 18);
   });
   const resolvedCount = await prisma.requestLine.count({ where: { requestId, resolutionStatus: "resolved" } });
-  await log(requestId, `Resolved ${resolvedCount}/${total} competitor codes`);
+  if (!skipResolve) await log(requestId, `Resolved ${resolvedCount}/${total} competitor codes`);
+  await prisma.request.update({ where: { id: requestId }, data: { checkpoint: "resolve" } });
+  await checkCancelled(requestId, runOpts.signal);
 
   // Codes that turn out to be *our own* products: make sure they are in the catalog so they self-match.
   const ours = await prisma.requestLine.findMany({ where: { requestId, resolutionStatus: "resolved", competitorProduct: { manufacturer: request.company.name } }, include: { competitorProduct: true } });
@@ -153,7 +232,8 @@ export async function runRequest(requestId: string) {
   for (const l of lines) if (l.competitorProduct && l.competitorProduct.resolution !== "not-found") uniqueCps.set(l.competitorProduct.id, l.competitorProduct);
   await setStage(requestId, "Binning competitor products", 42);
   let binned = 0;
-  await mapLimit([...uniqueCps.values()], 3, async (cp) => {
+  await mapLimit([...uniqueCps.values()], 3, async (cp, i) => {
+    if (i % 10 === 9) await checkCancelled(requestId, runOpts.signal);
     if (!parseBin(cp.binJson) || (useLlm && cp.binSource !== "llm")) {
       const raw = cp.gudidJson ? (JSON.parse(cp.gudidJson) as OpenFdaRecord) : null;
       const s = raw ? summarizeRecord(raw) : null;
@@ -190,6 +270,9 @@ export async function runRequest(requestId: string) {
     await setStage(requestId, `Binning competitor products (${binned}/${uniqueCps.size})`, 42 + (binned / Math.max(1, uniqueCps.size)) * 18);
   });
 
+  await prisma.request.update({ where: { id: requestId }, data: { checkpoint: "bin" } });
+  await checkCancelled(requestId, runOpts.signal);
+
   // ---- Stage 3: match & rank ---------------------------------------------
   await setStage(requestId, "Matching against our catalog", 60);
   // Candidate pool: every curated / hand-added SKU, plus SKUs adopted from GUDID imports only in the
@@ -214,7 +297,9 @@ export async function runRequest(requestId: string) {
     await prisma.ownProduct.update({ where: { id: p.id }, data: { binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date(), ...(p.source === "gudid-import" ? { category: bin.family } : {}) } });
     return { p, bin };
   });
-  const knownCrosses = await prisma.knownCross.findMany({ where: { isActive: true } });
+  // Approved crosses carry the tier floor; rep-proposed drafts ride along as soft priors (xref/learning.ts).
+  const { crossesForMatching } = await import("@/lib/xref/learning");
+  const knownCrosses = await crossesForMatching();
   const crossesByCode = new Map<string, typeof knownCrosses>();
   for (const k of knownCrosses) {
     const arr = crossesByCode.get(k.competitorCodeNorm) ?? [];
@@ -249,7 +334,9 @@ export async function runRequest(requestId: string) {
         const own = ownWithBins.find((o) => o.p.sku.toUpperCase() === sku);
         if (own) {
           candidateIds.add(own.p.id);
-          if (!crossBySku.has(own.p.id) || betterCross(k.matchType, crossBySku.get(own.p.id)!.matchType)) crossBySku.set(own.p.id, k);
+          const cur = crossBySku.get(own.p.id);
+          const approved = (x: { approvalStatus: string }) => x.approvalStatus === "APPROVED";
+          if (!cur || (approved(k) && !approved(cur)) || (approved(k) === approved(cur) && betterCross(k.matchType, cur.matchType))) crossBySku.set(own.p.id, k);
         }
       }
       if (compBin) {
@@ -296,7 +383,7 @@ export async function runRequest(requestId: string) {
           cogs: num(c.p.cogs),
           identity: selfSku != null && c.p.sku.toUpperCase() === selfSku,
           provenance: c.p.source,
-          knownCross: k ? { matchType: k.matchType, preferredOwnSku: k.preferredOwnSku, additionalProducts: k.additionalProducts, notes: k.notes, source: k.source } : null,
+          knownCross: k ? { matchType: k.matchType, preferredOwnSku: k.preferredOwnSku, additionalProducts: k.additionalProducts, notes: k.notes, source: k.source, approvalStatus: k.approvalStatus, endorsements: k.endorsements } : null,
         };
       });
       const scored = scoreCandidates(competitorForScore, inputs, weights);
@@ -331,7 +418,10 @@ export async function runRequest(requestId: string) {
     if (cachedGroups) await log(requestId, `${cachedGroups} of ${groups.length} verdicts replayed from cache (inputs unchanged since last run)`);
   }
 
+  await checkCancelled(requestId, runOpts.signal);
   // ---- Phase C: persist -----------------------------------------------------
+  // Only now do the previous run's candidates go: an interruption before this point leaves them intact.
+  await prisma.matchCandidate.deleteMany({ where: { line: { requestId } } });
   for (const w of work) {
     const line = w.line;
     const scored = graded.get(line.id) ?? w.scored;
@@ -364,7 +454,11 @@ export async function runRequest(requestId: string) {
 
   const matchedCount = await prisma.requestLine.count({ where: { requestId, matchStatus: "matched" } });
   await log(requestId, `Matched ${matchedCount}/${total} lines`);
-  await prisma.request.update({ where: { id: requestId }, data: { status: "complete", stage: "Complete", progress: 100, completedAt: new Date() } });
+  await prisma.request.update({ where: { id: requestId }, data: { status: "complete", stage: "Complete", progress: 100, completedAt: new Date(), checkpoint: "match", cancelRequested: false } });
+  runsFinished.inc({ outcome: "complete" });
+  if (total > 0) { lastRunResolution.set({}, resolvedCount / total); lastRunMatch.set({}, matchedCount / total); }
+  slog.info("run.complete", { requestId, lines: total, resolved: resolvedCount, matched: matchedCount, attempt, model: useLlm ? modelStatus.model : null });
+  await notifyFinished(requestId).catch((e) => slog.warn("run.notify_failed", { requestId, error: e instanceof Error ? e.message : String(e) }));
 }
 
 function betterCross(a: string, b: string) {

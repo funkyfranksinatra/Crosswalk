@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { PageHeader, Card, Empty } from "@/components/ui";
+import { DriftBanner } from "./drift-banner";
 import { Pill, ProposalStatus, fmtMoney, fmtPct, label } from "@/components/commercial";
 
 type Line = {
@@ -78,6 +79,7 @@ export function ProposalWorkspace({ id }: { id: string }) {
         actions={<Actions p={p} busy={busy} editable={editable} call={call} />}
       />
       {err && <div className="mb-4 rounded-lg bg-none-soft text-none px-4 py-2.5 text-[13px]">{err}</div>}
+      {!["WON", "LOST"].includes(p.status) && <DriftBanner proposalId={id} canEdit={p.permissions.editPricing} onRefreshed={load} />}
       {p.outcome && <div className={`mb-4 rounded-lg px-4 py-2.5 text-[13px] ${p.outcome.outcome === "WON" ? "bg-exact-soft text-exact" : "bg-none-soft text-none"}`}>Deal {p.outcome.outcome.toLowerCase()}{p.outcome.priceReason ? ` — ${p.outcome.priceReason}` : ""}{p.outcome.commercialReason ? ` · ${p.outcome.commercialReason}` : ""}</div>}
 
       {/* Sticky deal summary */}

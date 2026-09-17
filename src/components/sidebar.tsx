@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { NotificationsBell } from "./notifications-bell";
 import { usePathname } from "next/navigation";
 
 import { DevSignIn, type ActorInfo } from "./dev-signin";
@@ -50,6 +51,7 @@ export function Sidebar({ companyName, llm, actor, sso }: { companyName: string;
             </Link>
           );
         })}
+        <NotificationsBell signedIn={Boolean(actor)} />
       </nav>
       {perms.has("run_cross_reference") && (
         <div className="px-3 mt-4">

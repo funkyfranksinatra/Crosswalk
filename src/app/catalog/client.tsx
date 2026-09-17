@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SizeCoverage } from "./coverage";
 import { useRouter } from "next/navigation";
 import { Chip, money, Empty } from "@/components/ui";
 import { BinView } from "@/app/requests/[id]/view";
@@ -192,6 +193,7 @@ export function CatalogActions({ canManage = true, canImportCost = true }: { can
                 <input className="input mono" placeholder="https://docs.google.com/spreadsheets/d/…" value={sizesUrl} onChange={(e) => setSizesUrl(e.target.value)} />
                 <button className="btn-primary" disabled={busy || !sizesUrl.trim()} onClick={() => importSizes(null, sizesUrl)}>{busy ? "Importing…" : "Import"}</button>
               </div>
+              <SizeCoverage />
               <div className="flex justify-end mt-3"><button className="btn-ghost" onClick={() => setPanel(null)}>Close</button></div>
             </>
           )}

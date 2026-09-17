@@ -49,3 +49,8 @@ crosswalk.bundle
 push-to-github.ps1
 data/fixtures/integrations/pushed-quotes/
 .env.debug
+.env.local.pg
+
+# benchmark cases are customer lists
+data/benchmark/*
+!data/benchmark/README.md

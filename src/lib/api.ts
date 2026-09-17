@@ -7,20 +7,49 @@ import { getActor, AuthError, type Actor } from "@/lib/auth";
 import type { Permission } from "@/lib/auth/permissions";
 import { plain } from "@/lib/serialize";
 import { money } from "@/lib/money";
+import { headers } from "next/headers";
+import { log, withRequestContext, setContextActor } from "@/lib/log";
+import { httpRequests, httpDuration } from "@/lib/observability/metrics";
 
+/** The request id the proxy assigned (or null outside a request). */
+export async function requestId(): Promise<string | null> {
+  try { return (await headers()).get("x-request-id"); } catch { return null; }
+}
+
+async function routeLabel(): Promise<string> {
+  // The pathname with ids collapsed, so metrics have bounded cardinality.
+  try { return (await headers()).get("x-crosswalk-route") || "api"; } catch { return "api"; }
+}
+
+/**
+ * Wrap a route: actor, permission, JSON, errors — plus a request-scoped log context and a
+ * metrics sample. `perm` null = any signed-in user.
+ */
 export async function handle<T>(perm: Permission | null, fn: (actor: Actor) => Promise<T>): Promise<Response> {
-  try {
-    const actor = await getActor();
-    if (!actor) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
-    if (perm && !actor.permissions.has(perm)) return NextResponse.json({ error: `Missing permission: ${perm}` }, { status: 403 });
-    const out = await fn(actor);
-    return NextResponse.json(plain(out ?? { ok: true }));
-  } catch (e) {
-    if (e instanceof AuthError) return NextResponse.json({ error: e.message }, { status: e.status });
-    const msg = publicErrorMessage(e);
-    const status = /not found/i.test(msg) ? 404 : /already|changed|decided by someone|being submitted|conflict/i.test(msg) ? 409 : 400;
-    return NextResponse.json({ error: msg }, { status });
-  }
+  const rid = await requestId();
+  const route = await routeLabel();
+  const t0 = Date.now();
+  return withRequestContext({ requestId: rid ?? undefined, route }, async () => {
+    let status = 200;
+    try {
+      const actor = await getActor();
+      if (!actor) { status = 401; return NextResponse.json({ error: "Sign in required" }, { status }); }
+      setContextActor(actor.id);
+      if (perm && !actor.permissions.has(perm)) { status = 403; return NextResponse.json({ error: `Missing permission: ${perm}` }, { status }); }
+      const out = await fn(actor);
+      return NextResponse.json(plain(out ?? { ok: true }));
+    } catch (e) {
+      if (e instanceof AuthError) { status = e.status; return NextResponse.json({ error: e.message }, { status }); }
+      const msg = publicErrorMessage(e);
+      status = /not found/i.test(msg) ? 404 : /already|changed|decided by someone|being submitted|conflict/i.test(msg) ? 409 : 400;
+      return NextResponse.json({ error: msg }, { status });
+    } finally {
+      const ms = Date.now() - t0;
+      httpRequests.inc({ route, status });
+      httpDuration.observe({ route }, ms / 1000);
+      log[status >= 500 ? "error" : status >= 400 ? "warn" : "info"]("api.request", { status, ms, perm: perm ?? null });
+    }
+  });
 }
 
 /**

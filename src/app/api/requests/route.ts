@@ -4,7 +4,7 @@ import { parseIntakeAny } from "@/lib/excel/intake";
 import { SheetAccessError } from "@/lib/sheets/google";
 import { getCompany } from "@/lib/settings";
 import { nextReference } from "@/lib/requests";
-import { startRun } from "@/lib/pipeline/run";
+import { enqueueRun } from "@/lib/pipeline/run";
 import { authorize } from "@/lib/api";
 
 export async function GET() {
@@ -52,10 +52,11 @@ export async function POST(req: Request) {
       sourceUrl: intake.source.url ?? null,
       useLlm: form.get("useLlm") !== "false",
       createdBy: actor.name,
+      createdByUserId: actor.id,
       status: "queued",
       lines: { create: intake.lines.map((l, i) => ({ lineNo: i + 1, rawCode: l.rawCode, cfnNorm: l.cfnNorm, quantity: l.quantity, estCompetitorPrice: l.estPrice })) },
     },
   });
-  startRun(request.id);
-  return NextResponse.json({ id: request.id, reference: request.reference, lines: intake.lines.length, skipped: intake.skipped.length, duplicatesMerged: intake.duplicatesMerged });
+  const { jobId } = await enqueueRun(request.id);
+  return NextResponse.json({ id: request.id, reference: request.reference, jobId, lines: intake.lines.length, skipped: intake.skipped.length, duplicatesMerged: intake.duplicatesMerged });
 }

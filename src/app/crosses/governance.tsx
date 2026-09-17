@@ -5,7 +5,13 @@ import { Card } from "@/components/ui";
 import { Pill, label } from "@/components/commercial";
 
 type Version = { id: string; number: number; status: string; publishedAt: string | null; notes: string | null; _count: { entries: number; proposals: number } };
-type Cross = { id: string; ownSku: string; competitorName: string; competitorCode: string; matchType: string; approvalStatus: string; clinicalReviewStatus: string; marketingReviewStatus: string; equivalenceLevel: string; justification: string | null; source: string; updatedAt: string };
+type Cross = { id: string; ownSku: string; competitorName: string; competitorCode: string; matchType: string; approvalStatus: string; clinicalReviewStatus: string; marketingReviewStatus: string; equivalenceLevel: string; justification: string | null; source: string; updatedAt: string; evidenceJson?: string | null };
+
+/** "chosen by 3 reps at 2 accounts" — the learning loop's evidence for a rep-proposed cross. */
+function evidence(c: Cross): string | null {
+  if (c.source !== "rep" || !c.evidenceJson) return null;
+  try { const e = JSON.parse(c.evidenceJson) as { endorsements?: number; accounts?: string[]; users?: string[] }; const n = e.endorsements ?? 0; if (!n) return null; return `chosen by ${e.users?.length ?? n} rep${(e.users?.length ?? n) === 1 ? "" : "s"} at ${e.accounts?.length ?? 1} account${(e.accounts?.length ?? 1) === 1 ? "" : "s"} (${n} time${n === 1 ? "" : "s"})`; } catch { return null; }
+}
 const EQ = ["EXACT", "FUNCTIONAL", "CLOSEST_ALTERNATIVE", "PREMIUM_ALTERNATIVE", "PARTIAL_SUBSTITUTE", "NONE"];
 
 /** Governance panel: versions + the review queue (rep-proposed and unapproved crosses). */
@@ -39,7 +45,7 @@ export function Governance({ canManage, canPublish, canClinical }: { canManage: 
       <Card title="Review queue" subtitle="Rep-proposed and draft crosses. Clinical + product marketing review, then approve; publishing makes them visible to reps." padded={false}>
         {queue.length === 0 ? <div className="p-5 text-[13px] text-muted">Nothing awaiting review.</div> : (
           <table className="table !text-[12.5px]"><thead><tr><th>Our SKU</th><th>Competitor</th><th>Engine verdict</th><th>Equivalence</th><th>Clinical</th><th>Marketing</th><th>Status</th><th></th></tr></thead>
-            <tbody>{queue.map((c) => <tr key={c.id}><td className="mono font-semibold">{c.ownSku}</td><td>{c.competitorName} <span className="mono">{c.competitorCode}</span><div className="text-muted">{c.source}{c.justification ? ` · ${c.justification}` : ""}</div></td><td>{c.matchType}</td>
+            <tbody>{queue.map((c) => <tr key={c.id}><td className="mono font-semibold">{c.ownSku}</td><td>{c.competitorName} <span className="mono">{c.competitorCode}</span><div className="text-muted">{c.source}{evidence(c) ? ` · ${evidence(c)}` : ""}{c.justification ? ` · ${c.justification}` : ""}</div></td><td>{c.matchType}</td>
               <td>{canManage ? <select className="input !py-0.5 !text-[12px]" value={c.equivalenceLevel} onChange={(e) => patch(c.id, { equivalenceLevel: e.target.value })}>{EQ.map((e) => <option key={e} value={e}>{label(e)}</option>)}</select> : label(c.equivalenceLevel)}</td>
               <td>{canClinical && c.clinicalReviewStatus !== "APPROVED" ? <button className="btn-ghost !py-0.5 !text-[11px]" onClick={() => patch(c.id, { clinicalReviewStatus: "APPROVED" })}>Approve clinically</button> : <Pill value={c.clinicalReviewStatus} />}</td>
               <td>{canManage && c.marketingReviewStatus !== "APPROVED" ? <button className="btn-ghost !py-0.5 !text-[11px]" onClick={() => patch(c.id, { marketingReviewStatus: "APPROVED" })}>Approve marketing</button> : <Pill value={c.marketingReviewStatus} />}</td>

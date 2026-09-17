@@ -39,29 +39,20 @@ function q(s: string) {
   return `"${s.replace(/"/g, '\\"')}"`;
 }
 
-async function fetchJson(url: string, retries = 2): Promise<OpenFdaSearch | null> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const res = await fetch(url, { headers: { accept: "application/json" }, cache: "no-store" });
-    if (res.status === 404) return { total: 0, results: [] }; // openFDA uses 404 for "no matches"
-    if (res.status === 429 && attempt < retries) {
-      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
-      continue;
-    }
-    if (!res.ok) throw new Error(`openFDA ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const data = await res.json();
-    return { total: data?.meta?.results?.total ?? data?.results?.length ?? 0, results: data?.results ?? [] };
-  }
-  return null;
+async function fetchJson(url: string): Promise<OpenFdaSearch> {
+  // Rate limiting, backoff and the api key live in ./http — one path for every openFDA call.
+  const { openFdaGet } = await import("./http");
+  const r = await openFdaGet(url);
+  if (r.status === 404 || !r.json) return { total: 0, results: [] }; // openFDA uses 404 for "no matches"
+  const data = r.json as { meta?: { results?: { total?: number } }; results?: OpenFdaRecord[] };
+  return { total: data?.meta?.results?.total ?? data?.results?.length ?? 0, results: data?.results ?? [] };
 }
 
 export async function searchOpenFda(search: string, limit = 10): Promise<OpenFdaSearch> {
   // NB: openFDA's query grammar uses literal "+" as the token separator
   // ("a+OR+b"), so we must not run the whole string through URLSearchParams.
   const encoded = search.replace(/"([^"]*)"/g, (_m, inner: string) => `"${encodeURIComponent(inner)}"`).replace(/ /g, "+");
-  let url = `${BASE}?search=${encoded}&limit=${limit}`;
-  if (process.env.OPENFDA_API_KEY) url += `&api_key=${encodeURIComponent(process.env.OPENFDA_API_KEY)}`;
-  const data = await fetchJson(url);
-  return data ?? { total: 0, results: [] };
+  return fetchJson(`${BASE}?search=${encoded}&limit=${limit}`);
 }
 
 /** Search by catalog number OR version/model number (the two places a CFN lives in GUDID). */

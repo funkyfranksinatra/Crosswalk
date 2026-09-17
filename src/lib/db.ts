@@ -24,7 +24,7 @@ if (!url) throw new Error("DATABASE_URL is not set (see .env.example)");
  * warning on every boot saying so; v9 will weaken them to libpq semantics. We always want
  * the strict behaviour (Neon's certificates chain to public CAs), so say it explicitly.
  */
-function strictSsl(connectionString: string): string {
+export function strictSsl(connectionString: string): string {
   try {
     const u = new URL(connectionString);
     const mode = u.searchParams.get("sslmode");

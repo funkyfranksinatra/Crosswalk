@@ -91,8 +91,12 @@ model CompetitorProduct {
   binSource      String?
   binnedAt       DateTime?
   resolvedAt     DateTime      @default(now())
+  /// When the GUDID record behind this row was last re-checked against openFDA (cache TTL, Tier 1)
+  gudidCheckedAt DateTime?
   updatedAt      DateTime      @updatedAt
   lines          RequestLine[]
+
+  @@index([gudidCheckedAt])
 }
 
 /// Sizes a rep knows for competitor codes that GUDID does not size (Ethicon meshes, many reloads).
@@ -219,12 +223,20 @@ model Request {
   optionsJson    String? // ranking weights etc.
   logJson        String        @default("[]")
   createdBy      String?
+  createdByUserId String?
+  /// ---- job queue (Tier 1) ----
+  jobId           String? // pg-boss job id of the current/last run
+  attempt         Int           @default(0) // how many times the queue has started this run
+  checkpoint      String? // last completed stage: resolve | bin | match | grade — a retry resumes after it
+  cancelRequested Boolean       @default(false)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   startedAt      DateTime?
   completedAt    DateTime?
   lines          RequestLine[]
   proposals      Proposal[]
+
+  @@index([status])
 }
 
 model RequestLine {
@@ -324,6 +336,8 @@ model User {
   updatedAt    DateTime      @updatedAt
   roles        UserRole[]
   gudidImports GudidImport[]
+  notifications Notification[]
+  notificationPreferences NotificationPreference[]
 }
 
 /// Roles are the unit of authorization (permissions matrix in src/lib/auth/permissions.ts).
@@ -1008,5 +1022,134 @@ model GudidImport {
   startedBy          User?         @relation(fields: [startedById], references: [id], onDelete: SetNull)
   startedAt          DateTime      @default(now())
   finishedAt         DateTime?
+  /// ---- job queue (Tier 1) ----
+  jobId              String?
+  attempt            Int           @default(0)
+  cursorJson         String? // { leaf, skip } — a retry resumes paging here instead of from the start
+  cancelRequested    Boolean       @default(false)
   devices            GudidDevice[]
+}
+
+// =============================================================================
+// TIER 1 — pilot quality: notifications, alerts, feeds, benchmarks, model evals
+// =============================================================================
+
+/// One message to one person. In-app rows are the system of record; email / Teams
+/// deliveries are attempts recorded in deliveriesJson (channel → { at, ok, error }).
+model Notification {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// RUN_COMPLETE | RUN_FAILED | APPROVAL_REQUESTED | APPROVAL_DECIDED | PROPOSAL_APPROVED | CROSS_PROPOSED | FEED_FAILED | ALERT | JOB_FAILED
+  kind          String
+  title         String
+  body          String?
+  link          String?
+  entityType    String?
+  entityId      String?
+  readAt        DateTime?
+  deliveriesJson String?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@index([entityType, entityId])
+}
+
+/// Per-user, per-kind channel switches. Absent row = defaults (in-app on; email on when SMTP is configured; Teams off).
+model NotificationPreference {
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind   String // a Notification.kind or "*"
+  inApp  Boolean @default(true)
+  email  Boolean @default(true)
+  teams  Boolean @default(false)
+
+  @@id([userId, kind])
+}
+
+/// A monitoring condition that is currently (or was) firing. One row per fingerprint;
+/// re-evaluations update lastSeenAt, clear resolvedAt when it fires again.
+model Alert {
+  id           String    @id @default(cuid())
+  fingerprint  String    @unique // e.g. "model_unreachable", "feed_stale:erp-costs", "queue_stalled:request.run"
+  rule         String
+  severity     String // INFO | WARNING | CRITICAL
+  title        String
+  detail       String?
+  firstFiredAt DateTime  @default(now())
+  lastFiredAt  DateTime  @default(now())
+  lastNotifiedAt DateTime?
+  resolvedAt   DateTime?
+  contextJson  String?
+
+  @@index([resolvedAt, severity])
+}
+
+/// One scheduled (or manual) ingestion of one feed: erp-costs, erp-skus, erp-purchases,
+/// crm-accounts, gpo-memberships, pricing (pricebook), competitor-sizes.
+model FeedRun {
+  id          String    @id @default(cuid())
+  feed        String
+  trigger     String // schedule | manual | startup
+  status      String    @default("RUNNING") // RUNNING | OK | FAILED | SKIPPED
+  sourceRef   String? // file path / API endpoint
+  sourceHash  String? // hash of the file (or payload) so an unchanged feed is skipped
+  rows        Int       @default(0)
+  created     Int       @default(0)
+  updated     Int       @default(0)
+  skipped     Int       @default(0)
+  failed      Int       @default(0)
+  error       String?
+  reportJson  String?
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  jobId       String?
+
+  @@index([feed, startedAt])
+}
+
+/// One execution of the multi-list accuracy benchmark (scripts/benchmark.ts).
+model BenchmarkRun {
+  id          String   @id @default(cuid())
+  label       String?
+  model       String? // null = heuristic only
+  promptVersion Int?
+  binVersion  Int?
+  gitRef      String?
+  cases       Int
+  lines       Int
+  resolved    Int
+  top1        Int
+  top3        Int
+  tierAgree   Int
+  byFamilyJson String
+  byCaseJson  String
+  missesJson  String?
+  durationMs  Int
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// One measurement of model grading agreement against the curated crosses
+/// (scripts/model-eval.ts). The accepted baseline gates prompt / model changes.
+model ModelEval {
+  id            String   @id @default(cuid())
+  model         String
+  promptVersion Int
+  binVersion    Int
+  sampleSeed    Int
+  sampleSize    Int
+  graded        Int
+  top1Agree     Int
+  tierAgree     Int
+  noMatchFalse  Int // model said No Match where the curated sheet has a cross
+  durationMs    Int
+  costTokens    Int?
+  accepted      Boolean  @default(false)
+  notes         String?
+  detailJson    String?
+  createdAt     DateTime @default(now())
+
+  @@index([model, promptVersion, createdAt])
 }

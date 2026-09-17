@@ -3,6 +3,7 @@ import { plain } from "@/lib/serialize";
 import { prisma } from "@/lib/db";
 import { authorize } from "@/lib/api";
 import { can } from "@/lib/auth";
+import { recordLineDecision } from "@/lib/xref/learning";
 
 /** Rep decisions on one line: pick a candidate, mark reviewed, note an override, set competitor price. */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string; lineId: string }> }) {
@@ -31,6 +32,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   if ("overrideNote" in body && body.overrideNote != null && String(body.overrideNote).length > 2000) return NextResponse.json({ error: "overrideNote is too long" }, { status: 400 });
   const updated = await prisma.requestLine.update({ where: { id: lineId }, data, include: { candidates: { orderBy: { rank: "asc" }, include: { ownProduct: true } }, competitorProduct: true } });
+  // Learning loop: an override becomes a rep-proposed cross for review; a confirmed top pick is ground truth.
+  let learned: Awaited<ReturnType<typeof recordLineDecision>> = {};
+  if ("selectedCandidateId" in body || body.reviewed) learned = await recordLineDecision(actor, lineId, { selectedCandidateId: body.selectedCandidateId, reviewed: body.reviewed, overrideNote: body.overrideNote }).catch((e) => { console.error("[learning]", e); return {}; });
   if (!can(actor, "view_cost") || !can(actor, "view_margin")) for (const c of updated.candidates) { if (!can(actor, "view_cost")) { c.ownProduct.cogs = null; c.scoreCogs = null; } if (!can(actor, "view_margin")) c.scoreMargin = null; }
-  return NextResponse.json(plain(updated));
+  return NextResponse.json({ ...plain(updated), learned });
 }

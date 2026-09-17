@@ -1,0 +1,38 @@
+{
+  "112660": {
+    "resolution": "openfda-variant",
+    "manufacturer": "BD - Bard",
+    "cfnMatched": "0112660",
+    "confidence": 1
+  },
+  "1190500": {
+    "resolution": "openfda",
+    "manufacturer": "BD - Bard",
+    "cfnMatched": "1190500",
+    "confidence": 0.83
+  },
+  "1410015010": {
+    "resolution": "openfda",
+    "manufacturer": "W.L. Gore",
+    "cfnMatched": "1410015010",
+    "confidence": 0.83
+  },
+  "1DLMC05": {
+    "resolution": "openfda",
+    "manufacturer": "W.L. Gore",
+    "cfnMatched": "1DLMC05",
+    "confidence": 0.83
+  },
+  "SPMII": {
+    "resolution": "openfda",
+    "manufacturer": "Ethicon",
+    "cfnMatched": "SPMII",
+    "confidence": 0.83
+  },
+  "PPM1510X3": {
+    "resolution": "openfda",
+    "manufacturer": "Medtronic",
+    "cfnMatched": "PPM1510X3",
+    "confidence": 0.83
+  }
+}

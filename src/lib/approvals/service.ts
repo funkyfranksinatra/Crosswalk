@@ -58,6 +58,7 @@ export async function submitForApproval(actor: Actor, proposalId: string, notes?
   const status = routed === 0 ? "APPROVED" : proposalStatusFrom(requests);
   await prisma.proposal.update({ where: { id: proposalId }, data: { status, submittedAt: new Date(), lockedAt: new Date(), decidedAt: status === "APPROVED" ? new Date() : null } });
   await audit({ actorUserId: actor.id, entityType: "Proposal", entityId: proposalId, action: "SUBMITTED", after: { status }, context: { routed, autoApproved: auto, revenue: econ.revenue.toString(), blendedMarginPct: econ.blendedMarginPct?.toString() ?? null } });
+  if (routed > 0) { const { notifyApprovalRequested } = await import("@/lib/notifications"); await notifyApprovalRequested(proposalId).catch(() => undefined); }
   return { status, routed, autoApproved: auto };
   } catch (e) {
     // A half-routed submission must not leave the proposal locked with a partial set of requests.
@@ -102,6 +103,7 @@ export async function decide(actor: Actor, requestId: string, decision: "APPROVE
   const status = proposalStatusFrom(all);
   await prisma.proposal.update({ where: { id: req.proposalId }, data: { status, decidedAt: status === "APPROVED" || status === "REJECTED" ? new Date() : null, ...(status === "CHANGES_REQUESTED" ? { lockedAt: null } : {}) } });
   await audit({ actorUserId: actor.id, entityType: "ApprovalRequest", entityId: requestId, action: decision, reason: comments ?? null, context: { proposalId: req.proposalId, line: req.proposalLineId, requiredRole: req.requiredRole, snapshot: req.snapshotJson ? JSON.parse(req.snapshotJson) : null } });
+  { const { notifyApprovalDecided } = await import("@/lib/notifications"); await notifyApprovalDecided(requestId).catch(() => undefined); }
   return { status };
 }
 

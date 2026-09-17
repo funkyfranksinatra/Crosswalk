@@ -1,0 +1,11 @@
+{
+  "https://api.fda.gov/device/udi.json?search=catalog_number:\"1DLMC05\"+OR+version_or_model_number:\"1DLMC05\"&limit=10": "0c46700e570f26ff.json",
+  "https://api.fda.gov/device/udi.json?search=catalog_number:\"SPMII\"+OR+version_or_model_number:\"SPMII\"&limit=10": "d84bc084eb3f60c7.json",
+  "https://api.fda.gov/device/udi.json?search=catalog_number:\"1190500\"+OR+version_or_model_number:\"1190500\"&limit=10": "f0cf73f8696172a7.json",
+  "https://api.fda.gov/device/udi.json?search=catalog_number:\"01190500\"+OR+version_or_model_number:\"01190500\"&limit=10": "b49bee94e53f7ee4.json",
+  "https://api.fda.gov/device/udi.json?search=catalog_number:\"PPM1510X3\"+OR+version_or_model_number:\"PPM1510X3\"&limit=10": "0408f55d607609fb.json",
+  "https://api.fda.gov/device/udi.json?search=catalog_number:\"1410015010\"+OR+version_or_model_number:\"1410015010\"&limit=10": "1d2622bbdd8be219.json",
+  "https://api.fda.gov/device/udi.json?search=catalog_number:\"112660\"+OR+version_or_model_number:\"112660\"&limit=10": "879ad38b979c3d03.json",
+  "https://api.fda.gov/device/udi.json?search=catalog_number:\"0112660\"+OR+version_or_model_number:\"0112660\"&limit=10": "bb0eb6f0ce57b4e4.json",
+  "https://api.fda.gov/device/udi.json?search=catalog_number:\"00112660\"+OR+version_or_model_number:\"00112660\"&limit=10": "9bd3751c74f412cc.json"
+}

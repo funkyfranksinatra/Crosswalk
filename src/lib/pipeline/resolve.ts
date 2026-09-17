@@ -150,7 +150,12 @@ export type ResolveOptions = { useLlm: boolean; accountName?: string | null; sib
  */
 export async function resolveCfn(cfnNorm: string, opts: ResolveOptions) {
   const cached = await prisma.competitorProduct.findUnique({ where: { cfnNorm } });
-  if (cached && !opts.force && cached.resolution !== "not-found" && (cached.confidence ?? 0) >= 0.75) return cached;
+  if (cached && !opts.force && cached.resolution !== "not-found" && (cached.confidence ?? 0) >= 0.75) {
+    // Served from cache even when past its TTL; a background refresh is queued (gudid/refresh.ts).
+    const { refreshIfStale } = await import("@/lib/gudid/refresh");
+    await refreshIfStale(cached);
+    return cached;
+  }
   if (cached && !opts.force && cached.resolution === "manual") return cached;
 
   const hits = await gatherHits(cfnNorm, opts.ctx, Boolean(opts.strict));
