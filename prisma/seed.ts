@@ -11,7 +11,7 @@ import path from "node:path";
 import fs from "node:fs";
 import ExcelJS from "exceljs";
 import { prisma } from "../src/lib/db";
-import { normalizeCfn } from "../src/lib/cfn";
+import { normalizeCfn, isPlaceholderSku } from "../src/lib/cfn";
 import { heuristicBin, FAMILIES } from "../src/lib/match/bin";
 
 const SHEET = path.resolve(process.cwd(), "data/reference/Endomechanical.xlsx");
@@ -43,6 +43,7 @@ async function main() {
   await wb.xlsx.readFile(SHEET);
 
   const rows: Row[] = [];
+  let skippedPlaceholders = 0;
   for (const ws of wb.worksheets) {
     // Skip "Delete" sheets — they are the reviewers' reject piles.
     if (/delete/i.test(ws.name)) continue;
@@ -52,9 +53,14 @@ async function main() {
     if (!/sku/.test(h(2)) || !/match/.test(h(4))) continue;
     for (let r = 2; r <= ws.rowCount; r++) {
       const row = ws.getRow(r);
-      const sku = txt(row.getCell(2).value);
+      let sku = txt(row.getCell(2).value);
       const code = txt(row.getCell(6).value);
       if (!sku || !code) continue;
+      // "No Match, SIG45AVCLOSESUB" — a reviewer's "nothing exact, but this is the closest" — is that SKU.
+      const closest = sku.match(/^no\s*match[\s,;:/-]+([A-Z0-9][A-Z0-9-]{3,})\s*$/i);
+      if (closest) sku = closest[1];
+      // "No Match" / "N/A" in the SKU column is a curated non-cross, not a product; never let it into the catalog.
+      if (isPlaceholderSku(sku) || isPlaceholderSku(code)) { skippedPlaceholders++; continue; }
       const reviewerCells: string[] = [];
       for (let c = 8; c <= Math.max(8, ws.columnCount); c++) {
         const v = txt(row.getCell(c).value);
@@ -74,7 +80,7 @@ async function main() {
       });
     }
   }
-  console.log(`Read ${rows.length} curated rows from ${SHEET}`);
+  console.log(`Read ${rows.length} curated rows from ${SHEET}${skippedPlaceholders ? ` (${skippedPlaceholders} placeholder rows skipped)` : ""}`);
 
   const company = await prisma.company.upsert({
     where: { name: COMPANY },
@@ -156,7 +162,7 @@ async function main() {
     for (let r = 4; r <= ws.rowCount; r++) {
       const row = ws.getRow(r);
       const sku = normalizeCfn(txt(row.getCell(7).value));
-      if (!sku || sku === "NO MATCH" || sku === "TOTAL") continue;
+      if (isPlaceholderSku(sku)) continue; // "No Match" rows and the TOTAL line (normalizeCfn strips the space: "NOMATCH")
       const description = txt(row.getCell(8).value);
       const category = txt(row.getCell(10).value);
       const pricebookName = txt(row.getCell(12).value);

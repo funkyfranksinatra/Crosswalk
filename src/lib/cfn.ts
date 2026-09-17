@@ -23,6 +23,21 @@ function formatNumberCell(n: number): string {
   return String(n);
 }
 
+/**
+ * Spreadsheet placeholders that mean "there is no product here", not a catalog number:
+ * a curated sheet's "No Match" in the SKU column, a report's TOTAL row, "N/A", "TBD"…
+ * Nothing that passes this may become an own product, a candidate or a cross.
+ */
+const PLACEHOLDER_SKUS = new Set(["NOMATCH", "NO-MATCH", "NONE", "NA", "N/A", "N-A", "TBD", "TBA", "TOTAL", "SUBTOTAL", "DISC", "DISCONTINUED", "DELETE", "UNKNOWN", "PENDING", "?", "-", "--", "NULL", "X"]);
+export function isPlaceholderSku(raw: unknown): boolean {
+  const s = normalizeCfn(raw);
+  if (!s) return true;
+  if (PLACEHOLDER_SKUS.has(s) || PLACEHOLDER_SKUS.has(s.replace(/[^A-Z0-9?/-]/g, ""))) return true;
+  // "NO MATCH FOUND", "NOT APPLICABLE", "SEE NOTES", and anything without a digit or at least 3 letters.
+  if (/^(NO|NOT)(MATCH|EQUIV|APPLIC|AVAIL|CROSS)/.test(s) || /^SEE[A-Z]*$/.test(s)) return true;
+  return !/[0-9]/.test(s) && !/[A-Z]{3,}/.test(s);
+}
+
 /** Strip characters that are commonly optional in catalog numbers. */
 export function compactCfn(cfn: string): string {
   return cfn.replace(/[^A-Z0-9]/g, "");

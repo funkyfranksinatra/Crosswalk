@@ -24,6 +24,7 @@ import { binProduct } from "@/lib/llm/tasks";
 import { summarizeRecord, type OpenFdaRecord } from "@/lib/gudid/openfda";
 import { llmConfig } from "@/lib/llm/client";
 import { getCompany } from "@/lib/settings";
+import { isPlaceholderSku } from "@/lib/cfn";
 import { log } from "@/lib/log";
 
 export const BASELINE_PATH = path.resolve(process.cwd(), "data/eval/model-baseline.json");
@@ -34,6 +35,9 @@ export function readBaseline(file = BASELINE_PATH): Baseline | null {
   if (!fs.existsSync(file)) return null;
   try { return JSON.parse(fs.readFileSync(file, "utf8")) as Baseline; } catch { return null; }
 }
+
+/** Codes the test suites create (scripts/test-enterprise.ts, tests/): never part of a measurement. */
+export const isTestFixture = (code: string) => /^E2E[-_]/i.test(code) || /^(TEST|FIXTURE)[-_]/i.test(code);
 
 function rng(seed: number) { return () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; }; }
 const tier = (t: string | null | undefined) => (t ?? "").replace(/\s*Match$/i, "").trim().toLowerCase().replace("us downsell", "alternative");
@@ -48,10 +52,13 @@ export async function evaluateModel(opts: { n?: number; seed?: number; family?: 
   const rand = rng(seed);
   const company = await getCompany();
   const all = await prisma.knownCross.findMany({ where: { isActive: true, approvalStatus: "APPROVED", matchType: { in: ["Exact Match", "Close Match", "Alternative Match"] }, NOT: { competitorName: company.name }, ...(opts.family ? { category: opts.family } : {}) }, orderBy: [{ competitorCodeNorm: "asc" }, { ownSku: "asc" }] });
-  const own = await prisma.ownProduct.findMany({ where: { isActive: true }, select: { id: true, sku: true, description: true, category: true, brand: true, listPrice: true, cogs: true, binJson: true, source: true } });
+  // Placeholder rows that slipped into a catalog ("NOMATCH", "TOTAL") are never candidates or answers,
+  // and fixtures the test suites leave behind (E2E-*) are never sampled: both would grade noise.
+  const own = (await prisma.ownProduct.findMany({ where: { isActive: true }, select: { id: true, sku: true, description: true, category: true, brand: true, listPrice: true, cogs: true, binJson: true, source: true } })).filter((p) => !isPlaceholderSku(p.sku) && !isTestFixture(p.sku));
   const ownSkus = new Set(own.map((p) => p.sku.toUpperCase()));
   const byCode = new Map<string, { code: string; expected: Set<string>; name: string; desc: string | null; type: string }>();
   for (const k of all) {
+    if (isTestFixture(k.competitorCodeNorm) || isPlaceholderSku(k.competitorCodeNorm)) continue;
     const e = byCode.get(k.competitorCodeNorm) ?? { code: k.competitorCodeNorm, expected: new Set<string>(), name: k.competitorName, desc: k.competitorDescription, type: k.matchType };
     const sku = (k.preferredOwnSku && /^[A-Z0-9-]{4,}$/i.test(k.preferredOwnSku) ? k.preferredOwnSku : k.ownSku).toUpperCase();
     if (ownSkus.has(sku)) e.expected.add(sku);

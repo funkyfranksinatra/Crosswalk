@@ -65,7 +65,7 @@ async function cleanup() {
   }
   await prisma.proposal.deleteMany({ where: { reference: { contains: "-v" }, request: { sourceFileName: "e2e-fixture" } } });
   await prisma.crosswalkVersionEntry.deleteMany({ where: { competitorCodeNorm: "E2E-TEST-CODE" } });
-  await prisma.knownCross.deleteMany({ where: { source: "rep", competitorCode: "E2E-TEST-CODE" } });
+  await prisma.knownCross.deleteMany({ where: { competitorCodeNorm: "E2E-TEST-CODE" } }); // whatever source/status the test left it in
   await prisma.externalRef.deleteMany({ where: { system: "dev", entityType: "Proposal" } });
   await prisma.externalRef.deleteMany({ where: { system: "file" } });
   await prisma.syncLog.deleteMany({ where: { system: "file" } });
@@ -386,6 +386,10 @@ async function main() {
     await prisma.gudidDevice.deleteMany({ where: { recordKey: { startsWith: "e2e-lib-" } } });
     await prisma.gudidImport.delete({ where: { id: imp.id } });
   });
+
+  // Leave nothing behind: an approved E2E-TEST-CODE cross in a dev database would otherwise be
+  // sampled by the model eval as if it were curated truth.
+  await cleanup().catch((e) => console.log(`  (cleanup after run failed: ${e instanceof Error ? e.message : String(e)})`));
 
   console.log(`\n${passed} passed, ${failures.length} failed`);
   for (const f of failures) console.log(`  ✗ ${f}`);

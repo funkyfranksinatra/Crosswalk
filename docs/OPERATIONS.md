@@ -141,6 +141,11 @@ recent failures shows `notify.deliver` errors (SMTP auth, webhook 4xx).
 measured and accepted: `npm run eval:model -- --accept` with the model configured, then
 commit `data/eval/model-baseline.json`.
 
+**The eval sampled junk ("NOMATCH", `E2E-TEST-CODE`).** Placeholder rows from a spreadsheet
+and fixtures from the test suites are refused at intake now, but a database loaded earlier can
+still hold them: `npm run catalog:hygiene` reports them, `-- --apply` deactivates the
+placeholders (never deletes a product) and removes the fixtures. Then re-run `eval:model`.
+
 **Accuracy numbers are needed.** `npm run benchmark` over `data/benchmark/<case>/`
 (see the README there) or `--from-requests` for reviewed lists; results are `BenchmarkRun`
 rows and, with `--out docs/benchmarks`, markdown.

@@ -15,7 +15,7 @@ import { prisma } from "@/lib/db";
 import { log as slog } from "@/lib/log";
 import { runsFinished, lastRunResolution, lastRunMatch } from "@/lib/observability/metrics";
 import { specFor } from "@/lib/excel/sizes";
-import { compactCfn } from "@/lib/cfn";
+import { compactCfn, isPlaceholderSku } from "@/lib/cfn";
 import { num, toDb, times } from "@/lib/money";
 import { summarizeRecord, type OpenFdaRecord } from "@/lib/gudid/openfda";
 import { binProduct } from "@/lib/llm/tasks";
@@ -272,6 +272,7 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
   for (const l of ours) {
     const cp = l.competitorProduct!;
     const sku = (cp.cfnMatched ?? cp.cfnNorm).toUpperCase();
+    if (isPlaceholderSku(sku)) continue;
     const exists = await prisma.ownProduct.findUnique({ where: { companyId_sku: { companyId: request.companyId, sku } } });
     if (!exists) {
       const raw = cp.gudidJson ? (JSON.parse(cp.gudidJson) as OpenFdaRecord) : null;

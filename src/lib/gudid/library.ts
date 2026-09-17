@@ -14,7 +14,7 @@
  */
 import { prisma } from "@/lib/db";
 import { log as slog } from "@/lib/log";
-import { compactCfn } from "@/lib/cfn";
+import { compactCfn, isPlaceholderSku } from "@/lib/cfn";
 import { heuristicBin, FAMILIES, type Family } from "@/lib/match/bin";
 import { summarizeRecord, type OpenFdaRecord } from "./openfda";
 import { baseSearch, phrase, toDeviceRow, type DeviceRow } from "./library-model";
@@ -238,7 +238,7 @@ export async function adoptIntoOwnCatalog(rows: DeviceRow[], families: Family[] 
   const company = await getCompany();
   // "Other" is never adopted: the binner could not place the product in a family the matcher knows,
   // so it would only dilute the candidate pool (a whole-labeler import is mostly other divisions).
-  const wanted = rows.filter((r) => r.cfnNorm && r.family && r.family !== "Other" && (!families || families.includes(r.family as Family)));
+  const wanted = rows.filter((r) => r.cfnNorm && !isPlaceholderSku(r.cfnNorm) && r.family && r.family !== "Other" && (!families || families.includes(r.family as Family)));
   if (!wanted.length) return 0;
   // One row per SKU: prefer the record with sizes, then the most recent version.
   const bySku = new Map<string, DeviceRow>();
