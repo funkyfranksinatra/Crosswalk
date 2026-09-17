@@ -176,6 +176,23 @@ without the curated reference sheets; CI on Postgres 17 (migrate, typecheck,
 
 Operating guide: `docs/OPERATIONS.md`. Verification: `docs/TIER1_DEBUG_REPORT.md`.
 
+### 16. Product and scale (Tier 3, Sept 18, 2026)
+
+| Feature | Where |
+| --- | --- |
+| Bulk actions on a run — mark all Exact (or all matched) reviewed, select the top candidate where nothing is selected, flag everything needing attention to verify, clear flags / reviewed marks; scopes computed server-side, learning loop and audit as for single lines; a `flag` on the line with a Flagged filter | `src/app/api/requests/[id]/bulk/route.ts`, `src/app/requests/[id]/view.tsx` |
+| Side-by-side compare — the competitor's GUDID record and our candidate's, attribute by attribute (GUDID fields, sizes, single-use / sterile / implantable, specialties, then the bins the matcher compared), differences highlighted, switchable across candidates | `src/app/api/requests/[id]/lines/[lineId]/compare/route.ts` |
+| Customer-facing line notes — `customerNote` on the request line flows onto the proposal line and is what the quote / offer print; the internal justification and rep note never reach the customer | `RequestLine.customerNote`, `ProposalLine.customerNote`, `src/lib/proposals/export.ts` |
+| Branded PDFs — quotation from an approved proposal and contract offer from a run: letterhead (logo, legal name, address, colours), paginated line table, subtotal / freight / tax / total, notes and terms; Settings → Branding | `src/lib/pdf/`, `src/lib/branding.ts`, `src/app/settings/branding.tsx` |
+| Embedding retrieval — pgvector columns on own and competitor products, `text-embedding-3-small`, hash-skipped refresh (nightly job, after imports, `npm run embed`); a line's shortlist is its nearest neighbours, the attribute scan is the per-line fallback; coverage on Settings → System | `src/lib/match/embeddings.ts`, `src/lib/pipeline/run.ts` (Phase A), `scripts/embed.ts` |
+| Single tenant made explicit — one company per deployment: startup check and Settings → System line, seeds never create a second company | `src/lib/tenancy.ts` |
+| Tax and freight — quote-level freight (flat or % of subtotal) and tax (excluded / exempt / manual rate / AvaTax provider, uncommitted SalesOrder); calculated on demand, stale after a price or freight change, never part of margin, floors or approvals; ship-to per proposal or account default | `src/lib/tax/`, `src/app/api/proposals/[id]/logistics/route.ts`, `src/app/proposals/[id]/logistics.tsx` |
+| Materialised analytics — every report is a stored snapshot refreshed hourly and after outcomes / decisions; pages show "as of" and a Refresh; `?fresh=1` recomputes | `src/lib/analytics/snapshots.ts`, `/api/analytics/[report]` |
+| Approval delegation / out-of-office — lend discount authority (never ADMIN) to a colleague for a window; the delegate sees the queue and decides in their own name with `onBehalfOfUserId` recorded; no approval by proxy of the delegator's own submissions; both parties notified | `src/lib/approvals/delegation.ts`, `/approvals` |
+| Public bid intelligence — SAM.gov award notices (API key) and USAspending contract awards (no key) pulled daily by NAICS / PSC / keywords into `PublicAward`, awardees matched to competitors; bid tabulations from state / hospital portals imported as CSV / XLSX, line prices becoming `PUBLIC_BID_DB` price observations; `/intelligence/bids` | `src/lib/intelligence/bids.ts`, `src/app/intelligence/bids/` |
+
+Verification: `docs/TIER3_DEBUG_REPORT.md`.
+
 ---
 
 ## Part 2 — What still needs building
@@ -213,15 +230,8 @@ accepted.
 
 ### Tier 3 — product and scale
 
-| # | Work | Note |
-| --- | --- | --- |
-| 3.1 | Bulk actions on a cross-reference run (accept all Exact, flag all Verify) | Pure UI; the data is there |
-| 3.2 | Side-by-side compare of the competitor GUDID record and our candidate | Pure UI; the data is there |
-| 3.3 | Rep notes per line flowing into the customer-facing proposal | Notes exist internally; the quote does not carry them |
-| 3.4 | Branded quote / contract-offer templates (PDF as well as workbook) | Today the customer artefact is a workbook |
-| 3.5 | Embedding retrieval (pgvector) before scoring | Scoring is O(catalog) per line — fine to ~2k SKUs, not beyond |
-| 3.6 | Multi-tenant decision | `Company` is modelled; the UI assumes one |
-| 3.7 | Tax and freight | Explicitly out of scope on the quote today; a boundary, not a gap, until someone owns it |
-| 3.8 | Analytics as materialised read models | Computed on request; fine at current volume |
-| 3.9 | Approval delegation / out-of-office | A director on holiday blocks their queue |
-| 3.10 | Competitor intelligence from public bid databases | Currently every observation is entered or imported by a person |
+Built (Part 1 §16). Decisions taken: single-tenant per deployment (3.6); AvaTax as the live
+tax service with MANUAL / EXEMPT fallbacks (3.7); SAM.gov + USAspending + bid-file import for
+public bids (3.10); pgvector + `text-embedding-3-small` for retrieval (3.5). What the
+organisation supplies: AvaTax credentials, a SAM.gov API key, a logo and terms for the
+letterhead, and `npm run embed` once with the model key.

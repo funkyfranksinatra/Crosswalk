@@ -6,6 +6,7 @@ import { SettingsForm } from "./form";
 import { GoogleCard } from "./google";
 import { IntegrationsCard } from "./integrations";
 import { SystemCard } from "./system";
+import { BrandingCard } from "./branding";
 import { getActor, can } from "@/lib/auth";
 import { googleStatus } from "@/lib/sheets/google";
 
@@ -46,6 +47,7 @@ export default async function SettingsPage() {
             )}
           </Card>
           {can(actor, "configure_settings") && <SystemCard />}
+          <BrandingCard canEdit={can(actor, "configure_settings")} />
           <IntegrationsCard canSync={can(actor, "manage_contracts")} />
           <GoogleCard status={googleStatus()} />
           <Card title="Data sources">

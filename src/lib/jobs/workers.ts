@@ -52,10 +52,26 @@ const handlers: { [N in QueueName]: Handler<N> } = {
     const { evaluateAlerts } = await import("@/lib/observability/alerts");
     return evaluateAlerts();
   },
+  "embed.refresh": async (data) => {
+    const { refreshEmbeddings, embeddingsEnabled } = await import("@/lib/match/embeddings");
+    if (!embeddingsEnabled()) return { skipped: "embeddings off or no key" };
+    const tables = data.table ? [data.table] : (["OwnProduct", "CompetitorProduct"] as const);
+    const out: Record<string, unknown> = {};
+    for (const t of tables) out[t] = await refreshEmbeddings(t, { ids: data.ids, limit: data.limit });
+    return out;
+  },
+  "analytics.refresh": async (data) => {
+    const { refreshSnapshots } = await import("@/lib/analytics/snapshots");
+    return refreshSnapshots(data.reports, data.trigger ?? "schedule");
+  },
+  "bids.ingest": async (data, meta) => {
+    const { ingestPublicAwards } = await import("@/lib/intelligence/bids");
+    return ingestPublicAwards(data.source, { trigger: data.trigger, actorUserId: data.actorUserId ?? null, jobId: meta.id, lookbackDays: data.lookbackDays });
+  },
 };
 
 /** Concurrency per queue in one process (a run is CPU + network heavy; deliveries are cheap). */
-const CONCURRENCY: Record<QueueName, number> = { "request.run": 1, "gudid.import": 1, "gudid.refresh": 1, "integration.sync": 1, "feed.ingest": 1, "notify.deliver": 4, "alerts.evaluate": 1 };
+const CONCURRENCY: Record<QueueName, number> = { "request.run": 1, "gudid.import": 1, "gudid.refresh": 1, "integration.sync": 1, "feed.ingest": 1, "notify.deliver": 4, "alerts.evaluate": 1, "embed.refresh": 1, "analytics.refresh": 1, "bids.ingest": 1 };
 
 async function onFinalFailure(queue: QueueName, data: unknown, error: string) {
   try {
@@ -95,6 +111,15 @@ async function register<N extends QueueName>(boss: PgBoss, name: N) {
 async function registerSchedules(boss: PgBoss) {
   await boss.schedule("alerts.evaluate", CRON["alerts.evaluate"], {}, { tz: "UTC", singletonKey: "cron" });
   await boss.schedule("gudid.refresh", CRON["gudid.refresh"], { limit: Number(process.env.GUDID_REFRESH_BATCH ?? 200) }, { tz: "UTC", singletonKey: "refresh:sweep" });
+  await boss.schedule("embed.refresh", CRON["embed.refresh"], { limit: Number(process.env.EMBED_REFRESH_BATCH ?? 5000) }, { tz: "UTC", singletonKey: "embed:sweep" });
+  await boss.schedule("analytics.refresh", CRON["analytics.refresh"], { trigger: "schedule" }, { tz: "UTC", singletonKey: "analytics:cron" });
+  const { bidSourcesConfigured, BID_SOURCES } = await import("@/lib/intelligence/bids");
+  const configured = new Set(await bidSourcesConfigured());
+  for (const source of BID_SOURCES) {
+    const key = `bids-${source}`;
+    if (!configured.has(source) || CRON["bids.ingest"] === "off") { await boss.unschedule("bids.ingest", key).catch(() => undefined); continue; }
+    await boss.schedule("bids.ingest", CRON["bids.ingest"], { source, trigger: "schedule" }, { tz: "UTC", key, singletonKey: `bids:${source}`, missed: "once" });
+  }
   const { scheduleFeeds } = await import("@/lib/feeds/schedule");
   await scheduleFeeds(boss);
 }

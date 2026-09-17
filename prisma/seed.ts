@@ -82,11 +82,11 @@ async function main() {
   }
   console.log(`Read ${rows.length} curated rows from ${SHEET}${skippedPlaceholders ? ` (${skippedPlaceholders} placeholder rows skipped)` : ""}`);
 
-  const company = await prisma.company.upsert({
-    where: { name: COMPANY },
-    create: { name: COMPANY, labelers: JSON.stringify(["Covidien", "Medtronic", "Sofradim"]) },
-    update: {},
-  });
+  // Single tenant: if a company already exists under another name, the seed loads into IT rather than
+  // creating a second row nobody is served from (COMPANY_NAME drift). Rename it in Settings if needed.
+  const existing = await prisma.company.findFirst({ orderBy: { createdAt: "asc" } });
+  if (existing && existing.name !== COMPANY) console.warn(`Company "${existing.name}" already exists; seeding into it (COMPANY_NAME=${COMPANY} was not used to create a second company)`);
+  const company = existing ?? await prisma.company.create({ data: { name: COMPANY, labelers: JSON.stringify(["Covidien", "Medtronic", "Sofradim"]) } });
 
   // Own products: every MDT SKU + every Medtronic "competitor" code (internal substitutes are also our SKUs)
   const own = new Map<string, { description: string; category: string }>();

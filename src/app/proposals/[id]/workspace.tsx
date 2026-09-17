@@ -12,13 +12,14 @@ import Link from "next/link";
 import { PageHeader, Card, Empty } from "@/components/ui";
 import { DriftBanner } from "./drift-banner";
 import { Pill, ProposalStatus, fmtMoney, fmtPct, label } from "@/components/commercial";
+import { LogisticsPanel } from "./logistics";
 
 type Line = {
   id: string; lineNo: number; included: boolean; competitorCode: string; competitorDescription: string | null; competitorName: string | null; sku: string | null; description: string | null; productFamily: string | null;
   equivalenceLevel: string | null; matchType: string | null; crossId: string | null; quantity: number; listPrice: number | null; contractPrice: number | null; contractPriceSource: string | null; waterfallJson: string | null;
   competitorPrice: number | null; competitorPriceConfidence: number | null; competitorPriceBasis: string | null; competitorIntelJson: string | null; cost: number | null; costBasisJson: string | null;
   floorPrice: number | null; targetPrice: number | null; ceilingPrice: number | null; recommendedPrice: number | null; recommendationJson: string | null; proposedPrice: number | null;
-  marginAmount: number | null; marginPct: number | null; discountFromListPct: number | null; discountFromContractPct: number | null; requiredAuthority: string | null; approvalState: string; justification: string | null; notes: string | null;
+  marginAmount: number | null; marginPct: number | null; discountFromListPct: number | null; discountFromContractPct: number | null; requiredAuthority: string | null; approvalState: string; justification: string | null; notes: string | null; customerNote: string | null;
 };
 type Econ = { revenue: string; listValue: string; currentContractValue: string; competitorSpend: string; customerSavings: string; customerSavingsPct: string | null; grossProfit: string | null; blendedMarginPct: string | null; discountFromListPct: string | null; discountFromContractPct: string | null; shareOfWalletPct: string | null; linesProposed: number; linesTotal: number; approvalsPending: number; approvalsRequired: number; byFamily: { family: string; lines: number; revenue: string; grossProfit: string | null; marginPct: string | null; competitorSpend: string; customerSavings: string }[] };
 type Approval = { id: string; proposalLineId: string | null; requiredRole: string; reason: string; status: string; requestedAt: string; decidedAt: string | null; decisionComments: string | null };
@@ -118,6 +119,7 @@ export function ProposalWorkspace({ id }: { id: string }) {
         </div>
       )}
 
+      <LogisticsPanel id={id} editable={p.permissions.editPricing && !["WON", "LOST"].includes(p.status)} version={p.lines.map((l) => `${l.id}:${l.proposedPrice}`).join("|")} />
       <Card padded={false}>
         <table className="table">
           <thead>
@@ -138,6 +140,7 @@ export function ProposalWorkspace({ id }: { id: string }) {
                   onPrice={(v) => scenario ? call(`/api/proposals/${id}/scenarios/${scenario.scenario.id}`, { method: "PATCH", body: JSON.stringify({ lineId: l.id, proposedPrice: v }) }) : call(`/api/proposals/${id}/lines/${l.id}`, { method: "PATCH", body: JSON.stringify({ proposedPrice: v, reason: "edited in workspace" }) })}
                   onInclude={(v) => call(`/api/proposals/${id}/lines/${l.id}`, { method: "PATCH", body: JSON.stringify({ included: v }) })}
                   onRecommend={(strategy, adj, just) => call(`/api/proposals/${id}/lines/${l.id}/recommend`, { method: "POST", body: JSON.stringify({ strategy, adjustmentPct: adj, justification: just, apply: true }) })}
+                  onNote={(v) => call(`/api/proposals/${id}/lines/${l.id}`, { method: "PATCH", body: JSON.stringify({ customerNote: v }) })}
                   approvals={p.approvals.filter((a) => a.proposalLineId === l.id)} />
               );
             })}
@@ -162,7 +165,10 @@ function Actions({ p, busy, editable, call }: { p: Proposal; busy: boolean; edit
       {editable && <button className="btn-primary" disabled={busy} onClick={() => call(`/api/proposals/${id}/submit`, { method: "POST", body: JSON.stringify({}) })}>Submit for approval</button>}
       {!editable && p.permissions.editPricing && !["WON", "LOST"].includes(p.status) && <button className="btn-secondary" disabled={busy} onClick={() => call(`/api/proposals/${id}/reopen`, { method: "POST", body: JSON.stringify({ reason: "reopened from workspace" }) })}>Reopen</button>}
       {p.permissions.export && (
-        <a className={`btn-secondary ${p.finalize.ok ? "" : "opacity-50 pointer-events-none"}`} href={`/api/proposals/${id}/export?format=xlsx`} title={p.finalize.ok ? "Download the approved quote" : `Locked: ${p.finalize.reason}`}>Export quote</a>
+        <span className={`inline-flex rounded-md overflow-hidden ${p.finalize.ok ? "" : "opacity-50 pointer-events-none"}`} title={p.finalize.ok ? "Download the approved quote" : `Locked: ${p.finalize.reason}`}>
+          <a className="btn-secondary !rounded-r-none" href={`/api/proposals/${id}/export?format=pdf`}>Quote PDF</a>
+          <a className="btn-secondary !rounded-l-none border-l-0" href={`/api/proposals/${id}/export?format=xlsx`}>.xlsx</a>
+        </span>
       )}
       {p.permissions.export && p.finalize.ok && <button className="btn-secondary" disabled={busy} onClick={() => call(`/api/proposals/${id}/push-crm`, { method: "POST" })} title={p.integrations.crm.note}>Push to CRM</button>}
       {p.permissions.outcomes && p.finalize.ok && !p.outcome && <button className="btn-secondary" onClick={() => setOutcome(true)}>Record outcome</button>}
@@ -191,7 +197,7 @@ function OutcomeDialog({ p, onClose, call }: { p: Proposal; onClose: () => void;
   );
 }
 
-function LineRow({ l, p, proposed, margin, auth, belowFloor, editable, isOpen, onOpen, onPrice, onInclude, onRecommend, approvals }: { l: Line; p: Proposal; proposed: string | number | null; margin: string | number | null; auth: string | null; belowFloor: boolean; editable: boolean; isOpen: boolean; onOpen: () => void; onPrice: (v: string | null) => void; onInclude: (v: boolean) => void; onRecommend: (strategy: string, adj: number | null, just: string | null) => void; approvals: Approval[] }) {
+function LineRow({ l, p, proposed, margin, auth, belowFloor, editable, isOpen, onOpen, onPrice, onInclude, onRecommend, onNote, approvals }: { l: Line; p: Proposal; proposed: string | number | null; margin: string | number | null; auth: string | null; belowFloor: boolean; editable: boolean; isOpen: boolean; onOpen: () => void; onPrice: (v: string | null) => void; onInclude: (v: boolean) => void; onRecommend: (strategy: string, adj: number | null, just: string | null) => void; onNote: (v: string | null) => void; approvals: Approval[] }) {
   const [draft, setDraft] = useState(proposed == null ? "" : String(proposed));
   useEffect(() => { setDraft(proposed == null ? "" : String(proposed)); }, [proposed]);
   const commit = () => { const v = draft.trim(); if (v === (proposed == null ? "" : String(proposed))) return; onPrice(v === "" ? null : v); };
@@ -215,12 +221,14 @@ function LineRow({ l, p, proposed, margin, auth, belowFloor, editable, isOpen, o
           {!l.included ? <Pill value="NOT_REQUIRED">excluded</Pill> : auth ? <Pill value={l.approvalState === "APPROVED" ? "APPROVED" : l.approvalState === "PENDING" ? "PENDING" : l.approvalState === "REJECTED" ? "REJECTED" : "REQUIRED"}>{l.approvalState === "APPROVED" ? "approved" : `${label(auth)}${l.approvalState === "PENDING" ? " · pending" : ""}`}</Pill> : <Pill value="APPROVED">within authority</Pill>}
         </td>
       </tr>
-      {isOpen && <tr><td colSpan={10} className="!p-0"><LineDrawer l={l} p={p} editable={editable} onInclude={onInclude} onRecommend={onRecommend} approvals={approvals} /></td></tr>}
+      {isOpen && <tr><td colSpan={10} className="!p-0"><LineDrawer l={l} p={p} editable={editable} onInclude={onInclude} onRecommend={onRecommend} onNote={onNote} approvals={approvals} /></td></tr>}
     </>
   );
 }
 
-function LineDrawer({ l, p, editable, onInclude, onRecommend, approvals }: { l: Line; p: Proposal; editable: boolean; onInclude: (v: boolean) => void; onRecommend: (s: string, adj: number | null, just: string | null) => void; approvals: Approval[] }) {
+function LineDrawer({ l, p, editable, onInclude, onRecommend, onNote, approvals }: { l: Line; p: Proposal; editable: boolean; onInclude: (v: boolean) => void; onRecommend: (s: string, adj: number | null, just: string | null) => void; onNote: (v: string | null) => void; approvals: Approval[] }) {
+  const [note, setNote] = useState(l.customerNote ?? "");
+  useEffect(() => { setNote(l.customerNote ?? ""); }, [l.customerNote]);
   const [tab, setTab] = useState<"rec" | "waterfall" | "intel" | "cost" | "cross" | "approvals">("rec");
   const [strategy, setStrategy] = useState("MATCH"); const [adj, setAdj] = useState("2.5"); const [just, setJust] = useState(l.justification ?? "");
   const rec = l.recommendationJson ? JSON.parse(l.recommendationJson) : null;
@@ -233,7 +241,11 @@ function LineDrawer({ l, p, editable, onInclude, onRecommend, approvals }: { l: 
       <div className="flex items-center gap-1 mb-3 flex-wrap">
         {tabs.map(([k, t]) => <button key={k} className={`chip ${tab === k ? "bg-accent-soft text-accent-ink" : "bg-line-2 text-muted"}`} onClick={() => setTab(k)}>{t}</button>)}
         <span className="ml-auto flex items-center gap-2">
-          {l.notes && <span className="text-[11.5px] text-muted max-w-[420px] truncate" title={l.notes}>{l.notes}</span>}
+          <label className="flex items-center gap-1.5 text-[11.5px] text-muted" title="Printed on the quote under this line — the customer reads this; internal notes stay internal">
+            Customer note
+            <input className="input !py-1 !text-[12px] w-[280px]" placeholder="e.g. trim to size; same platform as current" value={note} disabled={!p.permissions.editPricing || ["WON", "LOST"].includes(p.status)} onChange={(e) => setNote(e.target.value)} onBlur={() => { if ((note || null) !== (l.customerNote || null)) onNote(note || null); }} />
+          </label>
+          {l.notes && <span className="text-[11.5px] text-muted max-w-[320px] truncate" title={l.notes}>{l.notes}</span>}
           {editable && <button className="btn-ghost !py-1 !text-[12px]" onClick={() => onInclude(!l.included)}>{l.included ? "Exclude line" : "Include line"}</button>}
         </span>
       </div>

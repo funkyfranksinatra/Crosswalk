@@ -6,3 +6,6 @@
 import "dotenv/config";
 import { test } from "vitest";
 (globalThis as unknown as { __vitest_harness?: { test: typeof test } }).__vitest_harness = { test };
+
+/** Route-handler tests: act as a user without cookies (src/lib/auth setActorForTests). */
+export { setActorForTests } from "@/lib/auth";

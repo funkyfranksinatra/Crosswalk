@@ -54,6 +54,11 @@ model OwnProduct {
   isActive       Boolean          @default(true)
   /// "seed" (curated sheets) | "manual" (Add SKUs) | "gudid-import" (Catalog → GUDID library)
   source         String           @default("seed")
+  /// ---- embedding retrieval (Tier 3) — pgvector column, written/read with raw SQL (src/lib/match/embeddings.ts)
+  embedding      Unsupported("vector(1536)")?
+  embeddingHash  String? // sha256 of the embedded text: unchanged text is not re-embedded
+  embeddingModel String?
+  embeddedAt     DateTime?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   prices         PriceEntry[]
@@ -93,6 +98,10 @@ model CompetitorProduct {
   resolvedAt     DateTime      @default(now())
   /// When the GUDID record behind this row was last re-checked against openFDA (cache TTL, Tier 1)
   gudidCheckedAt DateTime?
+  embedding      Unsupported("vector(1536)")?
+  embeddingHash  String?
+  embeddingModel String?
+  embeddedAt     DateTime?
   updatedAt      DateTime      @updatedAt
   lines          RequestLine[]
 
@@ -257,6 +266,10 @@ model RequestLine {
   matchStatus         String             @default("pending")
   selectedCandidateId String?
   overrideNote        String?
+  /// Note written FOR the customer (carried onto the proposal / quote); overrideNote stays internal.
+  customerNote        String?
+  /// "verify" when a rep (or a bulk action) flagged the line for a second look; cleared by review.
+  flag                String?
   reviewed            Boolean            @default(false)
   candidates          MatchCandidate[]
 
@@ -338,6 +351,8 @@ model User {
   gudidImports GudidImport[]
   notifications Notification[]
   notificationPreferences NotificationPreference[]
+  delegationsGiven    ApprovalDelegation[] @relation("DelegationFrom")
+  delegationsReceived ApprovalDelegation[] @relation("DelegationTo")
 }
 
 /// Roles are the unit of authorization (permissions matrix in src/lib/auth/permissions.ts).
@@ -367,6 +382,9 @@ model Account {
   isStrategic     Boolean                      @default(false)
   ownerUserId     String?
   externalCrmId   String?                      @unique
+  taxExempt       Boolean                      @default(false)
+  taxExemptionNo  String?
+  shipToJson      String? // default ship-to address for tax calculation
   createdAt       DateTime                     @default(now())
   updatedAt       DateTime                     @updatedAt
   memberships     GpoMembership[]
@@ -700,6 +718,18 @@ model Proposal {
   crosswalkVersion   CrosswalkVersion? @relation(fields: [crosswalkVersionId], references: [id])
   economicsJson      String? // last computed rollup (src/lib/proposals/economics.ts)
   objectivesJson     String? // user-entered strategic objectives
+  /// ---- tax & freight (Tier 3) — quote-level, never part of margin
+  freightMode        String            @default("NONE") // NONE | FLAT | PCT
+  freightValue       Decimal?          @db.Decimal(18, 4) // flat amount, or percent of subtotal (0..100) when PCT
+  freightAmount      Decimal?          @db.Decimal(18, 4) // computed
+  taxMode            String            @default("NONE") // NONE | EXEMPT | MANUAL | PROVIDER
+  taxRate            Decimal?          @db.Decimal(12, 6) // MANUAL: fraction (0.0825)
+  taxAmount          Decimal?          @db.Decimal(18, 4)
+  taxProvider        String? // avatax | manual
+  taxCalculatedAt    DateTime?
+  taxDetailJson      String? // provider breakdown per line / jurisdiction
+  taxExemptionNo     String?
+  shipToJson         String? // { line1, line2, city, region, postalCode, country }
   lockedAt           DateTime?
   submittedAt        DateTime?
   decidedAt          DateTime?
@@ -761,8 +791,9 @@ model ProposalLine {
   discountFromContractPct   Decimal?          @db.Decimal(12, 6)
   requiredAuthority         String? // role
   approvalState             String            @default("NOT_REQUIRED") // NOT_REQUIRED | REQUIRED | PENDING | APPROVED | REJECTED
-  justification             String? // premium / clinical justification
-  notes                     String?
+  justification             String? // premium / clinical justification (internal)
+  notes                     String? // internal working notes
+  customerNote              String? // printed on the quote / contract offer
   createdAt                 DateTime          @default(now())
   updatedAt                 DateTime          @updatedAt
   scenarioLines             ScenarioLine[]
@@ -811,6 +842,7 @@ model ApprovalRequest {
   requestedAt       DateTime      @default(now())
   status            String        @default("PENDING") // PENDING | APPROVED | REJECTED | CHANGES_REQUESTED | WITHDRAWN | EXPIRED
   decidedByUserId   String?
+  onBehalfOfUserId  String? // set when a delegate decided with someone else's authority (ApprovalDelegation)
   decidedAt         DateTime?
   decisionComments  String?
   snapshotJson      String? // price, recommendation, floor, margin, policy version at request time
@@ -1155,4 +1187,67 @@ model ModelEval {
   createdAt     DateTime @default(now())
 
   @@index([model, promptVersion, createdAt])
+}
+
+// =============================================================================
+// TIER 3 — product and scale
+// =============================================================================
+
+/// Out-of-office: `from` lends their approval authority to `to` for a window. The delegate
+/// decides in their own name; the request records on whose behalf. Never grants ADMIN.
+model ApprovalDelegation {
+  id              String    @id @default(cuid())
+  fromUserId      String
+  from            User      @relation("DelegationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId        String
+  to              User      @relation("DelegationTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  startsAt        DateTime
+  endsAt          DateTime
+  reason          String?
+  createdByUserId String?
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([toUserId, startsAt, endsAt])
+  @@index([fromUserId])
+}
+
+/// A materialised analytics report: computed by the analytics.refresh job, read by the pages.
+model AnalyticsSnapshot {
+  id         String   @id @default(cuid())
+  report     String
+  json       String
+  durationMs Int      @default(0)
+  computedAt DateTime @default(now())
+  trigger    String   @default("schedule") // schedule | event | manual
+
+  @@index([report, computedAt])
+}
+
+/// A public-sector award / bid record pulled from SAM.gov, USAspending or a bid-file drop.
+model PublicAward {
+  id              String    @id @default(cuid())
+  source          String // SAM | USASPENDING | BIDFILE
+  externalId      String
+  title           String?
+  agency          String?
+  awardee         String?
+  awardeeId       String? // UEI / DUNS where the source gives one
+  naics           String?
+  psc             String?
+  amount          Decimal?  @db.Decimal(18, 2)
+  currency        String    @default("USD")
+  awardDate       DateTime?
+  postedDate      DateTime?
+  description     String?
+  url             String?
+  competitorId    String? // matched competitor (by awardee name / alias)
+  keywordsMatched String? // which configured keywords / codes hit
+  rawJson         String?
+  importedAt      DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([source, externalId])
+  @@index([awardDate])
+  @@index([competitorId])
 }

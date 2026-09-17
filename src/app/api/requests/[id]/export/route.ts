@@ -2,6 +2,7 @@ import { buildCrossReferenceWorkbook, buildContractOfferWorkbook, buildCrossRefe
 import { toCsv } from "@/lib/sheets/csv";
 import { authorize } from "@/lib/api";
 import { can } from "@/lib/auth";
+import { buildOfferPdf } from "@/lib/pdf";
 
 /**
  * ?type=xref|offer&format=xlsx|csv
@@ -16,6 +17,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const sp = new URL(req.url).searchParams;
   const type = sp.get("type") ?? "xref";
   const format = sp.get("format") ?? "xlsx";
+  if (format === "pdf") {
+    if (type !== "offer") return new Response(JSON.stringify({ error: "PDF is available for the contract offer (type=offer)" }), { status: 400, headers: { "content-type": "application/json" } });
+    const { buffer, filename, contentType } = await buildOfferPdf(actor, id);
+    return new Response(new Uint8Array(buffer), { headers: { "content-type": contentType, "content-disposition": `attachment; filename="${filename}"` } });
+  }
   if (format === "csv") {
     const { rows, filename } = type === "offer" ? await buildContractOfferRows(id) : await buildCrossReferenceRows(id, hide);
     return new Response(toCsv(rows), {

@@ -8,6 +8,8 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   if (process.env.NEXT_PHASE === "phase-production-build") return;
+  // Tenancy is single per deployment; say so (and warn about drift) once per process, queue or not.
+  import("@/lib/tenancy").then(({ checkTenancy }) => checkTenancy()).catch(() => undefined);
   const mode = process.env.JOBS_WORKER ?? "inline";
   if (mode !== "inline") return;
   const { startWorkers } = await import("@/lib/jobs/workers");

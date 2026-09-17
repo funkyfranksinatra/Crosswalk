@@ -10,7 +10,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id, lineId } = await params;
   const { actor, deny } = await authorize("run_cross_reference");
   if (deny) return deny;
-  const body = (await req.json().catch(() => ({}))) as { selectedCandidateId?: string | null; reviewed?: boolean; overrideNote?: string | null; estCompetitorPrice?: number | null };
+  const body = (await req.json().catch(() => ({}))) as { selectedCandidateId?: string | null; reviewed?: boolean; overrideNote?: string | null; customerNote?: string | null; flag?: string | null; estCompetitorPrice?: number | null };
   const line = await prisma.requestLine.findFirst({ where: { id: lineId, requestId: id } });
   if (!line) return NextResponse.json({ error: "not found" }, { status: 404 });
 
@@ -25,6 +25,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   if ("reviewed" in body) data.reviewed = Boolean(body.reviewed);
   if ("overrideNote" in body) data.overrideNote = body.overrideNote;
+  if ("flag" in body) { if (body.flag != null && body.flag !== "verify") return NextResponse.json({ error: "flag must be \"verify\" or null" }, { status: 400 }); data.flag = body.flag ?? null; }
+  // Reviewing a line answers the flag.
+  if (body.reviewed === true) data.flag = null;
+  if ("customerNote" in body) { if (body.customerNote != null && String(body.customerNote).length > 1000) return NextResponse.json({ error: "customerNote is too long" }, { status: 400 }); data.customerNote = body.customerNote == null || body.customerNote === "" ? null : String(body.customerNote); }
   if ("estCompetitorPrice" in body) {
     const v = body.estCompetitorPrice;
     if (v !== null && v !== undefined && (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 1e9)) return NextResponse.json({ error: "estCompetitorPrice must be a non-negative number" }, { status: 400 });

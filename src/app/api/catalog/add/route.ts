@@ -32,6 +32,8 @@ export async function POST(req: Request) {
     results.push({ sku, status: "added", description: s.description ?? undefined });
     await new Promise((res) => setTimeout(res, 260));
   }
+  const added = results.filter((r) => r.status === "added" || r.status === "added-unverified").map((r) => r.sku);
+  if (added.length) { const { requestEmbeddingRefresh } = await import("@/lib/match/embeddings"); const rows = await prisma.ownProduct.findMany({ where: { companyId: company.id, sku: { in: added } }, select: { id: true } }); await requestEmbeddingRefresh("OwnProduct", rows.map((r) => r.id)); }
   return { results };
   });
 }

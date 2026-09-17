@@ -123,6 +123,7 @@ export async function createFromRequest(actor: Actor, requestId: string, opts: {
         proposedPrice: toDb(rec?.recommendedPrice ?? null),
         marginAmount: toDb(rec?.marginAmount ?? null), marginPct: toDbPct(rec?.marginPct ?? null), discountFromListPct: toDbPct(rec?.discountFromListPct ?? null), discountFromContractPct: toDbPct(rec?.discountFromContractPct ?? null),
         requiredAuthority: rec?.requiredAuthority ?? null, approvalState: rec?.requiredAuthority ? "REQUIRED" : "NOT_REQUIRED",
+        customerNote: line.customerNote ?? null,
         notes: !product ? "No product selected on the cross-reference; excluded" : retired ? `${product.sku} is ${product.isActive ? "no longer in commercial distribution" : "inactive"}; excluded` : !entry && matchType ? `Cross-reference verdict "${matchType}" is not in the published crosswalk (v${version?.number ?? "—"}); shown as unapproved` : null,
       },
     });

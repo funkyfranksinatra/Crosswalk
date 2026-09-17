@@ -8,6 +8,7 @@ import { type Actor, requirePermission, hasAuthority, AuthError } from "@/lib/au
 import { money } from "@/lib/money";
 import { proposalStatusFrom, canFinalize } from "./rules";
 import { recomputeAllLines, refreshEconomics } from "@/lib/proposals/service";
+import { authorityFor, effectiveAuthority } from "./delegation";
 
 /**
  * Submit a proposal. Every included line is re-evaluated against its policy; lines
@@ -83,9 +84,14 @@ export async function decide(actor: Actor, requestId: string, decision: "APPROVE
   const req = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: requestId }, include: { proposalLine: true } });
   if (req.status !== "PENDING") throw new Error(`Request already ${req.status.toLowerCase()}`);
   const belowFloor = req.proposalLine && money(req.proposalLine.floorPrice) && money(req.proposalLine.proposedPrice)?.lt(money(req.proposalLine.floorPrice)!);
-  requirePermission(actor, belowFloor ? "approve_below_floor" : "approve_discount");
-  if (!hasAuthority(actor, req.requiredRole)) throw new AuthError(`This line needs ${req.requiredRole.replace(/_/g, " ").toLowerCase()} authority`);
+  // Authority may be the actor's own or lent by an active delegation (out-of-office); the request records which.
+  const auth = await authorityFor(actor, req.requiredRole);
+  const perm = belowFloor ? "approve_below_floor" : "approve_discount";
+  if (!actor.permissions.has(perm) && !auth.effective.permissions.has(perm)) requirePermission(actor, perm);
+  if (!auth.ok) throw new AuthError(`This line needs ${req.requiredRole.replace(/_/g, " ").toLowerCase()} authority`);
+  const onBehalfOf = auth.onBehalfOf;
   if (req.requestedByUserId === actor.id && !actor.roles.includes("ADMIN")) throw new AuthError("You cannot approve your own request");
+  if (onBehalfOf && req.requestedByUserId === onBehalfOf) throw new AuthError("A delegate cannot approve a request the delegating user submitted");
   // The approver decides the price they reviewed. If the line moved since the request was made
   // (possible while a sibling's changes-requested left the proposal unlocked), the request is void.
   const snap = req.snapshotJson ? (JSON.parse(req.snapshotJson) as { proposedPrice?: string | null }) : null;
@@ -96,14 +102,15 @@ export async function decide(actor: Actor, requestId: string, decision: "APPROVE
   }
 
   // Claim the request atomically — two approvers deciding at once must yield one decision.
-  const claimed = await prisma.approvalRequest.updateMany({ where: { id: requestId, status: "PENDING" }, data: { status: decision, decidedByUserId: actor.id, decidedAt: new Date(), decisionComments: comments ?? null } });
+  const claimed = await prisma.approvalRequest.updateMany({ where: { id: requestId, status: "PENDING" }, data: { status: decision, decidedByUserId: actor.id, onBehalfOfUserId: onBehalfOf, decidedAt: new Date(), decisionComments: comments ?? null } });
   if (claimed.count !== 1) throw new Error("Request was decided by someone else a moment ago");
   if (req.proposalLineId) await prisma.proposalLine.update({ where: { id: req.proposalLineId }, data: { approvalState: decision === "APPROVED" ? "APPROVED" : decision === "REJECTED" ? "REJECTED" : "REQUIRED" } });
   const all = await prisma.approvalRequest.findMany({ where: { proposalId: req.proposalId, status: { notIn: ["WITHDRAWN", "EXPIRED"] } } });
   const status = proposalStatusFrom(all);
   await prisma.proposal.update({ where: { id: req.proposalId }, data: { status, decidedAt: status === "APPROVED" || status === "REJECTED" ? new Date() : null, ...(status === "CHANGES_REQUESTED" ? { lockedAt: null } : {}) } });
-  await audit({ actorUserId: actor.id, entityType: "ApprovalRequest", entityId: requestId, action: decision, reason: comments ?? null, context: { proposalId: req.proposalId, line: req.proposalLineId, requiredRole: req.requiredRole, snapshot: req.snapshotJson ? JSON.parse(req.snapshotJson) : null } });
+  await audit({ actorUserId: actor.id, entityType: "ApprovalRequest", entityId: requestId, action: decision, reason: comments ?? null, context: { proposalId: req.proposalId, line: req.proposalLineId, requiredRole: req.requiredRole, onBehalfOfUserId: onBehalfOf, snapshot: req.snapshotJson ? JSON.parse(req.snapshotJson) : null } });
   { const { notifyApprovalDecided } = await import("@/lib/notifications"); await notifyApprovalDecided(requestId).catch(() => undefined); }
+  if (status === "APPROVED" || status === "REJECTED") { const { requestAnalyticsRefresh } = await import("@/lib/analytics/snapshots"); await requestAnalyticsRefresh(["pricing"]); }
   return { status };
 }
 
@@ -125,6 +132,10 @@ export async function finalizeCheck(proposalId: string) {
 
 export async function queueFor(actor: Actor) {
   const roles = actor.roles;
+  const eff = await effectiveAuthority(actor);
   const all = await prisma.approvalRequest.findMany({ where: { status: "PENDING" }, include: { proposal: { include: { account: true } }, proposalLine: true }, orderBy: { requestedAt: "asc" } });
-  return all.filter((r) => roles.includes("ADMIN") || hasAuthority(actor, r.requiredRole));
+  const delegators = new Map(eff.delegations.map((d) => [d.fromUserId, d.from.name]));
+  return all
+    .filter((r) => roles.includes("ADMIN") || hasAuthority(actor, r.requiredRole) || eff.onBehalfOf(r.requiredRole) !== null)
+    .map((r) => { const via = roles.includes("ADMIN") || hasAuthority(actor, r.requiredRole) ? null : eff.onBehalfOf(r.requiredRole); return { ...r, onBehalfOf: via ? { userId: via, name: delegators.get(via) ?? null } : null, selfSubmitted: r.requestedByUserId === actor.id || (via !== null && r.requestedByUserId === via) }; });
 }

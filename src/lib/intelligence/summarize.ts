@@ -10,7 +10,7 @@
  */
 import { Decimal, money, type Money, ZERO } from "@/lib/money";
 
-export const SOURCE_TYPES = ["CUSTOMER_INVOICE", "CUSTOMER_PO", "CUSTOMER_BID_FILE", "GPO_CONTRACT_FILE", "WIN_LOSS_RECORD", "INTERNAL_VERIFIED", "REP_OBSERVED", "ANECDOTAL"] as const;
+export const SOURCE_TYPES = ["CUSTOMER_INVOICE", "CUSTOMER_PO", "CUSTOMER_BID_FILE", "GPO_CONTRACT_FILE", "WIN_LOSS_RECORD", "INTERNAL_VERIFIED", "PUBLIC_BID_DB", "REP_OBSERVED", "ANECDOTAL"] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
 
 /** Reliability of the source itself and how fast it goes stale (half-life in days). */
@@ -21,6 +21,7 @@ export const SOURCE_PROFILE: Record<SourceType, { reliability: number; halfLifeD
   GPO_CONTRACT_FILE: { reliability: 0.85, halfLifeDays: 540, label: "GPO contract file" },
   WIN_LOSS_RECORD: { reliability: 0.8, halfLifeDays: 365, label: "win/loss record" },
   INTERNAL_VERIFIED: { reliability: 0.75, halfLifeDays: 270, label: "verified internal record" },
+  PUBLIC_BID_DB: { reliability: 0.65, halfLifeDays: 365, label: "public bid / award database" },
   REP_OBSERVED: { reliability: 0.55, halfLifeDays: 180, label: "rep-observed" },
   ANECDOTAL: { reliability: 0.35, halfLifeDays: 120, label: "anecdotal" },
 };

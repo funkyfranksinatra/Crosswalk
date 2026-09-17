@@ -180,6 +180,7 @@ export async function syncErp(actorUserId: string | null, companyId: string): Pr
     await log(erp.system, "IN", "PurchaseRecord", { entityId: row.id, externalId: p.externalId, status: "OK", payloadHash: h });
   }
   await audit({ actorUserId, entityType: "Integration", entityId: erp.system, action: "SYNC_ERP", after: [skuRep, costRep, purRep] });
+  if (skuRep.created || skuRep.updated) { const { requestEmbeddingRefresh } = await import("@/lib/match/embeddings"); await requestEmbeddingRefresh("OwnProduct"); }
   return [skuRep, costRep, purRep];
 }
 

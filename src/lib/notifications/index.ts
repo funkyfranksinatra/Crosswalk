@@ -134,7 +134,10 @@ export async function notifyApprovalRequested(proposalId: string) {
   }
   for (const [role, { count, belowFloor }] of byRole) {
     // Never the submitter (decide() refuses self-approval) — the owner or whoever submitted on their behalf.
-    const ids = (await approverIds(role, belowFloor)).filter((id) => id !== p.ownerUserId && !submitters.has(id));
+    // Delegates (out-of-office) are told too; the delegating user still gets theirs.
+    const { delegatesFor } = await import("@/lib/approvals/delegation");
+    const delegated = (await delegatesFor(role, belowFloor)).map((d) => d.toUserId);
+    const ids = [...new Set([...(await approverIds(role, belowFloor)), ...delegated])].filter((id) => id !== p.ownerUserId && !submitters.has(id));
     await notify({ kind: "APPROVAL_REQUESTED", userIds: ids, title: `${p.reference} needs your approval — ${count} line${count === 1 ? "" : "s"} (${role.replace(/_/g, " ").toLowerCase()})`, body: `${p.account.name}${belowFloor ? " · includes a below-floor price" : ""}`, link: `${baseUrl()}/approvals`, entityType: "Proposal", entityId: p.id, dedupeKey: `req:${role}:${submission}` });
   }
 }
@@ -188,4 +191,13 @@ export async function markRead(userId: string, ids: string[] | "all") {
 export async function setPreference(userId: string, kind: Kind | "*", patch: { inApp?: boolean; email?: boolean; teams?: boolean }) {
   if (kind !== "*" && !KINDS.includes(kind)) throw new Error(`unknown notification kind ${kind}`);
   return prisma.notificationPreference.upsert({ where: { userId_kind: { userId, kind } }, create: { userId, kind, inApp: patch.inApp ?? true, email: patch.email ?? true, teams: patch.teams ?? false }, update: patch });
+}
+
+/** Both parties of a new delegation are told (the delegate needs to know the queue is theirs). */
+export async function notifyDelegation(delegationId: string) {
+  const d = await prisma.approvalDelegation.findUnique({ where: { id: delegationId }, include: { from: { select: { id: true, name: true } }, to: { select: { id: true, name: true } } } });
+  if (!d) return;
+  const window = `${d.startsAt.toISOString().slice(0, 10)} → ${d.endsAt.toISOString().slice(0, 10)}`;
+  await notify({ kind: "APPROVAL_REQUESTED", userIds: [d.to.id], title: `${d.from.name} delegated their approvals to you (${window})`, body: d.reason ?? "Requests routed to their authority now appear in your deal desk queue.", link: `${baseUrl()}/approvals`, entityType: "ApprovalDelegation", entityId: d.id, dedupeKey: `delegation:${d.id}:to` });
+  if (d.createdByUserId && d.createdByUserId !== d.from.id) await notify({ kind: "APPROVAL_REQUESTED", userIds: [d.from.id], title: `Your approvals were delegated to ${d.to.name} (${window})`, body: "Set by an administrator.", link: `${baseUrl()}/approvals`, entityType: "ApprovalDelegation", entityId: d.id, dedupeKey: `delegation:${d.id}:from` });
 }

@@ -1,15 +1,16 @@
 # Operating Crosswalk
 
 What runs in the background, how to watch it, and what to do when something is wrong.
-Everything here was added by the Tier 1 (pilot quality) work; `FEATURES.md` has the
+Everything here was added by the Tier 1 (pilot quality) and Tier 3 (product and scale) work; `FEATURES.md` has the
 inventory, `ARCHITECTURE.md` the engine, `INTEGRATIONS.md` the systems of record.
 
 ## Processes
 
 A deployment is one Next.js server (`npm start`) plus, optionally, worker processes
 (`npm run worker`). Background work — cross-reference runs, GUDID imports, feed
-ingestion, notification deliveries, alert checks, GUDID cache refresh — goes through a
-pg-boss queue that lives in the `pgboss` schema of the application database. No broker,
+ingestion, notification deliveries, alert checks, GUDID cache refresh, embedding refresh,
+analytics snapshots, public-bid pulls — goes through a pg-boss queue that lives in the
+`pgboss` schema of the application database. No broker,
 no extra service.
 
 | `JOBS_WORKER` | Web server | Worker process |
@@ -112,6 +113,39 @@ re-checked in the background: the nightly `gudid.refresh` sweep (`GUDID_REFRESH_
 `GUDID_REFRESH_BATCH` rows) plus a one-off refresh the moment a stale code is used in a
 run. A changed record clears its bin so the next run re-bins it; a record that vanished is
 noted on the row, never deleted.
+
+## Tier 3 additions
+
+**Embedding retrieval.** Needs pgvector in the database (Neon has it; CI uses the
+`pgvector/pgvector` image; a local Postgres needs the extension package) and the model key.
+`npm run embed` embeds the catalog and cached competitor products once; `embed.refresh` runs
+nightly (`EMBED_REFRESH_CRON`) and after catalog imports, re-embedding only rows whose text
+changed. A run says in its log whether each line was retrieved by neighbours or by the
+attribute scan; Settings → System shows coverage. `EMBEDDINGS=off` returns to the scan.
+
+**Tax.** `PROVIDER` mode on a proposal calls AvaTax with an uncommitted SalesOrder (never a
+tax document) using `AVATAX_*`; `TAX_DRY_RUN=true` for demos. The figure is stamped with the
+time it was calculated and becomes stale when a price or freight changes — the workspace
+shows "recalculate" and the PDF export refuses until it is. Freight and tax never enter
+margin, floors or approvals. The ship-from is the Branding address.
+
+**Public bids.** `bids.ingest` pulls SAM.gov (needs `SAM_API_KEY`; the public key allows a
+handful of calls a day, so one call per configured NAICS) and USAspending (no key) on
+`BIDS_CRON`; each pull is a `FeedRun` (`bids-sam`, `bids-usaspending`) visible on the Public
+bids page. Keywords / NAICS / PSC / look-back are set on that page. Portal tabulations are
+imported as files; a row with a competitor code and unit price becomes a `PUBLIC_BID_DB`
+price observation.
+
+**Analytics.** Reports are snapshots (`AnalyticsSnapshot`) refreshed hourly
+(`ANALYTICS_CRON`), 30 s after an outcome or decision, and by the Refresh button; older than
+`ANALYTICS_STALE_MINUTES` is shown as stale.
+
+**Delegation.** An approver hands their queue to a colleague from the deal desk ("Delegate my
+approvals"). The delegate decides in their own name; the request and audit record on whose
+behalf. Admins can set one for anyone; revoking is immediate.
+
+**Branding.** Settings → Branding: logo (PNG/JPEG under 300 KB), legal name, address,
+colours, titles and terms for the quote and contract-offer PDFs.
 
 ## Runbook
 

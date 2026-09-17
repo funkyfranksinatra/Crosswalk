@@ -74,8 +74,16 @@ async function loadActor(userId: string | null, isDev: boolean): Promise<Actor |
   return { id: u.id, email: u.email, name: u.name, roles, permissions: permissionsFor(roles), isDev };
 }
 
+/** Test seam: route handlers under Vitest have no request headers. Inert outside the test runner. */
+let testActor: Actor | null = null;
+export function setActorForTests(a: Actor | null) {
+  if (!process.env.VITEST || process.env.NODE_ENV === "production") throw new Error("setActorForTests is only available under Vitest");
+  testActor = a;
+}
+
 /** Resolve the acting user for the current request (server components + route handlers). */
 export async function getActor(): Promise<Actor | null> {
+  if (testActor && process.env.VITEST && process.env.NODE_ENV !== "production") return testActor;
   if (ssoConfigured()) {
     // SSO adapter contract: validate the session (cookie / bearer), map subject → User.externalId.
     // Not implemented in this build; see docs/INTEGRATIONS.md "SSO".

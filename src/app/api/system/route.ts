@@ -27,6 +27,9 @@ export async function GET() {
       openfda: { ...bucketState(), cacheTtlDays: ttlDays() },
       notifications: channelsConfigured(),
       logging: { format: process.env.LOG_FORMAT ?? (process.env.NODE_ENV === "production" ? "json" : "pretty"), level: process.env.LOG_LEVEL ?? "info" },
+      tenancy: await (await import("@/lib/tenancy")).tenancyStatus(),
+      embeddings: await (await import("@/lib/match/embeddings")).embeddingCoverage(),
+      tax: (await import("@/lib/tax")).taxProviderStatus(),
     };
   });
 }

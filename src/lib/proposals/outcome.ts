@@ -40,6 +40,7 @@ export async function recordOutcome(actor: Actor, proposalId: string, input: { o
     }
   }
   await audit({ actorUserId: actor.id, entityType: "Proposal", entityId: proposalId, action: `OUTCOME_${input.outcome}`, after: { competitor: competitor?.name ?? null, priceReason: input.priceReason, commercialReason: input.commercialReason, finalValue: outcome.finalValue?.toString() ?? null, contract: contract?.contractNumber ?? null } });
+  { const { requestAnalyticsRefresh } = await import("@/lib/analytics/snapshots"); await requestAnalyticsRefresh(["winloss", "pricing", "conversion"]); }
   return { outcome, contract };
 }
 

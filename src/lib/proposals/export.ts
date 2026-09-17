@@ -21,7 +21,8 @@ export async function quoteRows(proposalId: string) {
     if (!l.included || !money(l.proposedPrice)) continue;
     const ext = round(times(l.proposedPrice, l.quantity)!, p.currency);
     total = total.plus(ext);
-    rows.push([l.competitorCode, l.competitorDescription ?? "", l.sku ?? "", l.description ?? "", (l.equivalenceLevel ?? "").replace(/_/g, " ").toLowerCase(), num(l.quantity), num(round(money(l.proposedPrice)!, p.currency)), num(ext), l.justification ?? ""]);
+    // The customer sees the customer note only; justification is the internal case made to approvers.
+    rows.push([l.competitorCode, l.competitorDescription ?? "", l.sku ?? "", l.description ?? "", (l.equivalenceLevel ?? "").replace(/_/g, " ").toLowerCase(), num(l.quantity), num(round(money(l.proposedPrice)!, p.currency)), num(ext), l.customerNote ?? ""]);
   }
   rows.push(["TOTAL", "", "", "", "", null, null, num(round(total, p.currency)), ""]);
   return { proposal: p, rows, total: num(total)! };

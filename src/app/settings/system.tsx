@@ -14,6 +14,9 @@ type System = {
   openfda: { rpm: number; available: number; cacheTtlDays: number };
   notifications: { email: boolean; teams: boolean };
   logging: { format: string; level: string };
+  tenancy: { mode: string; ok: boolean; note: string; company: { name: string } | null };
+  embeddings: { available: boolean; enabled: boolean; model: string; own: { total: number; embedded: number }; competitor: { total: number; embedded: number } };
+  tax: { provider: string; note: string };
 };
 
 const sevTone = (s: string) => (s === "CRITICAL" ? "none" : s === "WARNING" ? "alt" : "info");
@@ -82,6 +85,9 @@ export function SystemCard() {
         <dt className="text-muted">openFDA</dt><dd>{s.openfda.rpm} req/min budget · cache TTL {s.openfda.cacheTtlDays} days <button className="btn-ghost !py-0 !text-[11px] ml-2" onClick={() => act("refresh-gudid")}>Refresh stale records</button></dd>
         <dt className="text-muted">Notifications</dt><dd>in-app{s.notifications.email ? " · email" : ""}{s.notifications.teams ? " · Teams" : ""}{!s.notifications.email && !s.notifications.teams ? " (set SMTP_URL / MAIL_FROM or TEAMS_WEBHOOK_URL for external delivery)" : ""}</dd>
         <dt className="text-muted">Logging</dt><dd className="mono">{s.logging.format} · {s.logging.level}</dd>
+        <dt className="text-muted">Tenancy</dt><dd className={s.tenancy.ok ? "" : "text-alt"}>{s.tenancy.note}</dd>
+        <dt className="text-muted">Retrieval</dt><dd>{!s.embeddings.available ? "pgvector not installed in this database (attribute scan only)" : !s.embeddings.enabled ? "embeddings off (no model key or EMBEDDINGS=off) — attribute scan" : `${s.embeddings.model} · catalog ${s.embeddings.own.embedded}/${s.embeddings.own.total} embedded · competitor ${s.embeddings.competitor.embedded}/${s.embeddings.competitor.total}`}{s.embeddings.available && s.embeddings.enabled && s.embeddings.own.embedded < s.embeddings.own.total ? <span className="text-muted"> — run <span className="kbd">npm run embed</span> or wait for the nightly sweep</span> : null}</dd>
+        <dt className="text-muted">Tax</dt><dd>{s.tax.note}</dd>
       </dl>
     </Card>
   );

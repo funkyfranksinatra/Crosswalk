@@ -51,7 +51,8 @@ async function backfill() {
     for (const role of u.roles) await prisma.userRole.upsert({ where: { userId_role: { userId: user.id, role } }, create: { userId: user.id, role }, update: {} });
   }
   console.log(`Users: ${DEV_USERS.length} dev users across ${ROLES.length} roles`);
-  const company = await prisma.company.upsert({ where: { name: COMPANY }, create: { name: COMPANY, labelers: JSON.stringify(["Covidien", "Medtronic", "Sofradim"]) }, update: {} });
+  // Single tenant: load into the existing company whatever its name (never a second row).
+  const company = (await prisma.company.findFirst({ orderBy: { createdAt: "asc" } })) ?? (await prisma.company.create({ data: { name: COMPANY, labelers: JSON.stringify(["Covidien", "Medtronic", "Sofradim"]) } }));
 
   // Legacy COGS → dated StandardCost (global), only where nothing exists.
   const withCogs = await prisma.ownProduct.findMany({ where: { companyId: company.id, cogs: { not: null } }, include: { costs: true } });

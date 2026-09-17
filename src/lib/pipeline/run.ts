@@ -24,6 +24,7 @@ import { resolveCfn, buildContext, type ResolutionContext } from "./resolve";
 import { llmConfig, llmPreflight } from "@/lib/llm/client";
 import { parseBin, binSimilarity, type Bin, heuristicBin } from "@/lib/match/bin";
 import { scoreCandidates, DEFAULT_WEIGHTS, type Weights, type CandidateInput, type ScoredCandidate } from "@/lib/match/score";
+import { embeddingsEnabled, ensureCompetitorEmbedding, nearestOwnProducts, RETRIEVAL_K } from "@/lib/match/embeddings";
 import { getSettings } from "@/lib/settings";
 
 export class RunCancelled extends Error {
@@ -119,6 +120,20 @@ async function log(requestId: string, message: string) {
 async function setStage(requestId: string, stage: string, progress: number, signal?: AbortSignal) {
   if (signal?.aborted) throw new RunInterrupted();
   await prisma.request.update({ where: { id: requestId }, data: { stage, progress: Math.min(100, Math.round(progress)) } });
+}
+
+/** One own product with a usable bin (rebuilt heuristically if stale), for a neighbour outside the preloaded pool. */
+async function loadOwnWithBin(id: string, pricebookId: string | null) {
+  const p = await prisma.ownProduct.findUnique({ where: { id }, omit: { gudidJson: true }, include: { prices: pricebookId ? { where: { pricebookId } } : false } });
+  if (!p || !p.isActive) return null;
+  let bin = parseBin(p.binJson);
+  if (!bin) {
+    const full = await prisma.ownProduct.findUnique({ where: { id }, select: { gudidJson: true } });
+    const raw = full?.gudidJson ? (JSON.parse(full.gudidJson) as OpenFdaRecord) : null;
+    const g = raw ? summarizeRecord(raw) : null;
+    bin = heuristicBin({ sku: p.sku, brand: p.brand, description: g ? `${p.description} ; ${g.description ?? ""}` : p.description, category: p.category, gmdnName: p.gmdnName, specialties: g?.specialties, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
+  }
+  return { p, bin };
 }
 
 async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, i: number) => Promise<R>): Promise<R[]> {
@@ -355,6 +370,12 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
     await prisma.ownProduct.update({ where: { id: p.id }, data: { binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date(), ...(p.source === "gudid-import" ? { category: bin.family } : {}) } });
     return { p, bin };
   });
+  // Embedding retrieval (Tier 3): when the catalog is embedded, each line's attribute scan is limited to
+  // its nearest neighbours instead of the whole pool. Missing vectors fall back to the scan, per line.
+  const ownById = new Map(ownWithBins.map((o) => [o.p.id, o]));
+  const useEmbeddings = embeddingsEnabled();
+  let retrievalStats = { ann: 0, scan: 0 };
+  if (useEmbeddings) await log(requestId, `Embedding retrieval on: nearest ${RETRIEVAL_K} catalog products per line, attribute scan as fallback`);
   // Approved crosses carry the tier floor; rep-proposed drafts ride along as soft priors (xref/learning.ts).
   const { crossesForMatching } = await import("@/lib/xref/learning");
   const knownCrosses = await crossesForMatching();
@@ -399,7 +420,26 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
         }
       }
       if (compBin) {
-        const pool = ownWithBins.filter((o) => compBin.family === "Other" || o.bin.family === "Other" || o.bin.family === compBin.family);
+        // Who to compare: the embedding neighbours when we have them, else the whole family pool.
+        let pool = ownWithBins.filter((o) => compBin.family === "Other" || o.bin.family === "Other" || o.bin.family === compBin.family);
+        let viaAnn = false;
+        if (useEmbeddings && cp) {
+          try {
+            const vector = await ensureCompetitorEmbedding(cp);
+            const neighbours = vector ? await nearestOwnProducts(vector, { companyId: request.companyId, k: RETRIEVAL_K, families: compBin.family === "Other" ? null : [compBin.family, "Other"] }) : [];
+            if (neighbours.length) {
+              const near = new Set(neighbours.map((n) => n.id));
+              // A neighbour outside the loaded pool (a GUDID-import row in another family) is still a candidate: load its bin lazily.
+              for (const n of neighbours) if (!ownById.has(n.id)) { const extra = (await loadOwnWithBin(n.id, request.pricebookId)) as (typeof ownWithBins)[number] | null; if (extra) { ownById.set(n.id, extra); ownWithBins.push(extra); } }
+              pool = pool.filter((o) => near.has(o.p.id)).concat(neighbours.filter((n) => !pool.some((o) => o.p.id === n.id)).map((n) => ownById.get(n.id)!).filter(Boolean));
+              viaAnn = pool.length > 0;
+            }
+          } catch (e) {
+            await log(requestId, `  ${line.cfnNorm}: embedding retrieval failed (${e instanceof Error ? e.message.slice(0, 120) : String(e)}) — attribute scan used`);
+            pool = ownWithBins.filter((o) => compBin.family === "Other" || o.bin.family === "Other" || o.bin.family === compBin.family);
+          }
+        }
+        if (viaAnn) retrievalStats.ann++; else retrievalStats.scan++;
         const ranked = pool
           .map((o) => ({ o, s: binSimilarity(compBin, o.bin, cp?.description ?? "", o.p.description).score }))
           .sort((a, b) => b.s - a.s)
@@ -458,6 +498,8 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
       await setStage(requestId, `Matching against our catalog (${matched}/${freshLines.length})`, 60 + (matched / Math.max(1, freshLines.length)) * (useLlm ? 18 : 38), runOpts.signal);
     }
   });
+
+  if (useEmbeddings) await log(requestId, `Retrieval: ${retrievalStats.ann} line(s) by embedding neighbours, ${retrievalStats.scan} by attribute scan`);
 
   // ---- Phase B: model grading, siblings together, verdicts cached ---------
   await checkCancelled(requestId, runOpts.signal);

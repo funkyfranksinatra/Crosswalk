@@ -7,10 +7,10 @@ import type { Bin } from "@/lib/match/bin";
 
 type Candidate = { id: string; rank: number; matchType: string; source: string; score: number; scoreBin: number | null; scorePrice: number | null; scoreCogs: number | null; scoreMargin: number | null; factorsJson: string | null; rationale: string | null; additionalProducts: string | null; unitPrice: number | null; ownProduct: { id: string; sku: string; description: string; category: string | null; brand: string | null; binJson: string | null; listPrice: number | null; cogs: number | null; gudidDi: string | null; status: string | null } };
 type Competitor = { id: string; cfnNorm: string; cfnMatched: string | null; manufacturer: string | null; brand: string | null; description: string | null; gudidDi: string | null; gmdnName: string | null; status: string | null; resolution: string; resolutionNote: string | null; confidence: number | null; alternatesJson: string | null; binJson: string | null; binSource: string | null };
-type Line = { id: string; lineNo: number; rawCode: string; cfnNorm: string; quantity: number; estCompetitorPrice: number | null; resolutionStatus: string; resolutionNote: string | null; matchStatus: string; selectedCandidateId: string | null; overrideNote: string | null; reviewed: boolean; competitorProduct: Competitor | null; candidates: Candidate[] };
+type Line = { id: string; lineNo: number; rawCode: string; cfnNorm: string; quantity: number; estCompetitorPrice: number | null; resolutionStatus: string; resolutionNote: string | null; matchStatus: string; selectedCandidateId: string | null; overrideNote: string | null; customerNote: string | null; flag: string | null; reviewed: boolean; competitorProduct: Competitor | null; candidates: Candidate[] };
 type RequestData = { id: string; reference: string; accountName: string | null; accountNumber: string | null; accountType: string | null; reportType: string; status: string; stage: string | null; progress: number; attempt: number; error: string | null; useLlm: boolean; sourceFileName: string | null; createdAt: string; completedAt: string | null; llmAvailable: boolean; modelStatus: { requested: boolean; used: boolean; model: string; error?: string } | null; google: { configured: boolean; canWrite: boolean; email: string | null }; sourceUrl: string | null; xrefSheetUrl: string | null; offerSheetUrl: string | null; company: { name: string }; pricebook: { name: string } | null; lines: Line[]; summary: { total: number; resolved: number; matched: number; exact: number; close: number; alternative: number; reviewed: number; ourExtended: number; competitorExtended: number; priced: number }; log: { t: string; m: string }[] };
 
-type Filter = "all" | "attention" | "exact" | "close" | "alt" | "retain";
+type Filter = "all" | "attention" | "flagged" | "exact" | "close" | "alt" | "retain";
 
 export function RequestView({ id }: { id: string }) {
   const [data, setData] = useState<RequestData | null>(null);
@@ -40,6 +40,7 @@ export function RequestView({ id }: { id: string }) {
       const sel = l.candidates.find((c) => c.id === l.selectedCandidateId);
       const cp = l.competitorProduct;
       if (filter === "attention" && !(l.resolutionStatus !== "resolved" || !sel || (cp?.confidence ?? 1) < 0.75)) return false;
+      if (filter === "flagged" && l.flag !== "verify") return false;
       if (filter === "exact" && sel?.matchType !== "Exact Match") return false;
       if (filter === "close" && sel?.matchType !== "Close Match") return false;
       if (filter === "alt" && sel?.matchType !== "Alternative Match") return false;
@@ -64,6 +65,15 @@ export function RequestView({ id }: { id: string }) {
     await fetch(`/api/requests/${id}/run`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...(useLlm == null ? {} : { useLlm }), freshGrades }) });
     load();
   }
+  const [compare, setCompare] = useState<{ lineId: string; candidateId: string | null } | null>(null);
+  const [bulkMsg, setBulkMsg] = useState<string | null>(null);
+  async function bulk(action: string) {
+    setBulkMsg(null);
+    const res = await fetch(`/api/requests/${id}/bulk`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) });
+    const j = await res.json();
+    setBulkMsg(res.ok ? `${j.changed} line${j.changed === 1 ? "" : "s"} changed` : j.error);
+    load();
+  }
   async function chooseAlternate(cp: Competitor, di: string) {
     await fetch(`/api/competitor/${cp.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ di }) });
     await rerun();
@@ -74,6 +84,7 @@ export function RequestView({ id }: { id: string }) {
   const running = ["running", "queued"].includes(data.status);
   const attention = data.lines.filter((l) => l.resolutionStatus !== "resolved" || !l.candidates.some((c) => c.id === l.selectedCandidateId) || (l.competitorProduct?.confidence ?? 1) < 0.75).length;
   const retain = data.lines.filter((l) => l.candidates.find((c) => c.id === l.selectedCandidateId)?.source === "identity").length;
+  const flagged = data.lines.filter((l) => l.flag === "verify").length;
 
   return (
     <>
@@ -133,11 +144,13 @@ export function RequestView({ id }: { id: string }) {
       <Card padded={false}>
         <div className="flex items-center gap-2 px-4 py-3 border-b border-line-2">
           <div className="flex items-center gap-1">
-            {([["all", "All", data.lines.length], ["attention", "Needs attention", attention], ["exact", "Exact", s.exact], ["close", "Close", s.close], ["alt", "Alternative", s.alternative], ["retain", "Already ours", retain]] as [Filter, string, number][]).map(([k, label, n]) => (
+            {([["all", "All", data.lines.length], ["attention", "Needs attention", attention], ["flagged", "Flagged", flagged], ["exact", "Exact", s.exact], ["close", "Close", s.close], ["alt", "Alternative", s.alternative], ["retain", "Already ours", retain]] as [Filter, string, number][]).map(([k, label, n]) => (
               <button key={k} onClick={() => setFilter(k)} className={`rounded-md px-2.5 py-1.5 text-[12.5px] font-medium transition-colors ${filter === k ? "bg-ink text-white" : "text-ink-2 hover:bg-line-2"}`}>{label} <span className={`mono ${filter === k ? "text-white/70" : "text-muted"}`}>{n}</span></button>
             ))}
           </div>
           <div className="ml-auto flex items-center gap-2">
+            {bulkMsg && <span className="text-[12px] text-muted">{bulkMsg}</span>}
+            {!running && <BulkMenu onAction={bulk} counts={{ exact: s.exact, matched: s.matched, attention, flagged }} />}
             <input className="input w-[260px]" placeholder="Search code, product, manufacturer…" value={q} onChange={(e) => setQ(e.target.value)} />
             <button className="btn-ghost" onClick={() => setOpen(open.size ? new Set() : new Set(lines.map((l) => l.id)))}>{open.size ? "Collapse all" : "Expand all"}</button>
           </div>
@@ -172,6 +185,9 @@ export function RequestView({ id }: { id: string }) {
                     onSelect={(cid) => patchLine(l.id, { selectedCandidateId: cid })}
                     onReviewed={(v) => patchLine(l.id, { reviewed: v })}
                     onNote={(v) => patchLine(l.id, { overrideNote: v })}
+                    onCustomerNote={(v) => patchLine(l.id, { customerNote: v })}
+                    onFlag={(v) => patchLine(l.id, { flag: v ? "verify" : null })}
+                    onCompare={(cid) => setCompare({ lineId: l.id, candidateId: cid })}
                     onPrice={(v) => patchLine(l.id, { estCompetitorPrice: v })}
                     onAlternate={(di) => cp && chooseAlternate(cp, di)}
                   />
@@ -182,6 +198,7 @@ export function RequestView({ id }: { id: string }) {
         )}
       </Card>
 
+      {compare && <CompareModal requestId={id} lineId={compare.lineId} candidateId={compare.candidateId} onClose={() => setCompare(null)} us={us} />}
       <div className="mt-4">
         <button className="btn-ghost text-[12.5px]" onClick={() => setShowLog(!showLog)}>{showLog ? "Hide" : "Show"} run log ({data.log.length})</button>
         {showLog && (
@@ -194,11 +211,12 @@ export function RequestView({ id }: { id: string }) {
   );
 }
 
-function LineRows({ l, cp, sel, isOpen, notFound, lowConf, us, toggle, onSelect, onReviewed, onNote, onPrice, onAlternate }: {
+function LineRows({ l, cp, sel, isOpen, notFound, lowConf, us, toggle, onSelect, onReviewed, onNote, onCustomerNote, onFlag, onCompare, onPrice, onAlternate }: {
   l: Line; cp: Competitor | null; sel: Candidate | null; isOpen: boolean; notFound: boolean; lowConf: boolean; us: string;
-  toggle: () => void; onSelect: (id: string | null) => void; onReviewed: (v: boolean) => void; onNote: (v: string) => void; onPrice: (v: number | null) => void; onAlternate: (di: string) => void;
+  toggle: () => void; onSelect: (id: string | null) => void; onReviewed: (v: boolean) => void; onNote: (v: string) => void; onCustomerNote: (v: string) => void; onFlag: (v: boolean) => void; onCompare: (candidateId: string | null) => void; onPrice: (v: number | null) => void; onAlternate: (di: string) => void;
 }) {
   const [note, setNote] = useState(l.overrideNote ?? "");
+  const [cnote, setCnote] = useState(l.customerNote ?? "");
   const [price, setPrice] = useState(l.estCompetitorPrice != null ? String(l.estCompetitorPrice) : "");
   const compBin = parseBinSafe(cp?.binJson);
   const alternates: { company: string; brand: string; cfn: string; description: string; status: string; key: string }[] = cp?.alternatesJson ? JSON.parse(cp.alternatesJson) : [];
@@ -214,6 +232,7 @@ function LineRows({ l, cp, sel, isOpen, notFound, lowConf, us, toggle, onSelect,
             {cp?.cfnMatched && cp.cfnMatched !== l.cfnNorm && <span className="mono text-[11px] text-muted">→ {cp.cfnMatched}</span>}
             {notFound ? <Chip tone="none">Not in GUDID</Chip> : lowConf ? <Chip tone="alt">Verify · {Math.round((cp?.confidence ?? 0) * 100)}%</Chip> : cp?.resolution === "manual" ? <Chip tone="info">Rep-corrected</Chip> : null}
             {cp?.status && /not in/i.test(cp.status) && <Chip tone="alt">Discontinued</Chip>}
+            {l.flag === "verify" && <Chip tone="alt">Flagged</Chip>}
           </div>
           <div className="text-[12.5px] text-ink-2 mt-0.5 line-clamp-2">
             {cp?.manufacturer && <span className="font-medium text-ink">{cp.manufacturer} · </span>}
@@ -284,16 +303,26 @@ function LineRows({ l, cp, sel, isOpen, notFound, lowConf, us, toggle, onSelect,
                     <input className="input mono" placeholder="—" value={price} onChange={(e) => setPrice(e.target.value)} onBlur={() => onPrice(price === "" ? null : Number(price))} />
                   </div>
                   <div>
-                    <label className="label">Rep note</label>
+                    <label className="label">Rep note (internal)</label>
                     <input className="input" placeholder="Why you chose this" value={note} onChange={(e) => setNote(e.target.value)} onBlur={() => onNote(note)} />
                   </div>
+                </div>
+                <div className="mt-3 grid grid-cols-[1fr_auto] gap-3 items-end">
+                  <div>
+                    <label className="label">Note for the customer (printed on the offer and quote)</label>
+                    <input className="input" placeholder="e.g. same platform as current reload; trim to size" value={cnote} onChange={(e) => setCnote(e.target.value)} onBlur={() => { if ((cnote || "") !== (l.customerNote ?? "")) onCustomerNote(cnote); }} />
+                  </div>
+                  <button className={`btn-ghost text-[12px] ${l.flag === "verify" ? "text-alt" : ""}`} onClick={() => onFlag(l.flag !== "verify")} title="Flag for a second look; cleared when you mark the line reviewed">{l.flag === "verify" ? "Unflag" : "Flag to verify"}</button>
                 </div>
               </div>
               {/* Candidates pane */}
               <div className="p-5">
                 <div className="flex items-center justify-between mb-2">
                   <div className="eyebrow">{us} candidates</div>
-                  {sel && <button className="text-[12px] text-muted hover:text-none" onClick={() => onSelect(null)}>Clear selection</button>}
+                  <span className="flex items-center gap-3">
+                    {cp && !notFound && l.candidates.length > 0 && <button className="text-[12px] text-accent font-medium" onClick={() => onCompare(sel?.id ?? null)}>Side-by-side</button>}
+                    {sel && <button className="text-[12px] text-muted hover:text-none" onClick={() => onSelect(null)}>Clear selection</button>}
+                  </span>
                 </div>
                 {l.candidates.length === 0 ? (
                   <div className="text-[12.5px] text-muted">No candidates. Add the right SKU to the catalog and re-run.</div>
@@ -381,6 +410,7 @@ function ExportMenu({ id }: { id: string }) {
     ["Cross-reference sheet (.csv)", `/api/requests/${id}/export?type=xref&format=csv`],
     ["Contract offer (.xlsx)", `/api/requests/${id}/export?type=offer`],
     ["Contract offer (.csv)", `/api/requests/${id}/export?type=offer&format=csv`],
+    ["Contract offer (branded PDF)", `/api/requests/${id}/export?type=offer&format=pdf`],
   ];
   return (
     <div className="relative">
@@ -471,5 +501,85 @@ function CreateProposal({ requestId }: { requestId: string }) {
       <button className="btn-primary" onClick={go} disabled={busy} title="Creates a versioned proposal: applicable contract prices, competitor intelligence, recommended prices and approval requirements for every selected line">{busy ? "Pricing…" : "Create proposal"}</button>
       {err && <span className="absolute right-0 top-11 w-64 text-[11.5px] text-none bg-none-soft rounded px-2 py-1">{err}</span>}
     </span>
+  );
+}
+
+
+/** Bulk actions (Tier 3.1): the same per-line changes, applied to every line the server says qualifies. */
+function BulkMenu({ onAction, counts }: { onAction: (a: string) => void; counts: { exact: number; matched: number; attention: number; flagged: number } }) {
+  const [open, setOpen] = useState(false);
+  const items: [string, string, string][] = [
+    ["review_exact", `Mark all Exact matches reviewed (${counts.exact})`, "Records each as an accepted top pick"],
+    ["review_matched", `Mark every matched line reviewed (${counts.matched})`, "Exact, Close and Alternative selections"],
+    ["select_top", "Select the top candidate where nothing is selected", "Skips lines with no acceptable candidate"],
+    ["flag_verify", `Flag everything needing attention to verify (${counts.attention})`, "Unresolved, low-confidence, unselected or Alternative"],
+    ["clear_flags", `Clear all verify flags (${counts.flagged})`, ""],
+    ["unreview_all", "Clear all reviewed marks", ""],
+  ];
+  return (
+    <div className="relative">
+      <button className="btn-ghost" onClick={() => setOpen(!open)}>Bulk actions <span className="text-muted">▾</span></button>
+      {open && (
+        <div className="absolute right-0 top-10 z-20 w-[360px] card p-1.5" style={{ boxShadow: "var(--shadow-lg)" }} onMouseLeave={() => setOpen(false)}>
+          {items.map(([a, label, hint]) => <button key={a} className="block w-full text-left rounded-md px-3 py-2 text-[13px] hover:bg-line-2" onClick={() => { setOpen(false); onAction(a); }}>{label}{hint && <span className="block text-[11.5px] text-muted">{hint}</span>}</button>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type CompareData = { line: { id: string; rawCode: string; quantity: number }; candidate: { id: string; rank: number; matchType: string; score: number; rationale: string | null; additionalProducts: string | null; unitPrice: number | null }; competitor: { sku: string; brand: string | null; manufacturer: string | null; description: string | null; gudidUrl: string | null; binSource: string | null }; ours: { sku: string; brand: string | null; manufacturer: string | null; description: string | null; gudidUrl: string | null; binSource: string | null; listPrice: number | null }; rows: { attribute: string; competitor: string | null; ours: string | null; same: boolean | null; group: string }[]; similarity: { score: number } | null; candidates: { id: string; sku: string; rank: number; matchType: string }[] };
+
+/** Side-by-side (Tier 3.2): GUDID record vs GUDID record, bin vs bin, one attribute per row. */
+function CompareModal({ requestId, lineId, candidateId, onClose, us }: { requestId: string; lineId: string; candidateId: string | null; onClose: () => void; us: string }) {
+  const [cid, setCid] = useState<string | null>(candidateId);
+  const [d, setD] = useState<CompareData | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    setD(null); setErr(null);
+    fetch(`/api/requests/${requestId}/lines/${lineId}/compare${cid ? `?candidateId=${cid}` : ""}`, { cache: "no-store" }).then(async (r) => { const j = await r.json(); if (!r.ok) setErr(j.error); else setD(j); });
+  }, [requestId, lineId, cid]);
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
+  const groups = d ? [...new Set(d.rows.map((r) => r.group))] : [];
+  return (
+    <div className="fixed inset-0 z-40 bg-black/40 flex items-start justify-center p-6 overflow-auto" onClick={onClose}>
+      <div className="card w-full max-w-[1080px] p-0 mt-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-line-2">
+          <div className="font-semibold">Side-by-side</div>
+          {d && <div className="text-[12.5px] text-muted">{d.line.rawCode} vs <span className="mono text-ink">{d.ours.sku}</span> · <MatchChip type={d.candidate.matchType} />{d.similarity && <span className="ml-2">attribute similarity {Math.round(d.similarity.score * 100)}%</span>}</div>}
+          {d && d.candidates.length > 1 && <select className="input !w-auto !py-1 !text-[12px] ml-auto" value={cid ?? d.candidate.id} onChange={(e) => setCid(e.target.value)}>{d.candidates.map((c) => <option key={c.id} value={c.id}>#{c.rank} {c.sku} — {c.matchType}</option>)}</select>}
+          <button className="btn-ghost !py-1" onClick={onClose}>Close</button>
+        </div>
+        {err && <div className="p-5 text-none text-[13px]">{err}</div>}
+        {!d && !err && <div className="p-5"><div className="h-40 shimmer" /></div>}
+        {d && (
+          <div className="p-5">
+            <div className="grid grid-cols-[180px_1fr_1fr] gap-x-4 text-[12.5px]">
+              <div />
+              <div className="pb-2"><div className="eyebrow">Competitor</div><div className="font-semibold">{d.competitor.brand ? `${d.competitor.brand} · ` : ""}{d.competitor.manufacturer}</div><div className="text-ink-2">{d.competitor.description}</div>{d.competitor.gudidUrl && <a className="text-accent text-[12px]" href={d.competitor.gudidUrl} target="_blank" rel="noreferrer">GUDID record ↗</a>}</div>
+              <div className="pb-2"><div className="eyebrow">{us}</div><div className="font-semibold"><span className="mono">{d.ours.sku}</span>{d.ours.brand ? ` · ${d.ours.brand}` : ""}</div><div className="text-ink-2">{d.ours.description}</div>{d.ours.gudidUrl && <a className="text-accent text-[12px]" href={d.ours.gudidUrl} target="_blank" rel="noreferrer">GUDID record ↗</a>}{d.candidate.unitPrice != null && <div className="mono text-[12px] mt-0.5">{money(d.candidate.unitPrice)} / unit</div>}</div>
+            </div>
+            {groups.map((g) => (
+              <div key={g} className="mt-3">
+                <div className="eyebrow mb-1">{g === "Bin" ? "Attribute bin (what the matcher compared)" : "GUDID"}</div>
+                <table className="table !text-[12.5px]">
+                  <tbody>
+                    {d.rows.filter((r) => r.group === g).map((r) => (
+                      <tr key={r.attribute} className={r.same === false ? "bg-alt-soft/40" : ""}>
+                        <td className="w-[180px] text-muted">{r.attribute}</td>
+                        <td className={r.same === false ? "text-alt" : ""}>{r.competitor ?? <span className="text-faint">—</span>}</td>
+                        <td className={r.same === false ? "text-alt" : r.same ? "text-exact" : ""}>{r.ours ?? <span className="text-faint">—</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+            {d.candidate.rationale && <div className="mt-3 text-[12.5px] italic text-muted">{d.candidate.rationale}</div>}
+            {d.candidate.additionalProducts && <div className="mt-1 text-[12px]"><span className="text-muted">Also needs:</span> <span className="mono">{d.candidate.additionalProducts}</span></div>}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

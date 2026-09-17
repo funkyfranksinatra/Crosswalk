@@ -15,6 +15,7 @@ const NAV: NavItem[] = [
   { href: "/accounts", label: "Accounts", icon: IconBuilding, perm: "view_pricing", section: "Commercial" },
   { href: "/contracts", label: "Contracts", icon: IconContract, perm: "view_pricing" },
   { href: "/intelligence", label: "Competitor pricing", icon: IconRadar, perm: "view_pricing" },
+  { href: "/intelligence/bids", label: "Public bids", icon: IconRadar, perm: "view_pricing" },
   { href: "/analytics", label: "Analytics", icon: IconChart, perm: "view_analytics" },
   { href: "/catalog", label: "Our catalog", icon: IconBox, section: "Reference" },
   { href: "/catalog/gudid", label: "GUDID library", icon: IconSearch },

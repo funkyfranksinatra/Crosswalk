@@ -1,6 +1,8 @@
 import { PageHeader, Card, Stat, Empty } from "@/components/ui";
 import { getActor } from "@/lib/auth";
-import { winLoss, pricingEffectiveness, conversion, crossReferenceAccuracy } from "@/lib/analytics";
+import { readReport } from "@/lib/analytics/snapshots";
+import type { winLoss, pricingEffectiveness, conversion, crossReferenceAccuracy } from "@/lib/analytics";
+import { RefreshAnalytics } from "./refresh";
 import { fmtMoney, fmtPct } from "@/components/commercial";
 
 const pct = (v: number | null | undefined, d = 0) => (v == null ? "—" : `${(v * 100).toFixed(d)}%`);
@@ -8,11 +10,18 @@ const pct = (v: number | null | undefined, d = 0) => (v == null ? "—" : `${(v 
 export default async function AnalyticsPage() {
   const actor = await getActor();
   if (!actor?.permissions.has("view_analytics")) return <Empty title="Analytics require the view analytics permission" />;
-  const [wl, pe, cv, acc] = await Promise.all([winLoss(), pricingEffectiveness(), conversion(), crossReferenceAccuracy()]);
+  // Materialised (Tier 3): each report is the latest snapshot; the header says how old and offers a refresh.
+  const [swl, spe, scv, sacc] = await Promise.all([
+    readReport<Awaited<ReturnType<typeof winLoss>>>("winloss"), readReport<Awaited<ReturnType<typeof pricingEffectiveness>>>("pricing"),
+    readReport<Awaited<ReturnType<typeof conversion>>>("conversion"), readReport<Awaited<ReturnType<typeof crossReferenceAccuracy>>>("accuracy"),
+  ]);
+  const wl = swl.data, pe = spe.data, cv = scv.data, acc = sacc.data;
+  const oldest = [swl, spe, scv, sacc].reduce((a, b) => (a.ageMs >= b.ageMs ? a : b));
   const margin = actor.permissions.has("view_margin");
   return (
     <>
       <PageHeader eyebrow="Analytics" title="Commercial feedback loop" description="Win/loss, pricing effectiveness, conversion after the win, and cross-reference acceptance. Rep acceptance is reported separately from validated accuracy — they are not the same number." />
+      <RefreshAnalytics asOf={oldest.asOf} stale={oldest.stale} source={oldest.source} />
       <div className="grid grid-cols-6 gap-3 mb-5">
         <Stat label="Decided deals" value={wl.deals} hint={`${wl.won} won · ${wl.lost} lost`} />
         <Stat label="Win rate" value={pct(wl.winRate)} tone="exact" />

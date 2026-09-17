@@ -261,6 +261,7 @@ export async function adoptIntoOwnCatalog(rows: DeviceRow[], families: Family[] 
   });
   if (!data.length) return 0;
   const res = await prisma.ownProduct.createMany({ data, skipDuplicates: true });
+  if (res.count) { const { requestEmbeddingRefresh } = await import("@/lib/match/embeddings"); await requestEmbeddingRefresh("OwnProduct"); }
   return res.count;
 }
 
