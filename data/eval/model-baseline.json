@@ -1,0 +1,14 @@
+{
+  "model": "gpt-6-astra",
+  "promptVersion": 3,
+  "binVersion": 6,
+  "sampleSeed": 7,
+  "sampleSize": 40,
+  "graded": 40,
+  "top1Agree": 27,
+  "tierAgree": 11,
+  "noMatchFalse": 2,
+  "acceptedAt": "2026-09-17T21:29:33.552Z",
+  "evalId": "cmu61lsdg002n7skbma032ymy",
+  "notes": null
+}
