@@ -1,7 +1,7 @@
 import { handle } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { getCompany } from "@/lib/settings";
-import { normalizeCfn } from "@/lib/cfn";
+import { normalizeCfn, isPlaceholderSku } from "@/lib/cfn";
 import { searchByCfn, rankHits, summarizeRecord } from "@/lib/gudid/openfda";
 import { heuristicBin } from "@/lib/match/bin";
 
@@ -12,8 +12,9 @@ export async function POST(req: Request) {
   const company = await getCompany();
   const prefer = JSON.parse(company.labelers || "[]") as string[];
   const skus = [...new Set(body.skus.split(/[\s,;]+/).map(normalizeCfn).filter(Boolean))].slice(0, 100);
-  const results: { sku: string; status: "added" | "exists" | "not-found" | "added-unverified"; description?: string }[] = [];
+  const results: { sku: string; status: "added" | "exists" | "not-found" | "added-unverified" | "invalid"; description?: string }[] = [];
   for (const sku of skus) {
+    if (isPlaceholderSku(sku)) { results.push({ sku, status: "invalid", description: "not a catalog number" }); continue; }
     const exists = await prisma.ownProduct.findUnique({ where: { companyId_sku: { companyId: company.id, sku } } });
     if (exists) { results.push({ sku, status: "exists", description: exists.description }); continue; }
     const r = await searchByCfn(sku, 10);

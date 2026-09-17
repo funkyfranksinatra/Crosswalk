@@ -22,6 +22,7 @@
     "db:migrate:http": "tsx scripts/migrate-http.ts",
     "worker": "tsx scripts/worker.ts",
     "benchmark": "tsx scripts/benchmark.ts",
+    "catalog:hygiene": "tsx scripts/catalog-hygiene.ts",
     "eval:model": "tsx scripts/model-eval.ts",
     "eval:gate": "tsx scripts/model-eval.ts --gate",
     "test": "vitest run",

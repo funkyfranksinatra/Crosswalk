@@ -7,7 +7,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { toDb, money } from "@/lib/money";
-import { normalizeCfn } from "@/lib/cfn";
+import { normalizeCfn, isPlaceholderSku } from "@/lib/cfn";
 import type { CrmAdapter, ErpAdapter, GpoAdapter, CrmQuotePush } from "./types";
 import { DevCrmAdapter, DevErpAdapter, DevGpoAdapter } from "./dev";
 import { SalesforceCrmAdapter } from "./salesforce";
@@ -143,6 +143,7 @@ export async function syncErp(actorUserId: string | null, companyId: string): Pr
   const erp = erpAdapter();
   const skuRep = report(erp.system, "OwnProduct");
   for (const s of await erp.pullSkuMaster()) {
+    if (isPlaceholderSku(s.sku)) { skuRep.skipped++; continue; } // "N/A" / "TOTAL" rows in a SKU master export are not products
     const h = hash(s);
     const ref = await prisma.externalRef.findUnique({ where: { system_entityType_externalId: { system: erp.system, entityType: "OwnProduct", externalId: s.sku } } });
     if (ref?.syncHash === h) { skuRep.skipped++; continue; }

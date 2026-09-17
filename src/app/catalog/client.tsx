@@ -114,7 +114,8 @@ export function CatalogActions({ canManage = true, canImportCost = true }: { can
     setBusy(false);
     const added = r.results.filter((x: { status: string }) => x.status === "added").length;
     const nf = r.results.filter((x: { status: string }) => x.status === "not-found").map((x: { sku: string }) => x.sku);
-    setResult(`${added} added, ${r.results.length - added - nf.length} already present${nf.length ? `, not found under our labelers: ${nf.join(", ")}` : ""}`);
+    const inv = r.results.filter((x: { status: string }) => x.status === "invalid").map((x: { sku: string }) => x.sku);
+    setResult(`${added} added, ${r.results.length - added - nf.length - inv.length} already present${nf.length ? `, not found under our labelers: ${nf.join(", ")}` : ""}${inv.length ? `, not catalog numbers: ${inv.join(", ")}` : ""}`);
     router.refresh();
   }
   async function importPricing(f: File | null, url?: string) {

@@ -6,7 +6,7 @@
  */
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { compactCfn, normalizeCfn } from "@/lib/cfn";
+import { compactCfn, normalizeCfn, isPlaceholderSku } from "@/lib/cfn";
 
 export const EQUIVALENCE = ["EXACT", "FUNCTIONAL", "CLOSEST_ALTERNATIVE", "PREMIUM_ALTERNATIVE", "PARTIAL_SUBSTITUTE", "NONE"] as const;
 export type Equivalence = (typeof EQUIVALENCE)[number];
@@ -87,6 +87,7 @@ export async function proposeCross(actorUserId: string | null, input: { ownSku: 
   if (!MATCH_TYPES.includes(input.matchType)) throw new Error(`matchType must be one of ${MATCH_TYPES.join(", ")}`);
   if ((input.justification ?? "").length > 4000) throw new Error("justification is too long");
   const ownSku = input.ownSku.trim().toUpperCase();
+  if (isPlaceholderSku(ownSku) || isPlaceholderSku(input.competitorCode)) throw new Error("ownSku and competitorCode must be catalog numbers");
   const own = await prisma.ownProduct.findFirst({ where: { sku: ownSku }, select: { id: true } });
   if (!own) throw new Error(`${input.ownSku} is not in our catalog`);
   const norm = normalizeCfn(input.competitorCode);
