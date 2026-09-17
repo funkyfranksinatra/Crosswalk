@@ -84,7 +84,8 @@ async function main() {
 
   // Single tenant: if a company already exists under another name, the seed loads into IT rather than
   // creating a second row nobody is served from (COMPANY_NAME drift). Rename it in Settings if needed.
-  const existing = await prisma.company.findFirst({ orderBy: { createdAt: "asc" } });
+  // Resolved exactly as the app does (settings name first, else the oldest row), so the seed never loads a company the UI does not serve.
+  const existing = (await prisma.company.findUnique({ where: { name: COMPANY } })) ?? (await prisma.company.findFirst({ orderBy: { createdAt: "asc" } }));
   if (existing && existing.name !== COMPANY) console.warn(`Company "${existing.name}" already exists; seeding into it (COMPANY_NAME=${COMPANY} was not used to create a second company)`);
   const company = existing ?? await prisma.company.create({ data: { name: COMPANY, labelers: JSON.stringify(["Covidien", "Medtronic", "Sofradim"]) } });
 

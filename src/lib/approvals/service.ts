@@ -85,13 +85,13 @@ export async function decide(actor: Actor, requestId: string, decision: "APPROVE
   if (req.status !== "PENDING") throw new Error(`Request already ${req.status.toLowerCase()}`);
   const belowFloor = req.proposalLine && money(req.proposalLine.floorPrice) && money(req.proposalLine.proposedPrice)?.lt(money(req.proposalLine.floorPrice)!);
   // Authority may be the actor's own or lent by an active delegation (out-of-office); the request records which.
-  const auth = await authorityFor(actor, req.requiredRole);
   const perm = belowFloor ? "approve_below_floor" : "approve_discount";
-  if (!actor.permissions.has(perm) && !auth.effective.permissions.has(perm)) requirePermission(actor, perm);
+  // A delegator who submitted this request lends nothing for it (no approval by proxy); another delegator may still.
+  const auth = await authorityFor(actor, req.requiredRole, perm, req.requestedByUserId ? [req.requestedByUserId] : []);
+  if (!actor.permissions.has(perm) && !auth.ok) requirePermission(actor, perm);
   if (!auth.ok) throw new AuthError(`This line needs ${req.requiredRole.replace(/_/g, " ").toLowerCase()} authority`);
   const onBehalfOf = auth.onBehalfOf;
   if (req.requestedByUserId === actor.id && !actor.roles.includes("ADMIN")) throw new AuthError("You cannot approve your own request");
-  if (onBehalfOf && req.requestedByUserId === onBehalfOf) throw new AuthError("A delegate cannot approve a request the delegating user submitted");
   // The approver decides the price they reviewed. If the line moved since the request was made
   // (possible while a sibling's changes-requested left the proposal unlocked), the request is void.
   const snap = req.snapshotJson ? (JSON.parse(req.snapshotJson) as { proposedPrice?: string | null }) : null;
@@ -136,6 +136,6 @@ export async function queueFor(actor: Actor) {
   const all = await prisma.approvalRequest.findMany({ where: { status: "PENDING" }, include: { proposal: { include: { account: true } }, proposalLine: true }, orderBy: { requestedAt: "asc" } });
   const delegators = new Map(eff.delegations.map((d) => [d.fromUserId, d.from.name]));
   return all
-    .filter((r) => roles.includes("ADMIN") || hasAuthority(actor, r.requiredRole) || eff.onBehalfOf(r.requiredRole) !== null)
-    .map((r) => { const via = roles.includes("ADMIN") || hasAuthority(actor, r.requiredRole) ? null : eff.onBehalfOf(r.requiredRole); return { ...r, onBehalfOf: via ? { userId: via, name: delegators.get(via) ?? null } : null, selfSubmitted: r.requestedByUserId === actor.id || (via !== null && r.requestedByUserId === via) }; });
+    .filter((r) => roles.includes("ADMIN") || hasAuthority(actor, r.requiredRole) || eff.onBehalfOf(r.requiredRole, r.requestedByUserId ? [r.requestedByUserId] : []) !== null)
+    .map((r) => { const via = roles.includes("ADMIN") || hasAuthority(actor, r.requiredRole) ? null : eff.onBehalfOf(r.requiredRole, r.requestedByUserId ? [r.requestedByUserId] : []); return { ...r, onBehalfOf: via ? { userId: via, name: delegators.get(via) ?? null } : null, selfSubmitted: r.requestedByUserId === actor.id }; });
 }

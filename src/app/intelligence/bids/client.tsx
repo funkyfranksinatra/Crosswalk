@@ -14,16 +14,19 @@ export function PublicBids() {
   const [msg, setMsg] = useState<string | null>(null); const [err, setErr] = useState<string | null>(null);
   const [settings, setSettings] = useState({ keywords: "", naics: "", psc: "", lookbackDays: "30", minAmount: "0" });
   const [portal, setPortal] = useState("");
-  const load = useCallback(async () => {
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const load = useCallback(async (reloadSettings = false) => {
     const r = await fetch(`/api/intelligence/bids?q=${encodeURIComponent(q)}&source=${source}&competitorId=${competitorId}`, { cache: "no-store" });
     const j = await r.json(); if (!r.ok) { setErr(j.error); return; }
-    setData(j); setSettings({ keywords: j.settings.keywords.join(", "), naics: j.settings.naics.join(", "), psc: j.settings.psc.join(", "), lookbackDays: String(j.settings.lookbackDays), minAmount: String(j.settings.minAmount) });
-  }, [q, source, competitorId]);
+    setData(j);
+    // The settings form is filled once (and after a save), never on every search keystroke — that would wipe edits in progress.
+    if (!settingsLoaded || reloadSettings) { setSettings({ keywords: j.settings.keywords.join(", "), naics: j.settings.naics.join(", "), psc: j.settings.psc.join(", "), lookbackDays: String(j.settings.lookbackDays), minAmount: String(j.settings.minAmount) }); setSettingsLoaded(true); }
+  }, [q, source, competitorId, settingsLoaded]);
   useEffect(() => { load(); }, [load]);
   async function post(body: Record<string, unknown>) {
     setErr(null); setMsg(null);
     const r = await fetch("/api/intelligence/bids", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    const j = await r.json(); if (!r.ok) setErr(j.error); else { setMsg(j.note ?? "Saved."); load(); }
+    const j = await r.json(); if (!r.ok) setErr(j.error); else { setMsg(j.note ?? "Saved."); load(body.action === "settings"); }
   }
   async function importFile(f: File) {
     const fd = new FormData(); fd.append("file", f); if (portal) fd.append("portal", portal);
@@ -75,7 +78,7 @@ export function PublicBids() {
               {(data?.sources ?? []).map((s) => (
                 <div key={s.source} className="flex items-center justify-between gap-2 text-[12.5px]">
                   <div><div className="font-medium">{s.source === "sam" ? "SAM.gov" : "USAspending"}</div><div className="text-muted text-[11.5px]">{s.note}</div></div>
-                  <button className="btn-secondary" disabled={!s.configured || !data?.queue} onClick={() => post({ action: "pull", source: s.source })}>Pull</button>
+                  <button className="btn-secondary" disabled={!s.configured || !data?.queue} onClick={() => post({ action: "pull", source: s.source })} title="Once per hour per source; the last pull's time is in the table">Pull</button>
                 </div>
               ))}
               {data && !data.queue && <div className="text-[11.5px] text-alt">The job queue is off on this server (JOBS_WORKER=off).</div>}

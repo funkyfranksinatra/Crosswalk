@@ -64,7 +64,7 @@ export async function embed(texts: string[]): Promise<number[][]> {
   if (testEmbedder) return testEmbedder(texts);
   const cfg = llmConfig();
   if (!cfg.available) throw new Error("OPENAI_API_KEY is not set — embeddings need the model key");
-  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, baseURL: cfg.baseURL });
+  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, baseURL: cfg.baseURL, timeout: Number(process.env.EMBEDDING_TIMEOUT_MS ?? 20_000), maxRetries: 1 });
   const t0 = Date.now();
   try {
     const res = await client.embeddings.create({ model: EMBEDDING_MODEL, input: texts, dimensions: EMBEDDING_DIMS });
@@ -88,7 +88,7 @@ const vectorLiteral = (v: number[]) => `[${v.map((x) => (Number.isFinite(x) ? x.
 let vectorAvailable: Promise<boolean> | null = null;
 export function pgvectorAvailable(): Promise<boolean> {
   if (!vectorAvailable) {
-    vectorAvailable = prisma.$queryRawUnsafe<{ n: number }[]>(`SELECT count(*)::int AS n FROM pg_extension WHERE extname = 'vector'`).then((r) => (r[0]?.n ?? 0) > 0).catch(() => false);
+    vectorAvailable = prisma.$queryRawUnsafe<{ n: number }[]>(`SELECT count(*)::int AS n FROM pg_extension WHERE extname = 'vector'`).then((r) => (r[0]?.n ?? 0) > 0).catch(() => { vectorAvailable = null; return false; }); // a transient DB error is not "not installed"
   }
   return vectorAvailable;
 }
@@ -102,14 +102,27 @@ type Table = "OwnProduct" | "CompetitorProduct";
 export async function refreshEmbeddings(table: Table, opts: { ids?: string[]; limit?: number; batch?: number; onProgress?: (done: number, total: number) => Promise<void> | void } = {}): Promise<{ scanned: number; embedded: number; unchanged: number }> {
   if (!(await pgvectorAvailable())) { log.warn("embeddings.pgvector_missing", { table }); return { scanned: 0, embedded: 0, unchanged: 0 }; }
   const batch = Math.max(1, Math.min(256, opts.batch ?? 64));
-  const where = table === "OwnProduct" ? { isActive: true, ...(opts.ids ? { id: { in: opts.ids } } : {}) } : { resolution: { not: "not-found" }, ...(opts.ids ? { id: { in: opts.ids } } : {}) };
+  // Candidates, oldest-embedded first: never embedded, embedded by another model, or changed since
+  // (Prisma bumps updatedAt on every row edit; the vector write does not). `limit` applies to THIS
+  // set, so a large catalog is worked through over successive sweeps instead of rescanning the newest rows.
+  const scope = table === "OwnProduct" ? `"isActive" = true` : `"resolution" <> 'not-found'`;
+  const idFilter = opts.ids ? ` AND "id" = ANY($2::text[])` : "";
+  const candidates = await prisma.$queryRawUnsafe<{ id: string }[]>(
+    `SELECT "id" FROM "${table}" WHERE ${scope}${idFilter} AND ("embeddingHash" IS NULL OR "embeddingModel" IS DISTINCT FROM $1 OR "embeddedAt" IS NULL OR "updatedAt" > "embeddedAt")
+      ORDER BY "embeddedAt" ASC NULLS FIRST, "updatedAt" DESC${opts.limit ? ` LIMIT ${Math.max(1, Math.floor(opts.limit))}` : ""}`,
+    ...(opts.ids ? [EMBEDDING_MODEL, opts.ids] : [EMBEDDING_MODEL]),
+  );
+  const ids = candidates.map((c) => c.id);
   const common = { id: true, brand: true, description: true, category: true, gmdnName: true, binJson: true, embeddingHash: true, embeddingModel: true } as const;
-  const rows: { id: string; sku: string; brand: string | null; description: string | null; category: string | null; gmdnName: string | null; binJson: string | null; embeddingHash: string | null; embeddingModel: string | null }[] = table === "OwnProduct"
-    ? await prisma.ownProduct.findMany({ where: where as never, select: { ...common, sku: true }, take: opts.limit, orderBy: { updatedAt: "desc" } })
-    : (await prisma.competitorProduct.findMany({ where: where as never, select: { ...common, cfnNorm: true }, take: opts.limit, orderBy: { updatedAt: "desc" } })).map((r) => ({ ...r, sku: r.cfnNorm }));
+  const rows: { id: string; sku: string; brand: string | null; description: string | null; category: string | null; gmdnName: string | null; binJson: string | null; embeddingHash: string | null; embeddingModel: string | null }[] = !ids.length ? [] : table === "OwnProduct"
+    ? await prisma.ownProduct.findMany({ where: { id: { in: ids } }, select: { ...common, sku: true } })
+    : (await prisma.competitorProduct.findMany({ where: { id: { in: ids } }, select: { ...common, cfnNorm: true } })).map((r) => ({ ...r, sku: r.cfnNorm }));
   const pending = rows
     .map((r) => { const text = embeddingText(r); return { id: r.id, text, hash: embeddingHash(text) }; })
     .filter((r, i) => rows[i].embeddingHash !== r.hash || rows[i].embeddingModel !== EMBEDDING_MODEL);
+  // Rows whose text is unchanged (updatedAt moved for another reason) are re-stamped so the next sweep skips them.
+  const untouched = rows.filter((r, i) => !pending.some((p) => p.id === r.id) && rows[i].embeddingHash);
+  if (untouched.length) await prisma.$executeRawUnsafe(`UPDATE "${table}" SET "embeddedAt" = now() WHERE "id" = ANY($1::text[])`, untouched.map((r) => r.id));
   let embedded = 0;
   for (let i = 0; i < pending.length; i += batch) {
     const slice = pending.slice(i, i + batch);
@@ -144,19 +157,24 @@ export type Neighbour = { id: string; sku: string; similarity: number };
  * Nearest own products to a vector (cosine), optionally restricted to families. Returns []
  * when retrieval is not possible so the caller falls back to the scan.
  */
-export async function nearestOwnProducts(vector: number[], opts: { companyId: string; k?: number; families?: string[] | null }): Promise<Neighbour[]> {
+export async function nearestOwnProducts(vector: number[], opts: { companyId: string; k?: number; /** over-fetch factor for callers that filter afterwards (family) */ overfetch?: number }): Promise<Neighbour[]> {
   if (!(await pgvectorAvailable())) return [];
   const k = Math.max(1, Math.min(500, opts.k ?? RETRIEVAL_K));
-  const fam = opts.families && opts.families.length ? opts.families : null;
-  const rows = await prisma.$queryRawUnsafe<{ id: string; sku: string; similarity: number }[]>(
-    `SELECT "id", "sku", (1 - ("embedding" <=> $1::vector))::float AS similarity
-       FROM "OwnProduct"
-      WHERE "companyId" = $2 AND "isActive" = true AND "embedding" IS NOT NULL AND "embeddingModel" = $3
-        ${fam ? `AND ("category" = ANY($5::text[]) OR "category" IS NULL)` : ""}
-      ORDER BY "embedding" <=> $1::vector
-      LIMIT $4`,
-    ...(fam ? [vectorLiteral(vector), opts.companyId, EMBEDDING_MODEL, k, fam] : [vectorLiteral(vector), opts.companyId, EMBEDDING_MODEL, k]),
-  );
+  const limit = Math.min(1000, k * Math.max(1, Math.min(10, opts.overfetch ?? 1)));
+  // No WHERE on family: a category string is not a bin family ("Synthetic Mesh" → "Hernia Mesh"), and HNSW
+  // post-filters a selective WHERE down to a handful of rows. Over-fetch and let the caller filter by bin.
+  // ef_search must cover the limit or HNSW returns fewer rows than asked for.
+  const rows = await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL hnsw.ef_search = ${Math.min(1000, Math.max(100, limit * 2))}`).catch(() => undefined);
+    return tx.$queryRawUnsafe<{ id: string; sku: string; similarity: number }[]>(
+      `SELECT "id", "sku", (1 - ("embedding" <=> $1::vector))::float AS similarity
+         FROM "OwnProduct"
+        WHERE "companyId" = $2 AND "isActive" = true AND "embedding" IS NOT NULL AND "embeddingModel" = $3
+        ORDER BY "embedding" <=> $1::vector
+        LIMIT $4`,
+      vectorLiteral(vector), opts.companyId, EMBEDDING_MODEL, limit,
+    );
+  });
   return rows.map((r) => ({ id: r.id, sku: r.sku, similarity: Number(r.similarity) }));
 }
 

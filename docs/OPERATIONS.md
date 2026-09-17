@@ -119,20 +119,25 @@ noted on the row, never deleted.
 **Embedding retrieval.** Needs pgvector in the database (Neon has it; CI uses the
 `pgvector/pgvector` image; a local Postgres needs the extension package) and the model key.
 `npm run embed` embeds the catalog and cached competitor products once; `embed.refresh` runs
-nightly (`EMBED_REFRESH_CRON`) and after catalog imports, re-embedding only rows whose text
-changed. A run says in its log whether each line was retrieved by neighbours or by the
+nightly (`EMBED_REFRESH_CRON`, `EMBED_REFRESH_BATCH` rows, oldest-embedded first, so a large
+catalog is covered over successive nights) and after catalog imports, re-embedding only rows
+whose text changed. The migration requires pgvector (`CREATE EXTENSION vector`): a database
+without it does not migrate, so "no pgvector" is not a runtime mode. A run says in its log whether each line was retrieved by neighbours or by the
 attribute scan; Settings → System shows coverage. `EMBEDDINGS=off` returns to the scan.
 
 **Tax.** `PROVIDER` mode on a proposal calls AvaTax with an uncommitted SalesOrder (never a
-tax document) using `AVATAX_*`; `TAX_DRY_RUN=true` for demos. The figure is stamped with the
-time it was calculated and becomes stale when a price or freight changes — the workspace
-shows "recalculate" and the PDF export refuses until it is. Freight and tax never enter
+tax document) using `AVATAX_*`; `TAX_DRY_RUN=true` for demos. The figure carries a
+fingerprint of what was taxed (priced lines, freight, ship-to); when that differs from the
+quote as it stands the figure is stale — the workspace shows "recalculate" and both exports
+refuse until it is. Notes, approvals and unchanged saves do not disturb it. Freight and tax never enter
 margin, floors or approvals. The ship-from is the Branding address.
 
 **Public bids.** `bids.ingest` pulls SAM.gov (needs `SAM_API_KEY`; the public key allows a
-handful of calls a day, so one call per configured NAICS) and USAspending (no key) on
-`BIDS_CRON`; each pull is a `FeedRun` (`bids-sam`, `bids-usaspending`) visible on the Public
-bids page. Keywords / NAICS / PSC / look-back are set on that page. Portal tabulations are
+handful of calls a day, so one call per configured NAICS, `SAM_MAX_PAGES` pages; a 429 fails
+the run without the queue retrying it) and USAspending (no key) on `BIDS_CRON`; each pull is a
+`FeedRun` (`bids-sam`, `bids-usaspending`) visible on the Public bids page. Manual pulls are
+once an hour per source. With `JOBS_WORKER=off` nothing pulls; analytics then refresh only
+from the button and embeddings only from `npm run embed`. Keywords / NAICS / PSC / look-back are set on that page. Portal tabulations are
 imported as files; a row with a competitor code and unit price becomes a `PUBLIC_BID_DB`
 price observation.
 

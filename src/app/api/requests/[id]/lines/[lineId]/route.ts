@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { authorize } from "@/lib/api";
 import { can } from "@/lib/auth";
 import { recordLineDecision } from "@/lib/xref/learning";
+import { audit } from "@/lib/audit";
 
 /** Rep decisions on one line: pick a candidate, mark reviewed, note an override, set competitor price. */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string; lineId: string }> }) {
@@ -36,6 +37,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   if ("overrideNote" in body && body.overrideNote != null && String(body.overrideNote).length > 2000) return NextResponse.json({ error: "overrideNote is too long" }, { status: 400 });
   const updated = await prisma.requestLine.update({ where: { id: lineId }, data, include: { candidates: { orderBy: { rank: "asc" }, include: { ownProduct: true } }, competitorProduct: true } });
+  // The customer note is copied onto every proposal made from this run: its history matters.
+  if (("customerNote" in body && (line.customerNote ?? null) !== (updated.customerNote ?? null)) || ("flag" in body && line.flag !== updated.flag)) await audit({ actorUserId: actor.id, entityType: "RequestLine", entityId: lineId, action: "LINE_ANNOTATED", before: { customerNote: line.customerNote, flag: line.flag }, after: { customerNote: updated.customerNote, flag: updated.flag } }).catch(() => undefined);
   // Learning loop: an override becomes a rep-proposed cross for review; a confirmed top pick is ground truth.
   let learned: Awaited<ReturnType<typeof recordLineDecision>> = {};
   if ("selectedCandidateId" in body || body.reviewed) learned = await recordLineDecision(actor, lineId, { ...("selectedCandidateId" in body ? { selectedCandidateId: body.selectedCandidateId ?? null } : {}), reviewed: body.reviewed, overrideNote: body.overrideNote }).catch((e) => { console.error("[learning]", e); return {}; });

@@ -31,7 +31,7 @@ import { AvataxProvider, setAvataxFetchForTests } from "@/lib/tax/avatax";
 import { pullSam, pullUsaspending, upsertAwards, ingestPublicAwards, importBidFileRows, sanitizeBidSettings, matchCompetitor, setBidFetchForTests, DEFAULT_BID_SETTINGS, listAwards } from "@/lib/intelligence/bids";
 import { summaryFor } from "@/lib/intelligence";
 import { buildQuotePdf, buildOfferPdf } from "@/lib/pdf";
-import { renderDocument } from "@/lib/pdf/documents";
+import { renderDocument, pdfPageCount } from "@/lib/pdf/documents";
 import { getBranding, saveBranding } from "@/lib/branding";
 import { tenancyStatus } from "@/lib/tenancy";
 import { POST as bulkRoute } from "@/app/api/requests/[id]/bulk/route";
@@ -114,11 +114,18 @@ describe.skipIf(!hasDb)("Tier 3", () => {
       const hadKey = process.env.OPENAI_API_KEY; process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "sk-tier3-fake";
       try {
         const company = await getCompany();
+        // Forget a few vectors so the sweep has work; only pending rows are scanned, oldest-embedded first.
+        await prisma.$executeRawUnsafe(`UPDATE "OwnProduct" SET "embeddingHash" = NULL, "embeddedAt" = NULL WHERE "sku" IN ('PPM1510X3', 'PPM1106X3')`);
         const first = await refreshEmbeddings("OwnProduct", { limit: 60 });
-        expect(first.scanned).toBeGreaterThan(0);
+        expect(first.scanned).toBeGreaterThan(0); expect(first.embedded).toBeGreaterThan(0);
         const again = await refreshEmbeddings("OwnProduct", { limit: 60 });
         expect(again.embedded).toBe(0); // unchanged text is not re-embedded
-        expect(again.unchanged).toBe(again.scanned);
+        expect(again.scanned).toBe(0); // …and nothing is pending any more
+        // A row edited since it was embedded (Prisma bumps updatedAt) is picked up; unchanged text is re-stamped, not re-embedded.
+        await prisma.$executeRawUnsafe(`UPDATE "OwnProduct" SET "updatedAt" = now() WHERE "sku" = 'PPM1510X3'`);
+        const touched = await refreshEmbeddings("OwnProduct", { limit: 60 });
+        expect(touched.scanned).toBe(1); expect(touched.embedded).toBe(0); expect(touched.unchanged).toBe(1);
+        expect((await refreshEmbeddings("OwnProduct", { limit: 60 })).scanned).toBe(0);
         const p = await prisma.ownProduct.findFirstOrThrow({ where: { sku: "PPM1510X3" } });
         const rows = await prisma.$queryRawUnsafe<{ m: string | null }[]>(`SELECT "embeddingModel" AS m FROM "OwnProduct" WHERE id = $1`, p.id);
         expect(rows[0].m).toBe(EMBEDDING_MODEL);
@@ -126,8 +133,10 @@ describe.skipIf(!hasDb)("Tier 3", () => {
         const near = await nearestOwnProducts(v, { companyId: company.id, k: 5 });
         expect(near[0]?.sku).toBe("PPM1510X3");
         expect(near[0].similarity).toBeGreaterThan(0.99);
-        // Family restriction: a family that nothing belongs to returns nothing (fallback path), never a wrong neighbour.
-        expect(await nearestOwnProducts(v, { companyId: company.id, k: 5, families: ["No Such Family"] })).toHaveLength(0);
+        // Over-fetch for family filtering returns more rows than k (HNSW ef_search is raised to cover it).
+        expect((await nearestOwnProducts(v, { companyId: company.id, k: 5, overfetch: 4 })).length).toBeGreaterThan(5);
+        // Another company's catalog is never a neighbour.
+        expect(await nearestOwnProducts(v, { companyId: "no-such-company", k: 5 })).toHaveLength(0);
       } finally { if (hadKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = hadKey; }
     });
     test("a run with embeddings on retrieves by neighbours and logs it; with embeddings off it scans — same selections for the curated lines", async () => {
@@ -186,24 +195,29 @@ describe.skipIf(!hasDb)("Tier 3", () => {
     test("validation: not to yourself, window ≤ 90 days, only your own unless admin, delegator must have authority", async () => {
       const soon = new Date(Date.now() + 7 * 86_400_000).toISOString();
       await expect(createDelegation(director, { toUserId: director.id, endsAt: soon, reason: "TIER3" })).rejects.toThrow(/yourself/);
-      await expect(createDelegation(director, { toUserId: analyst.id, endsAt: new Date(Date.now() + (MAX_DELEGATION_DAYS + 2) * 86_400_000).toISOString(), reason: "TIER3" })).rejects.toThrow(/at most/);
-      await expect(createDelegation(manager, { fromUserId: director.id, toUserId: analyst.id, endsAt: soon, reason: "TIER3" })).rejects.toThrow(/admin/i);
-      await expect(createDelegation(rep, { toUserId: analyst.id, endsAt: soon, reason: "TIER3" })).rejects.toThrow(/no approval authority/);
-      await expect(createDelegation(director, { toUserId: analyst.id, endsAt: new Date(Date.now() - 86_400_000).toISOString(), reason: "TIER3" })).rejects.toThrow(/past|after/);
+      await expect(createDelegation(director, { toUserId: manager.id, endsAt: new Date(Date.now() + (MAX_DELEGATION_DAYS + 2) * 86_400_000).toISOString(), reason: "TIER3" })).rejects.toThrow(/at most/);
+      await expect(createDelegation(manager, { fromUserId: director.id, toUserId: admin.id, endsAt: soon, reason: "TIER3" })).rejects.toThrow(/admin/i);
+      await expect(createDelegation(rep, { toUserId: manager.id, endsAt: soon, reason: "TIER3" })).rejects.toThrow(/no approval authority/);
+      await expect(createDelegation(director, { toUserId: manager.id, endsAt: new Date(Date.now() - 86_400_000).toISOString(), reason: "TIER3" })).rejects.toThrow(/past|after/);
+      // A delegate must already be an approver: a pricing analyst cannot be handed a queue.
+      await expect(createDelegation(director, { toUserId: analyst.id, endsAt: soon, reason: "TIER3" })).rejects.toThrow(/cannot approve pricing/);
     });
     test("a delegate gains the delegator's authority (never ADMIN), sees the queue, decides on their behalf, and cannot approve by proxy what the delegator submitted", async () => {
       const soon = new Date(Date.now() + 7 * 86_400_000).toISOString();
-      const d = await createDelegation(director, { toUserId: analyst.id, endsAt: soon, reason: "TIER3 holiday" });
-      expect(d.toUserId).toBe(analyst.id);
-      expect(await prisma.notification.count({ where: { userId: analyst.id, entityType: "ApprovalDelegation", entityId: d.id } })).toBe(1);
-      const eff = await effectiveAuthority(analyst);
+      const d = await createDelegation(director, { toUserId: manager.id, endsAt: soon, reason: "TIER3 holiday" });
+      expect(d.toUserId).toBe(manager.id);
+      expect(await prisma.notification.count({ where: { userId: manager.id, entityType: "ApprovalDelegation", entityId: d.id } })).toBe(1);
+      const eff = await effectiveAuthority(manager);
       expect(eff.roles).toContain("PRICING_DIRECTOR"); expect(eff.roles).not.toContain("ADMIN");
-      expect(eff.permissions.has("approve_below_floor")).toBe(true);
-      expect((await authorityFor(analyst, "PRICING_DIRECTOR")).onBehalfOf).toBe(director.id);
+      expect(eff.permissions.has("approve_below_floor")).toBe(true); // lent by the director; the manager has none of their own
+      expect((await authorityFor(manager, "PRICING_DIRECTOR")).onBehalfOf).toBe(director.id);
       expect((await authorityFor(manager, "REGIONAL_MANAGER")).onBehalfOf).toBeNull(); // own authority, no delegation involved
-      expect((await delegatesFor("PRICING_DIRECTOR", true)).some((x) => x.toUserId === analyst.id)).toBe(true);
+      // A lent PERMISSION is attributed too: a manager-level line that is below floor needs approve_below_floor, which only the director lends.
+      expect((await authorityFor(manager, "REGIONAL_MANAGER", "approve_below_floor")).onBehalfOf).toBe(director.id);
+      expect((await authorityFor(manager, "REGIONAL_MANAGER", "approve_below_floor", [director.id])).ok).toBe(false); // …and not for the director's own submissions
+      expect((await delegatesFor("PRICING_DIRECTOR", true)).some((x) => x.toUserId === manager.id)).toBe(true);
       // Overlap refused; a second, disjoint window is fine.
-      await expect(createDelegation(director, { toUserId: analyst.id, endsAt: soon, reason: "TIER3 dup" })).rejects.toThrow(/overlapping/);
+      await expect(createDelegation(director, { toUserId: manager.id, endsAt: soon, reason: "TIER3 dup" })).rejects.toThrow(/overlapping/);
 
       // A director-level request: push a line far below list so it needs PRICING_DIRECTOR.
       const r = await makeRequest("deleg", rep, ["1DLMC05", "1410015010"]);
@@ -216,19 +230,22 @@ describe.skipIf(!hasDb)("Tier 3", () => {
       await setProposedPrice(rep, l.id, base.times(0.68), "TIER3 deep discount"); // 32% off: director authority, unless the floor rules escalate
       await submitForApproval(rep, p.id);
       const req = await prisma.approvalRequest.findFirstOrThrow({ where: { proposalId: p.id, status: "PENDING" } });
-      const q = await queueFor(analyst);
+      const q = await queueFor(manager);
       const mine = q.find((x) => x.id === req.id);
       if (req.requiredRole === "PRICING_COMMITTEE") {
         // Above the director's own authority: the delegation lends nothing here — the delegate must NOT see or decide it.
         expect(mine).toBeUndefined();
-        await expect(decide(analyst, req.id, "APPROVED", "TIER3")).rejects.toThrow(/authority/);
+        await expect(decide(manager, req.id, "APPROVED", "TIER3")).rejects.toThrow(/authority|permission/);
+      } else if (req.requiredRole === "REGIONAL_MANAGER") {
+        // The manager's own authority covers it: no delegation is involved and none is recorded.
+        expect(mine).toBeTruthy(); expect(mine!.onBehalfOf).toBeNull();
       } else {
         expect(mine).toBeTruthy();
         expect(mine!.onBehalfOf?.userId).toBe(director.id);
-        const decided = await decide(analyst, req.id, "APPROVED", "TIER3 approved for Dana");
+        const decided = await decide(manager, req.id, "APPROVED", "TIER3 approved for Dana");
         expect(["APPROVED", "PARTIALLY_APPROVED", "SUBMITTED"]).toContain(decided.status);
         const row = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: req.id } });
-        expect(row.decidedByUserId).toBe(analyst.id);
+        expect(row.decidedByUserId).toBe(manager.id);
         expect(row.onBehalfOfUserId).toBe(director.id);
         const ev = await prisma.auditEvent.findFirst({ where: { entityType: "ApprovalRequest", entityId: req.id, action: "APPROVED" } });
         expect(ev?.contextJson).toContain(director.id);
@@ -245,12 +262,13 @@ describe.skipIf(!hasDb)("Tier 3", () => {
       const sub2 = await submitForApproval(director, p2.id);
       if (sub2.routed > 0) {
         const req2 = await prisma.approvalRequest.findFirstOrThrow({ where: { proposalId: p2.id, status: "PENDING" } });
-        await expect(decide(analyst, req2.id, "APPROVED", "TIER3")).rejects.toThrow(/cannot approve|authority|delegat/i);
+        await expect(decide(manager, req2.id, "APPROVED", "TIER3")).rejects.toThrow(/cannot approve|authority|delegat|permission/i);
+        expect((await queueFor(manager)).some((x) => x.id === req2.id)).toBe(false); // …and it is not in their queue
       }
 
       // Revoke: authority disappears at once.
       await revokeDelegation(director, d.id);
-      expect((await effectiveAuthority(analyst)).roles).not.toContain("PRICING_DIRECTOR");
+      expect((await effectiveAuthority(manager)).roles).not.toContain("PRICING_DIRECTOR");
       await expect(revokeDelegation(rep, d.id)).rejects.toThrow(/delegating user or an admin/); // a stranger cannot revoke
       await expect(revokeDelegation(director, d.id)).resolves.toBeTruthy(); // already revoked → no-op
     }, 120_000);
@@ -320,16 +338,25 @@ describe.skipIf(!hasDb)("Tier 3", () => {
       const econAfter = await refreshEconomics(p.id);
       expect(econAfter.revenue.toString()).toBe(econBefore.revenue.toString());
       expect(econAfter.blendedMarginPct?.toString() ?? null).toBe(econBefore.blendedMarginPct?.toString() ?? null);
-      // A price change → stale tax; the PDF refuses until recalculated.
+      // Writes that do not change what is quoted keep the figure: a note, an unchanged save, an economics refresh.
       const l = (await prisma.proposalLine.findMany({ where: { proposalId: p.id, included: true } }))[0];
-      await new Promise((x) => setTimeout(x, 20));
+      await prisma.proposalLine.update({ where: { id: l.id }, data: { customerNote: "TIER3 note", notes: "internal" } });
+      await setProposalLogistics(rep, p.id, { freightMode: "FLAT", freightValue: "125", taxMode: "MANUAL", taxRate: "0.0825" });
+      await refreshEconomics(p.id);
+      t = await quoteTotals(p.id);
+      expect(t.taxStale).toBe(false); expect(t.tax!.gt(0)).toBe(true);
+      // A price change → stale tax; the PDF refuses until recalculated.
       await setProposedPrice(rep, l.id, (money(l.proposedPrice) ?? money(l.listPrice)!).times(0.98), "TIER3 tweak");
       t = await quoteTotals(p.id);
       expect(t.taxStale).toBe(true);
-      // Freight change clears the tax figure too.
+      // Freight is taxable in places: a freight change is stale too, and a mode switch re-checks the percent bound.
       await calculateProposalTax(rep, p.id);
       await setProposalLogistics(rep, p.id, { freightValue: "200" });
-      expect((await prisma.proposal.findUniqueOrThrow({ where: { id: p.id } })).taxAmount).toBeNull();
+      expect((await quoteTotals(p.id)).taxStale).toBe(true);
+      await expect(setProposalLogistics(rep, p.id, { freightMode: "PCT" })).rejects.toThrow(/0–100/); // 200 is not a percent
+      // A country-only ship-to is no ship-to: the account default stays reachable.
+      await setProposalLogistics(rep, p.id, { shipTo: { line1: "", city: "", region: "", postalCode: "", country: "US" } });
+      expect((await prisma.proposal.findUniqueOrThrow({ where: { id: p.id } })).shipToJson).toBeNull();
       // Exempt: zero, not stale, no provider call.
       await setProposalLogistics(rep, p.id, { taxMode: "EXEMPT", taxExemptionNo: "NY-EX-123" });
       t = await quoteTotals(p.id);
@@ -345,7 +372,7 @@ describe.skipIf(!hasDb)("Tier 3", () => {
       { noticeId: "T3-SAM-2", title: "Hernia mesh, various", fullParentPathName: "DEFENSE HEALTH AGENCY", postedDate: "2026-09-03", type: "Award Notice", naicsCode: "339113", award: { date: "2026-09-02", amount: 42000, awardee: { name: "Some Distributor Inc" } }, uiLink: "https://sam.gov/opp/T3-SAM-2/view" },
     ] };
     const usa = { results: [
-      { internal_id: 1, "Award ID": "36C24226P0100", "Recipient Name": "APPLIED MEDICAL RESOURCES CORPORATION", "Award Amount": 99000.5, "Start Date": "2026-08-15", "Awarding Agency": "Department of Veterans Affairs", "Awarding Sub Agency": "VHA", Description: "TROCARS AND ACCESSORIES", NAICS: "339112", PSC: "6515", generated_internal_id: "T3-CONT_AWD_1", recipient_id: "r-1" },
+      { internal_id: 1, "Award ID": "36C24226P0100", "Recipient Name": "APPLIED MEDICAL RESOURCES CORPORATION", "Award Amount": 99000.5, "Start Date": "2026-08-15", "Awarding Agency": "Department of Veterans Affairs", "Awarding Sub Agency": "VHA", Description: "TROCARS AND ACCESSORIES", NAICS: { code: "339112", description: "SURGICAL AND MEDICAL INSTRUMENT MANUFACTURING" }, PSC: { code: "6515", description: "MEDICAL AND SURGICAL INSTRUMENTS" }, generated_internal_id: "T3-CONT_AWD_1", recipient_id: "r-1" },
     ], page_metadata: { page: 1, hasNext: false } };
     test("settings sanitise; sources configure from the environment", async () => {
       const s = sanitizeBidSettings({ keywords: "trocar, hernia mesh;;bad<script>", naics: ["339112", "12", "abc"], psc: "6515, x1", lookbackDays: 900, minAmount: -5 });
@@ -360,12 +387,15 @@ describe.skipIf(!hasDb)("Tier 3", () => {
       const calls: string[] = [];
       setBidFetchForTests(async (url, init) => {
         calls.push(url);
-        if (url.includes("sam.gov")) { const u = new URL(url); expect(u.searchParams.get("ptype")).toBe("a"); expect(u.searchParams.get("postedFrom")).toMatch(/^\d{2}\/\d{2}\/\d{4}$/); return new Response(JSON.stringify(sam), { status: 200 }); }
+        if (url.includes("sam.gov")) { const u = new URL(url); expect(u.searchParams.get("ptype")).toBe("a"); expect(u.searchParams.get("postedFrom")).toMatch(/^\d{2}\/\d{2}\/\d{4}$/); expect(u.searchParams.get("api_key")).toBeNull(); expect((init?.headers as Record<string, string>)["x-api-key"]).toBe("test-key"); return new Response(JSON.stringify(sam), { status: 200 }); }
         const body = JSON.parse(String(init?.body)); expect(body.filters.award_type_codes).toEqual(["A", "B", "C", "D"]); expect(body.fields).toContain("generated_internal_id");
+        if (body.filters.psc_codes) expect(body.filters.psc_codes.require[0][0]).toMatch(/^(Product|Service|Research and Development)$/); // hierarchical, or the API answers 422
         return new Response(JSON.stringify(usa), { status: 200 });
       });
       process.env.SAM_API_KEY = "test-key";
-      const settings = { ...DEFAULT_BID_SETTINGS, naics: ["339112"], psc: [] };
+      const settings = { ...DEFAULT_BID_SETTINGS, naics: ["339112"], psc: ["6515"] };
+      const { pscPath } = await import("@/lib/intelligence/bids");
+      expect(pscPath("6515")).toEqual(["Product", "65", "6515"]); expect(pscPath("Q501")).toEqual(["Service", "Q", "Q5", "Q501"]); expect(pscPath("AC11")).toEqual(["Research and Development", "AC", "AC11"]);
       const s = await pullSam(settings, { from: new Date("2026-08-01"), to: new Date("2026-09-18") });
       expect(s).toHaveLength(2); expect(s[0].awardee).toBe("ETHICON US, LLC"); expect(s[0].awardDate?.toISOString().slice(0, 10)).toBe("2026-08-28");
       const u = await pullUsaspending(settings, { from: new Date("2026-08-01"), to: new Date("2026-09-18") });
@@ -383,26 +413,36 @@ describe.skipIf(!hasDb)("Tier 3", () => {
       expect(run.rows).toBe(1);
       const fr = await prisma.feedRun.findFirstOrThrow({ where: { feed: "bids-usaspending" }, orderBy: { startedAt: "desc" } });
       expect(fr.status).toBe("OK");
+      expect(calls.filter((c) => c.includes("sam.gov")).length).toBe(1); // one call per NAICS by default
       setBidFetchForTests(async () => new Response("<html>gateway timeout</html>", { status: 504 }));
       await expect(ingestPublicAwards("sam", { trigger: "manual" })).rejects.toThrow(/504/);
       expect((await prisma.feedRun.findFirstOrThrow({ where: { feed: "bids-sam" }, orderBy: { startedAt: "desc" } })).status).toBe("FAILED");
+      // A quota response fails the run but not the job (no retry storm against the daily allowance).
+      setBidFetchForTests(async () => new Response("Too many requests", { status: 429 }));
+      const quota = await ingestPublicAwards("sam", { trigger: "manual" });
+      expect((quota as { quotaExceeded?: boolean }).quotaExceeded).toBe(true);
+      expect((await prisma.feedRun.findFirstOrThrow({ where: { feed: "bids-sam" }, orderBy: { startedAt: "desc" } })).error).toMatch(/429/);
       delete process.env.SAM_API_KEY;
-      const list = await listAwards({ q: "stapler" });
+      const list = await listAwards({ q: "stapler", sinceDays: 3650 });
       expect(list.awards.some((a) => a.externalId === "T3-SAM-1")).toBe(true);
+      expect((await listAwards({ q: "stapler", sinceDays: 1 })).awards.some((a) => a.externalId === "T3-SAM-1")).toBe(false); // both filters apply
       expect(await matchCompetitor("ETHICON US, LLC")).toBeTruthy();
+      expect(await matchCompetitor("Bardot Medical Group")).toBeNull(); // no prefix matches
       expect(await matchCompetitor("Totally Unrelated LLC")).toBeNull();
     });
     test("a bid file with competitor codes and unit prices records public-bid price observations", async () => {
       const grid = [
-        ["Source", "Bid Id", "Title", "Buyer", "Awardee", "Award Date", "Amount", "Competitor", "Competitor Code", "Unit Price", "Qty", "Notes"],
-        ["Texas SmartBuy tier3", "B-1", "Endomechanical supplies", "UT Southwestern", "Ethicon", "2026-07-01", 55000, "Ethicon", "PPM1510X3", 41.25, 200, "line 4"],
-        ["Texas SmartBuy tier3", "B-1", "Endomechanical supplies", "UT Southwestern", "Ethicon", "2026-07-01", 55000, "Ethicon", "NO MATCH", 10, 1, "placeholder row"],
-        ["Texas SmartBuy tier3", "", "Trocar kit", "UT Southwestern", "Applied Medical", "not a date", "", "", "", "", "", ""],
+        ["Source", "Bid Id", "Department", "Title", "Buyer", "Awardee", "Updated Date", "Award Date", "Amount", "Competitor", "Competitor Code", "Unit Price", "Qty", "Notes"],
+        ["Texas SmartBuy tier3", "B-1", "Surgery", "Endomechanical supplies", "UT Southwestern", "Ethicon", "2026-09-01", "2026-07-01", "$55,000.00", "Ethicon", "PPM1510X3", "$41.25", 200, "line 4"],
+        ["Texas SmartBuy tier3", "B-1", "Surgery", "Endomechanical supplies", "UT Southwestern", "Ethicon", "2026-09-01", "2026-07-01", 55000, "Ethicon", "NO MATCH", 10, 1, "placeholder row"],
+        ["Texas SmartBuy tier3", "", "Surgery", "Trocar kit", "UT Southwestern", "Applied Medical", "", "not a date", "", "", "", "", "", ""],
       ];
       const res = await importBidFileRows(admin.id, grid, "tier3-file");
       expect(res.rows).toBe(3); expect(res.observations).toBe(1); expect(res.awards).toBeGreaterThanOrEqual(2);
       const obs = await prisma.competitorPriceObservation.findFirst({ where: { sourceType: "PUBLIC_BID_DB", competitorSku: "PPM1510X3" }, orderBy: { createdAt: "desc" } });
       expect(obs?.price.toString()).toBe("41.25"); expect(obs?.sourceRef).toMatch(/tier3 B-1/);
+      expect(obs?.observedAt.toISOString().slice(0, 10)).toBe("2026-07-01"); // the award date, not "Updated Date"
+      expect((await prisma.publicAward.findFirst({ where: { source: "BIDFILE", externalId: { contains: "B-1" } } }))?.amount?.toString()).toBe("55000");
       const summary = await summaryFor("PPM1510X3", { asOf: new Date(), accountId: null, gpoId: null, region: null, currency: "USD" });
       expect(summary.count).toBeGreaterThan(0);
     });
@@ -476,7 +516,8 @@ describe.skipIf(!hasDb)("Tier 3", () => {
     test("branding is validated and the quote / offer PDFs render with letterhead, totals and terms", async () => {
       const before = await getBranding();
       await expect(saveBranding({ primaryColor: "red" })).rejects.toThrow(/hex/);
-      await expect(saveBranding({ logoDataUrl: "data:text/plain;base64,QUJD" })).rejects.toThrow(/PNG, JPEG or SVG/);
+      await expect(saveBranding({ logoDataUrl: "data:text/plain;base64,QUJD" })).rejects.toThrow(/PNG or JPEG/);
+      await expect(saveBranding({ logoDataUrl: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=" })).rejects.toThrow(/PNG or JPEG/);
       await expect(saveBranding({ validityDays: 0 })).rejects.toThrow(/validityDays/);
       // 1×1 PNG
       const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -487,6 +528,7 @@ describe.skipIf(!hasDb)("Tier 3", () => {
         await runRequest(r.id);
         const offer = await buildOfferPdf(rep, r.id);
         expect(offer.contentType).toBe("application/pdf"); expect(offer.buffer.subarray(0, 5).toString()).toBe("%PDF-"); expect(offer.buffer.length).toBeGreaterThan(2000);
+        expect(pdfPageCount(offer.buffer)).toBe(1); // a two-line offer is one page: the footer must not spill onto blank pages
         expect(offer.filename).toMatch(/Contract_Offer/);
         const acc = await prisma.account.findUniqueOrThrow({ where: { accountNumber: "0001880967" } });
         const p = await createFromRequest(rep, r.id, { accountId: acc.id });
@@ -503,7 +545,9 @@ describe.skipIf(!hasDb)("Tier 3", () => {
         expect(exported?.contextJson).toContain('"pdf"');
         // The renderer paginates: 120 lines still produce a document.
         const big = await renderDocument({ kind: "quote", title: "Quotation", reference: "PRP-BIG", customer: { name: "X" }, date: new Date(), lines: Array.from({ length: 120 }, (_, i) => ({ code: `C${i}`, codeDescription: "competitor item with a fairly long description that wraps onto more than one line", sku: `S${i}`, description: "our item", qty: "1", unit: "10", extended: "10", note: i % 7 === 0 ? "note" : null })), totals: { currency: "USD", subtotal: "1200", total: "1200" }, notes: ["n"], terms: "t\n\nt2", branding: b });
-        expect(big.length).toBeGreaterThan(20_000);
+        expect(big.length).toBeGreaterThan(10_000);
+        const pages = pdfPageCount(big);
+        expect(pages).toBeGreaterThanOrEqual(3); expect(pages).toBeLessThanOrEqual(8);
       } finally { await saveBranding({ ...before, address: before.address ?? null, logoDataUrl: before.logoDataUrl ?? null, footer: before.footer ?? null }); }
     }, 120_000);
   });

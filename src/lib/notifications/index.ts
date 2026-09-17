@@ -136,7 +136,7 @@ export async function notifyApprovalRequested(proposalId: string) {
     // Never the submitter (decide() refuses self-approval) — the owner or whoever submitted on their behalf.
     // Delegates (out-of-office) are told too; the delegating user still gets theirs.
     const { delegatesFor } = await import("@/lib/approvals/delegation");
-    const delegated = (await delegatesFor(role, belowFloor)).map((d) => d.toUserId);
+    const delegated = (await delegatesFor(role, belowFloor)).filter((d) => !submitters.has(d.fromUserId)).map((d) => d.toUserId);
     const ids = [...new Set([...(await approverIds(role, belowFloor)), ...delegated])].filter((id) => id !== p.ownerUserId && !submitters.has(id));
     await notify({ kind: "APPROVAL_REQUESTED", userIds: ids, title: `${p.reference} needs your approval — ${count} line${count === 1 ? "" : "s"} (${role.replace(/_/g, " ").toLowerCase()})`, body: `${p.account.name}${belowFloor ? " · includes a below-floor price" : ""}`, link: `${baseUrl()}/approvals`, entityType: "Proposal", entityId: p.id, dedupeKey: `req:${role}:${submission}` });
   }

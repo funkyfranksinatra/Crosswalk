@@ -36,8 +36,10 @@ export type EffectiveAuthority = {
   roles: string[];
   /** Approve permissions gained through a delegation (own permissions are on the actor). */
   permissions: Set<string>;
-  /** Which delegator's authority satisfies a required role (null = the actor's own). */
-  onBehalfOf: (requiredRole: string) => string | null;
+  /** Who lends a permission the actor does not hold (the first delegator that has it). */
+  permissionFrom: (perm: string, exclude?: string[]) => string | null;
+  /** Which delegator's authority satisfies a required role (null = the actor's own); `exclude` skips delegators who may not be used (they submitted the request). */
+  onBehalfOf: (requiredRole: string, exclude?: string[]) => string | null;
   delegations: Delegation[];
 };
 
@@ -45,21 +47,27 @@ export type EffectiveAuthority = {
 export function effectiveAuthorityFrom(actor: Actor, delegations: (Delegation & { fromRoles: string[] })[]): EffectiveAuthority {
   const roles = new Set(actor.roles);
   const permissions = new Set<string>();
-  const byDelegator: { userId: string; roles: string[] }[] = [];
+  const byDelegator: { userId: string; roles: string[]; perms: Set<string> }[] = [];
   for (const d of delegations) {
     const lent = d.fromRoles.filter((r) => DELEGABLE_ROLES.has(r));
     if (!lent.length) continue;
     for (const r of lent) roles.add(r);
-    for (const r of lent) for (const p of ROLE_PERMISSIONS[r as Role] ?? []) if ((DELEGABLE_PERMS as readonly string[]).includes(p)) permissions.add(p);
-    byDelegator.push({ userId: d.fromUserId, roles: lent });
+    const perms = new Set<string>();
+    for (const r of lent) for (const p of ROLE_PERMISSIONS[r as Role] ?? []) if ((DELEGABLE_PERMS as readonly string[]).includes(p)) { permissions.add(p); perms.add(p); }
+    byDelegator.push({ userId: d.fromUserId, roles: lent, perms });
   }
   return {
     roles: [...roles],
     permissions,
     delegations,
-    onBehalfOf: (required: string) => {
+    permissionFrom: (perm: string, exclude: string[] = []) => {
+      if (actor.permissions.has(perm as never)) return null;
+      for (const d of byDelegator) if (d.perms.has(perm) && !exclude.includes(d.userId)) return d.userId;
+      return null;
+    },
+    onBehalfOf: (required: string, exclude: string[] = []) => {
       if (satisfiesAuthority(actor.roles, required)) return null; // own authority suffices
-      for (const d of byDelegator) if (satisfiesAuthority(d.roles, required)) return d.userId;
+      for (const d of byDelegator) if (satisfiesAuthority(d.roles, required) && !exclude.includes(d.userId)) return d.userId;
       return null;
     },
   };
@@ -74,12 +82,20 @@ export async function effectiveAuthority(actor: Actor, at = new Date()): Promise
   return effectiveAuthorityFrom(actor, rows.filter((r) => rolesOf.has(r.fromUserId)).map((r) => ({ ...r, fromRoles: rolesOf.get(r.fromUserId) ?? [] })));
 }
 
-/** Does the actor, with delegations, hold `requiredRole` authority? Returns who lends it (null = own). */
-export async function authorityFor(actor: Actor, requiredRole: string): Promise<{ ok: boolean; onBehalfOf: string | null; effective: EffectiveAuthority }> {
+/**
+ * Does the actor, with delegations, hold `requiredRole` authority AND `perm`? Returns who lends
+ * whichever of the two the actor lacks (null = entirely their own). `exclude` names delegators whose
+ * authority may not be used for this request (they submitted it).
+ */
+export async function authorityFor(actor: Actor, requiredRole: string, perm?: string, exclude: string[] = []): Promise<{ ok: boolean; onBehalfOf: string | null; effective: EffectiveAuthority }> {
   const effective = await effectiveAuthority(actor);
-  if (satisfiesAuthority(actor.roles, requiredRole)) return { ok: true, onBehalfOf: null, effective };
-  const via = effective.onBehalfOf(requiredRole);
-  return { ok: via !== null, onBehalfOf: via, effective };
+  const ownRole = satisfiesAuthority(actor.roles, requiredRole);
+  const roleVia = ownRole ? null : effective.onBehalfOf(requiredRole, exclude);
+  if (!ownRole && roleVia === null) return { ok: false, onBehalfOf: null, effective };
+  const ownPerm = !perm || actor.permissions.has(perm as never);
+  const permVia = ownPerm ? null : effective.permissionFrom(perm!, exclude);
+  if (!ownPerm && permVia === null) return { ok: false, onBehalfOf: roleVia, effective };
+  return { ok: true, onBehalfOf: roleVia ?? permVia, effective };
 }
 
 export async function listDelegations(actor: Actor, opts: { all?: boolean } = {}) {
@@ -99,6 +115,9 @@ export async function createDelegation(actor: Actor, input: { fromUserId?: strin
   const to = await prisma.user.findUnique({ where: { id: input.toUserId }, include: { roles: true } });
   if (!from || !from.isActive) throw new Error("Delegating user not found");
   if (!to || !to.isActive) throw new Error("Delegate not found or inactive");
+  // The delegate must already be an approver (the deal-desk routes are gated on approve_discount): a
+  // delegation raises a colleague's authority, it does not turn a non-approver into one.
+  if (!to.roles.some((r) => (ROLE_PERMISSIONS[r.role as Role] ?? []).includes("approve_discount"))) throw new Error(`${to.name} cannot approve pricing; delegate to a manager, director or committee member`);
   const fromRoles = from.roles.map((r) => r.role);
   if (!fromRoles.some((r) => DELEGABLE_ROLES.has(r) && (ROLE_PERMISSIONS[r as Role] ?? []).includes("approve_discount"))) throw new Error(`${from.name} has no approval authority to delegate`);
   const startsAt = input.startsAt ? new Date(input.startsAt) : new Date();

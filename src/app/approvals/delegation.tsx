@@ -11,20 +11,30 @@ export function DelegationPanel({ onChange }: { onChange?: () => void }) {
   const [open, setOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [form, setForm] = useState({ fromUserId: "", toUserId: "", startsAt: new Date().toISOString().slice(0, 10), endsAt: "", reason: "" });
-  const load = useCallback(async () => { const r = await fetch("/api/approvals/delegations", { cache: "no-store" }); if (r.ok) setData(await r.json()); }, []);
+  const [busy, setBusy] = useState(false);
+  // Admins see every live delegation (theirs and the ones they set for others).
+  const load = useCallback(async () => { const r = await fetch("/api/approvals/delegations?all=1", { cache: "no-store" }); if (r.ok) setData(await r.json()); }, []);
+  // Day boundaries in the browser's own zone: "until the 20th" means the end of the 20th where the approver sits.
+  const dayStart = (d: string) => { const [y, m, dd] = d.split("-").map(Number); return new Date(y, m - 1, dd, 0, 0, 0).toISOString(); };
+  const dayEnd = (d: string) => { const [y, m, dd] = d.split("-").map(Number); return new Date(y, m - 1, dd, 23, 59, 59).toISOString(); };
   useEffect(() => { load(); }, [load]);
   async function create() {
-    setErr(null);
-    const r = await fetch("/api/approvals/delegations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...form, fromUserId: form.fromUserId || null, startsAt: form.startsAt ? `${form.startsAt}T00:00:00Z` : null, endsAt: `${form.endsAt}T23:59:59Z` }) });
-    const j = await r.json(); if (!r.ok) { setErr(j.error); return; }
-    setForm({ ...form, toUserId: "", endsAt: "", reason: "" }); setOpen(false); load(); onChange?.();
+    if (busy) return;
+    setErr(null); setBusy(true);
+    try {
+      const r = await fetch("/api/approvals/delegations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...form, fromUserId: form.fromUserId || null, startsAt: form.startsAt ? dayStart(form.startsAt) : null, endsAt: dayEnd(form.endsAt) }) });
+      const j = await r.json(); if (!r.ok) { setErr(j.error); return; }
+      setForm({ ...form, toUserId: "", endsAt: "", reason: "" }); setOpen(false); load(); onChange?.();
+    } finally { setBusy(false); }
   }
   async function revoke(id: string) { const r = await fetch(`/api/approvals/delegations/${id}`, { method: "DELETE" }); if (!r.ok) setErr((await r.json()).error); load(); onChange?.(); }
   if (!data) return null;
   const live = data.delegations.filter((d) => d.state === "active" || d.state === "scheduled");
   const received = live.filter((d) => d.toUserId === data.me);
   const given = live.filter((d) => d.fromUserId === data.me || (data.admin && d.toUserId !== data.me));
-  const approvers = data.users.filter((u) => u.roles.some((r) => ["REGIONAL_MANAGER", "CONTRACTING_MANAGER", "PRICING_DIRECTOR", "PRICING_COMMITTEE"].includes(r)));
+  const APPROVER_ROLES = ["REGIONAL_MANAGER", "CONTRACTING_MANAGER", "PRICING_DIRECTOR", "PRICING_COMMITTEE"];
+  const approvers = data.users.filter((u) => u.roles.some((r) => APPROVER_ROLES.includes(r)));
+  const delegates = data.users.filter((u) => u.roles.some((r) => APPROVER_ROLES.includes(r) || r === "ADMIN"));
   return (
     <Card className="mb-4" padded={false}>
       <div className="flex items-center gap-3 px-4 py-2.5 text-[12.5px]">
@@ -37,11 +47,11 @@ export function DelegationPanel({ onChange }: { onChange?: () => void }) {
       {open && (
         <div className="border-t border-line-2 px-4 py-3 grid grid-cols-[1fr_1fr_140px_140px_1fr_auto] gap-2 items-end text-[12.5px]">
           {data.admin ? <div><label className="label">On behalf of</label><select className="input" value={form.fromUserId} onChange={(e) => setForm({ ...form, fromUserId: e.target.value })}><option value="">Myself</option>{approvers.filter((u) => u.id !== data.me).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div> : <div className="text-muted self-center">Your discount authority (never admin rights) is lent for the window.</div>}
-          <div><label className="label">Delegate to</label><select className="input" value={form.toUserId} onChange={(e) => setForm({ ...form, toUserId: e.target.value })}><option value="">Choose…</option>{data.users.filter((u) => u.id !== (form.fromUserId || data.me)).map((u) => <option key={u.id} value={u.id}>{u.name} — {u.roles.map((r) => r.replace(/_/g, " ").toLowerCase()).join(", ")}</option>)}</select></div>
+          <div><label className="label">Delegate to</label><select className="input" value={form.toUserId} onChange={(e) => setForm({ ...form, toUserId: e.target.value })}><option value="">Choose…</option>{delegates.filter((u) => u.id !== (form.fromUserId || data.me)).map((u) => <option key={u.id} value={u.id}>{u.name} — {u.roles.map((r) => r.replace(/_/g, " ").toLowerCase()).join(", ")}</option>)}</select></div>
           <div><label className="label">From</label><input type="date" className="input" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} /></div>
           <div><label className="label">Until</label><input type="date" className="input" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} /></div>
           <div><label className="label">Reason (optional)</label><input className="input" placeholder="Annual leave" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></div>
-          <button className="btn-primary" disabled={!form.toUserId || !form.endsAt} onClick={create}>Save</button>
+          <button className="btn-primary" disabled={!form.toUserId || !form.endsAt || busy} onClick={create}>{busy ? "Saving…" : "Save"}</button>
           {err && <div className="col-span-6 text-none">{err}</div>}
         </div>
       )}

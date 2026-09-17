@@ -1,4 +1,6 @@
 import { handle, body } from "@/lib/api";
+import { AuthError } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { listAwards, bidSettings, saveBidSettings, bidSourcesConfigured, BID_SOURCES, type BidSource } from "@/lib/intelligence/bids";
 import { enqueue, jobsEnabled } from "@/lib/jobs/boss";
@@ -17,8 +19,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   return handle("import_competitor_pricing", async (actor) => {
-    const b = await body<{ action?: string; source?: string; settings?: unknown; lookbackDays?: number }>(req);
+    const b = await body<{ action?: string; source?: string; settings?: unknown; lookbackDays?: number; force?: boolean }>(req);
     if (b.action === "settings") {
+      if (!actor.permissions.has("configure_settings")) throw new AuthError("Changing what to look for needs the configure settings permission", 403);
       const s = await saveBidSettings(b.settings);
       await audit({ actorUserId: actor.id, entityType: "Setting", entityId: "bidIntel", action: "UPDATED", after: s as unknown as Record<string, unknown> });
       return { settings: s };
@@ -28,6 +31,9 @@ export async function POST(req: Request) {
       if (!BID_SOURCES.includes(source)) throw new Error("source must be sam or usaspending");
       if (!(await bidSourcesConfigured()).includes(source)) throw new Error(source === "sam" ? "SAM_API_KEY is not set" : "USAspending pulls are switched off (BIDS_USASPENDING=off)");
       if (!jobsEnabled()) throw new Error("The job queue is off (JOBS_WORKER=off); pulls run in the background");
+      // SAM.gov's public key allows a handful of calls a day: one manual pull per source per hour unless force.
+      const recent = await prisma.feedRun.findFirst({ where: { feed: `bids-${source}`, status: "OK", startedAt: { gt: new Date(Date.now() - 3_600_000) } }, orderBy: { startedAt: "desc" } });
+      if (recent && !b.force) throw new Error(`${source === "sam" ? "SAM.gov" : "USAspending"} was pulled ${Math.round((Date.now() - recent.startedAt.getTime()) / 60_000)} min ago; pass force to pull again within the hour`);
       const lookbackDays = b.lookbackDays === undefined ? undefined : Math.max(1, Math.min(365, Number(b.lookbackDays) || 30));
       const r = await enqueue("bids.ingest", { source, trigger: "manual", actorUserId: actor.id, ...(lookbackDays ? { lookbackDays } : {}) }, { singletonKey: `bids:${source}` });
       return { queued: !r.deduplicated, jobId: r.jobId, note: r.deduplicated ? "A pull for this source is already queued or running" : "Pull queued; results appear here when it finishes" };

@@ -119,7 +119,7 @@ export function ProposalWorkspace({ id }: { id: string }) {
         </div>
       )}
 
-      <LogisticsPanel id={id} editable={p.permissions.editPricing && !["WON", "LOST"].includes(p.status)} version={p.lines.map((l) => `${l.id}:${l.proposedPrice}`).join("|")} />
+      <LogisticsPanel id={id} editable={p.permissions.editPricing && !["WON", "LOST"].includes(p.status)} version={p.lines.map((l) => `${l.id}:${l.included ? 1 : 0}:${l.quantity}:${l.proposedPrice}`).join("|")} />
       <Card padded={false}>
         <table className="table">
           <thead>

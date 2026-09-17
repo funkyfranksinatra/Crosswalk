@@ -373,8 +373,12 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
   // Embedding retrieval (Tier 3): when the catalog is embedded, each line's attribute scan is limited to
   // its nearest neighbours instead of the whole pool. Missing vectors fall back to the scan, per line.
   const ownById = new Map(ownWithBins.map((o) => [o.p.id, o]));
-  const useEmbeddings = embeddingsEnabled();
-  let retrievalStats = { ann: 0, scan: 0 };
+  let useEmbeddings = embeddingsEnabled();
+  const retrievalStats = { ann: 0, scan: 0 };
+  // Per-run memo: one embedding per competitor product however many lines share it (and one lazy load per
+  // neighbour, whichever line asks first — the promise is stored before it resolves, so there is no race).
+  const competitorVectors = new Map<string, Promise<number[] | null>>();
+  const lazyLoads = new Map<string, Promise<(typeof ownWithBins)[number] | null>>();
   if (useEmbeddings) await log(requestId, `Embedding retrieval on: nearest ${RETRIEVAL_K} catalog products per line, attribute scan as fallback`);
   // Approved crosses carry the tier floor; rep-proposed drafts ride along as soft priors (xref/learning.ts).
   const { crossesForMatching } = await import("@/lib/xref/learning");
@@ -425,17 +429,31 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
         let viaAnn = false;
         if (useEmbeddings && cp) {
           try {
-            const vector = await ensureCompetitorEmbedding(cp);
-            const neighbours = vector ? await nearestOwnProducts(vector, { companyId: request.companyId, k: RETRIEVAL_K, families: compBin.family === "Other" ? null : [compBin.family, "Other"] }) : [];
-            if (neighbours.length) {
-              const near = new Set(neighbours.map((n) => n.id));
-              // A neighbour outside the loaded pool (a GUDID-import row in another family) is still a candidate: load its bin lazily.
-              for (const n of neighbours) if (!ownById.has(n.id)) { const extra = (await loadOwnWithBin(n.id, request.pricebookId)) as (typeof ownWithBins)[number] | null; if (extra) { ownById.set(n.id, extra); ownWithBins.push(extra); } }
-              pool = pool.filter((o) => near.has(o.p.id)).concat(neighbours.filter((n) => !pool.some((o) => o.p.id === n.id)).map((n) => ownById.get(n.id)!).filter(Boolean));
-              viaAnn = pool.length > 0;
+            let vp = competitorVectors.get(cp.id);
+            if (!vp) { vp = ensureCompetitorEmbedding(cp); competitorVectors.set(cp.id, vp); }
+            const vector = await vp;
+            // Over-fetch, then keep the neighbours in this line's family (the bin family, not the catalog category).
+            const raw = vector ? await nearestOwnProducts(vector, { companyId: request.companyId, k: RETRIEVAL_K, overfetch: compBin.family === "Other" ? 1 : 4 }) : [];
+            const loaded: (typeof ownWithBins)[number][] = [];
+            for (const n of raw) {
+              let o = ownById.get(n.id);
+              if (!o) {
+                // A neighbour outside the preloaded pool (a GUDID-import row in another family): load its bin lazily, once.
+                let lp = lazyLoads.get(n.id);
+                if (!lp) { lp = loadOwnWithBin(n.id, request.pricebookId) as Promise<(typeof ownWithBins)[number] | null>; lazyLoads.set(n.id, lp); }
+                const extra = await lp;
+                if (extra && !ownById.has(extra.p.id)) { ownById.set(extra.p.id, extra); ownWithBins.push(extra); }
+                o = extra ?? undefined;
+              }
+              if (o && (compBin.family === "Other" || o.bin.family === "Other" || o.bin.family === compBin.family)) loaded.push(o);
+              if (loaded.length >= RETRIEVAL_K) break;
             }
+            // Too few neighbours in the family means the index did not cover it: the scan is the safer shortlist.
+            if (loaded.length >= Math.min(5, Math.ceil(RETRIEVAL_K / 4))) { pool = loaded; viaAnn = true; }
           } catch (e) {
-            await log(requestId, `  ${line.cfnNorm}: embedding retrieval failed (${e instanceof Error ? e.message.slice(0, 120) : String(e)}) — attribute scan used`);
+            // One failure trips the breaker for the rest of the run: no per-line retry storm against a dead endpoint.
+            useEmbeddings = false;
+            await log(requestId, `  ${line.cfnNorm}: embedding retrieval failed (${e instanceof Error ? e.message.slice(0, 120) : String(e)}) — attribute scan for the rest of this run`);
             pool = ownWithBins.filter((o) => compBin.family === "Other" || o.bin.family === "Other" || o.bin.family === compBin.family);
           }
         }
@@ -449,7 +467,8 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
 
       const selfSku = cp?.manufacturer === request.company.name ? (cp.cfnMatched ?? cp.cfnNorm).toUpperCase() : null;
       if (selfSku) { const self = ownWithBins.find((o) => o.p.sku.toUpperCase() === selfSku); if (self) candidateIds.add(self.p.id); }
-      const candidates = ownWithBins.filter((o) => candidateIds.has(o.p.id));
+      const seenIds = new Set<string>();
+      const candidates = ownWithBins.filter((o) => candidateIds.has(o.p.id) && !seenIds.has(o.p.id) && seenIds.add(o.p.id));
       if (candidates.length === 0) {
         await prisma.requestLine.update({ where: { id: line.id }, data: { matchStatus: "no-match" } });
         return;

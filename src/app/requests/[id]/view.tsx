@@ -537,7 +537,9 @@ function CompareModal({ requestId, lineId, candidateId, onClose, us }: { request
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
     setD(null); setErr(null);
-    fetch(`/api/requests/${requestId}/lines/${lineId}/compare${cid ? `?candidateId=${cid}` : ""}`, { cache: "no-store" }).then(async (r) => { const j = await r.json(); if (!r.ok) setErr(j.error); else setD(j); });
+    const ac = new AbortController();
+    fetch(`/api/requests/${requestId}/lines/${lineId}/compare${cid ? `?candidateId=${cid}` : ""}`, { cache: "no-store", signal: ac.signal }).then(async (r) => { const j = await r.json(); if (!r.ok) setErr(j.error); else setD(j); }).catch(() => undefined);
+    return () => ac.abort();
   }, [requestId, lineId, cid]);
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
   const groups = d ? [...new Set(d.rows.map((r) => r.group))] : [];

@@ -31,6 +31,21 @@ export const DEFAULT_TERMS = {
 };
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
+
+/** Width × height from a PNG IHDR or a JPEG SOF marker; null when the bytes are not one of those. */
+export function imageDimensions(buf: Buffer): { width: number; height: number } | null {
+  if (buf.length > 24 && buf.toString("latin1", 1, 4) === "PNG") return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < buf.length) {
+      if (buf[i] !== 0xff) { i++; continue; }
+      const marker = buf[i + 1];
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+      i += 2 + buf.readUInt16BE(i + 2);
+    }
+  }
+  return null;
+}
 const MAX_LOGO_BYTES = 300 * 1024;
 
 export async function getBranding(): Promise<Branding> {
@@ -56,9 +71,14 @@ export function sanitizeBranding(input: unknown, base?: Branding): Partial<Brand
     if (o.logoDataUrl === null || o.logoDataUrl === "") out.logoDataUrl = null;
     else {
       const v = String(o.logoDataUrl);
-      const m = v.match(/^data:image\/(png|jpeg|jpg|svg\+xml);base64,([A-Za-z0-9+/=]+)$/);
-      if (!m) throw new Error("logo must be a PNG, JPEG or SVG data URL");
-      if (Buffer.from(m[2], "base64").length > MAX_LOGO_BYTES) throw new Error("logo must be under 300 KB");
+      const m = v.match(/^data:image\/(png|jpeg|jpg);base64,([A-Za-z0-9+/=]+)$/);
+      if (!m) throw new Error("logo must be a PNG or JPEG data URL");
+      const buf = Buffer.from(m[2], "base64");
+      if (buf.length > MAX_LOGO_BYTES) throw new Error("logo must be under 300 KB");
+      // Decoded size, not file size, is what the PDF renderer inflates: cap the pixel count.
+      const dims = imageDimensions(buf);
+      if (!dims) throw new Error("logo image could not be read");
+      if (dims.width * dims.height > 4_000_000) throw new Error("logo must be under 4 megapixels (e.g. 2000×2000)");
       out.logoDataUrl = v;
     }
   }

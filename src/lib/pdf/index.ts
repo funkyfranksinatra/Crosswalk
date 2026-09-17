@@ -27,7 +27,7 @@ export async function buildQuotePdf(actor: Actor, proposalId: string): Promise<{
   const shipTo = p.shipToJson ? (JSON.parse(p.shipToJson) as Record<string, string | null>) : p.account.shipToJson ? (JSON.parse(p.account.shipToJson) as Record<string, string | null>) : null;
   const lines = p.lines.filter((l) => l.included && money(l.proposedPrice)).map((l) => ({
     code: l.competitorCode, codeDescription: l.competitorDescription ?? "", sku: l.sku ?? "", description: l.description ?? "",
-    equivalence: (l.equivalenceLevel ?? "").replace(/_/g, " ").toLowerCase() || null,
+    equivalence: l.equivalenceLevel && l.equivalenceLevel !== "NONE" ? l.equivalenceLevel.replace(/_/g, " ").toLowerCase() + " equivalent" : null,
     qty: money(l.quantity)!.toString(), unit: round(money(l.proposedPrice)!, p.currency).toString(), extended: round(times(l.proposedPrice, l.quantity)!, p.currency).toString(),
     note: l.customerNote,
   }));
@@ -38,7 +38,7 @@ export async function buildQuotePdf(actor: Actor, proposalId: string): Promise<{
     date: new Date(), validThrough: p.validThrough,
     intro: p.gpoNameSnapshot ? `Pricing reflects ${p.account.name}'s eligibility under ${p.gpoNameSnapshot}.` : null,
     lines,
-    totals: { currency: p.currency, subtotal: totals.subtotal.toString(), freight: totals.freightMode === "NONE" ? null : totals.freight.toString(), freightLabel: totals.freightMode === "PCT" ? `Freight (${money(p.freightValue)?.toString() ?? "0"}%)` : "Freight", tax: totals.taxMode === "NONE" ? null : (totals.tax ?? ZERO).toString(), taxLabel: totals.taxMode === "EXEMPT" ? `Tax (exempt${p.taxExemptionNo ? ` · ${p.taxExemptionNo}` : ""})` : totals.taxNote ? `Tax (${totals.taxNote})` : "Tax", total: totals.total.toString() },
+    totals: { currency: p.currency, subtotal: totals.subtotal.toString(), freight: totals.freightMode === "NONE" ? null : totals.freight.toString(), freightLabel: totals.freightMode === "PCT" ? `Freight (${money(p.freightValue)?.toString() ?? "0"}%)` : "Freight", tax: totals.taxMode === "NONE" ? null : (totals.tax ?? ZERO).toString(), taxLabel: totals.taxMode === "EXEMPT" ? `Tax (exempt${p.taxExemptionNo ? ` · ${p.taxExemptionNo}` : ""})` : totals.taxMode === "MANUAL" && money(p.taxRate) ? `Tax (${money(p.taxRate)!.times(100).toDecimalPlaces(3).toString()}%)` : totals.taxMode === "PROVIDER" ? "Sales tax" : "Tax", total: totals.total.toString() },
     notes: [
       ...(p.lines.some((l) => !l.included) ? [`${p.lines.filter((l) => !l.included).length} item(s) on the usage list are not included in this quotation; your representative will follow up on these.`] : []),
       ...(totals.freightMode === "NONE" ? ["Freight is not included unless otherwise agreed."] : []),
@@ -53,6 +53,8 @@ export async function buildQuotePdf(actor: Actor, proposalId: string): Promise<{
 
 /** The contract-offer PDF from a cross-reference run (pre-proposal; list / pricebook prices). */
 export async function buildOfferPdf(actor: Actor, requestId: string): Promise<{ filename: string; buffer: Buffer; contentType: string }> {
+  // A priced customer artefact: the same permission as the quotation.
+  requirePermission(actor, "export_proposals");
   const r = await prisma.request.findUniqueOrThrow({ where: { id: requestId }, include: { company: true, pricebook: true, account: true, lines: { orderBy: { lineNo: "asc" }, include: { competitorProduct: true, candidates: { orderBy: { rank: "asc" }, include: { ownProduct: true } } } } } });
   const branding = await getBranding();
   let subtotal = ZERO;
@@ -62,9 +64,11 @@ export async function buildOfferPdf(actor: Actor, requestId: string): Promise<{ 
     if (!sel || sel.matchType === "No Match" || sel.unitPrice == null) continue;
     const ext = round(times(sel.unitPrice, line.quantity)!, "USD");
     subtotal = subtotal.plus(ext);
-    lines.push({ code: line.rawCode, codeDescription: line.competitorProduct?.description ?? "", sku: sel.ownProduct.sku, description: sel.ownProduct.description + (sel.additionalProducts ? ` (requires ${sel.additionalProducts})` : ""), equivalence: sel.matchType.replace(/ Match$/, "").toLowerCase(), qty: String(line.quantity), unit: round(money(sel.unitPrice)!, "USD").toString(), extended: ext.toString(), note: line.customerNote });
+    lines.push({ code: line.rawCode, codeDescription: line.competitorProduct?.description ?? "", sku: sel.ownProduct.sku, description: sel.ownProduct.description + (sel.additionalProducts ? ` (requires ${sel.additionalProducts})` : ""), equivalence: sel.matchType === "No Match" ? null : `${sel.matchType.replace(/ Match$/, "").toLowerCase()} match`, qty: String(line.quantity), unit: round(money(sel.unitPrice)!, "USD").toString(), extended: ext.toString(), note: line.customerNote });
   }
-  const unmatched = r.lines.filter((l) => !l.candidates.some((c) => c.id === l.selectedCandidateId && c.matchType !== "No Match"));
+  // One predicate for "on the offer": the same selection rule the table used, plus a price to print.
+  const printed = new Set(lines.map((l) => l.code));
+  const unmatched = r.lines.filter((l) => !printed.has(l.rawCode));
   const validThrough = new Date(Date.now() + branding.validityDays * 86_400_000);
   const spec: DocSpec = {
     kind: "offer", title: branding.offerTitle, reference: r.reference,

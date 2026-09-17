@@ -1,7 +1,7 @@
 import { buildCrossReferenceWorkbook, buildContractOfferWorkbook, buildCrossReferenceRows, buildContractOfferRows } from "@/lib/excel/export";
 import { toCsv } from "@/lib/sheets/csv";
 import { authorize } from "@/lib/api";
-import { can } from "@/lib/auth";
+import { can, AuthError } from "@/lib/auth";
 import { buildOfferPdf } from "@/lib/pdf";
 
 /**
@@ -19,8 +19,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const format = sp.get("format") ?? "xlsx";
   if (format === "pdf") {
     if (type !== "offer") return new Response(JSON.stringify({ error: "PDF is available for the contract offer (type=offer)" }), { status: 400, headers: { "content-type": "application/json" } });
-    const { buffer, filename, contentType } = await buildOfferPdf(actor, id);
-    return new Response(new Uint8Array(buffer), { headers: { "content-type": contentType, "content-disposition": `attachment; filename="${filename}"` } });
+    try {
+      const { buffer, filename, contentType } = await buildOfferPdf(actor, id);
+      return new Response(new Uint8Array(buffer), { headers: { "content-type": contentType, "content-disposition": `attachment; filename="${filename}"` } });
+    } catch (e) {
+      const status = e instanceof AuthError ? e.status : 400;
+      return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), { status, headers: { "content-type": "application/json" } });
+    }
   }
   if (format === "csv") {
     const { rows, filename } = type === "offer" ? await buildContractOfferRows(id) : await buildCrossReferenceRows(id, hide);

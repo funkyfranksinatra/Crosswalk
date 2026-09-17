@@ -31,6 +31,12 @@ const fmtMoney = (v: string, ccy: string) => { const n = Number(v); if (!Number.
 const fmtQty = (v: string) => { const n = Number(v); return Number.isFinite(n) ? new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(n) : v; };
 const hex = (h: string) => h;
 
+/** Number of pages in a rendered PDF (for tests and the audit context). */
+export function pdfPageCount(buf: Buffer): number {
+  const m = buf.toString("latin1").match(/\/Type\s*\/Page(?![s\w])/g);
+  return m ? m.length : 0;
+}
+
 /** Render to a Buffer. Pure with respect to the database. */
 export function renderDocument(spec: DocSpec): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -44,14 +50,15 @@ export function renderDocument(spec: DocSpec): Promise<Buffer> {
 }
 
 const PAGE_W = 612, MARGIN = 48, CONTENT_W = PAGE_W - MARGIN * 2;
+// Widths sum to CONTENT_W (516). Money columns are wide enough for "$1,234,567.89" at 8 pt Helvetica.
 const COLS = [
-  { key: "code", label: "Current product", w: 78 },
-  { key: "codeDescription", label: "Description", w: 128 },
-  { key: "sku", label: "Proposed", w: 74 },
+  { key: "code", label: "Current", w: 66 },
+  { key: "codeDescription", label: "Description", w: 130 },
+  { key: "sku", label: "Proposed", w: 66 },
   { key: "description", label: "Description", w: 130 },
-  { key: "qty", label: "Qty", w: 34, align: "right" as const },
-  { key: "unit", label: "Unit", w: 36, align: "right" as const },
-  { key: "extended", label: "Extended", w: 36, align: "right" as const },
+  { key: "qty", label: "Qty", w: 30, align: "right" as const },
+  { key: "unit", label: "Unit", w: 44, align: "right" as const },
+  { key: "extended", label: "Extended", w: 50, align: "right" as const },
 ] as const;
 
 function draw(doc: PDFKit.PDFDocument, spec: DocSpec) {
@@ -93,9 +100,11 @@ function draw(doc: PDFKit.PDFDocument, spec: DocSpec) {
   header();
   let stripe = false;
   for (const l of spec.lines) {
-    const cells: Record<string, string> = { code: l.code, codeDescription: l.codeDescription, sku: l.sku, description: l.description + (l.equivalence ? `\n(${l.equivalence})` : ""), qty: fmtQty(l.qty), unit: fmtMoney(l.unit, spec.totals.currency), extended: fmtMoney(l.extended, spec.totals.currency) };
+    const eq = l.equivalence && !/^(none|no match|-)$/i.test(l.equivalence) ? `\n(${l.equivalence})` : "";
+    const cells: Record<string, string> = { code: l.code, codeDescription: l.codeDescription, sku: l.sku, description: l.description + eq, qty: fmtQty(l.qty), unit: fmtMoney(l.unit, spec.totals.currency), extended: fmtMoney(l.extended, spec.totals.currency) };
+    // Measure each cell in the font it is drawn in (codes are Courier, wider than Helvetica).
+    const heights = COLS.map((c) => { doc.font(c.key === "sku" || c.key === "code" ? "Courier" : "Helvetica").fontSize(8); return doc.heightOfString(cells[c.key], { width: c.w - 6 }); });
     doc.font("Helvetica").fontSize(8);
-    const heights = COLS.map((c) => doc.heightOfString(cells[c.key], { width: c.w - 6 }));
     const noteH = l.note ? doc.heightOfString(`Note: ${l.note}`, { width: CONTENT_W - 12 }) + 2 : 0;
     const rowH = Math.max(...heights) + noteH + 8;
     if (y + rowH > 792 - MARGIN - 40) { doc.addPage(); y = MARGIN; header(); stripe = false; }
@@ -113,18 +122,21 @@ function draw(doc: PDFKit.PDFDocument, spec: DocSpec) {
   if (spec.totals.freight != null) totals.push([spec.totals.freightLabel ?? "Freight", fmtMoney(spec.totals.freight, spec.totals.currency)]);
   if (spec.totals.tax != null) totals.push([spec.totals.taxLabel ?? "Tax", fmtMoney(spec.totals.tax, spec.totals.currency)]);
   totals.push(["Total", fmtMoney(spec.totals.total, spec.totals.currency)]);
-  const blockH = totals.length * 15 + 8;
+  // Labels may wrap ("Tax (exempt · NY-EX-123)"): each row is as tall as its label.
+  const LABEL_W = 170, VALUE_W = 96;
+  const rowHeights = totals.map(([label]) => { const last = label === "Total"; doc.font(last ? "Helvetica-Bold" : "Helvetica").fontSize(last ? 10 : 9); return Math.max(15, doc.heightOfString(label, { width: LABEL_W }) + 4); });
+  const blockH = rowHeights.reduce((a, b) => a + b, 0) + 8;
   if (y + blockH > 792 - MARGIN - 40) { doc.addPage(); y = MARGIN; }
   y += 6;
-  for (const [label, val] of totals) {
+  totals.forEach(([label, val], i) => {
     const last = label === "Total";
+    if (last) { doc.moveTo(MARGIN + CONTENT_W - LABEL_W - VALUE_W - 6, y - 2).lineTo(MARGIN + CONTENT_W, y - 2).lineWidth(0.6).strokeColor(accent).stroke(); }
     doc.font(last ? "Helvetica-Bold" : "Helvetica").fontSize(last ? 10 : 9).fillColor(last ? primary : "#333");
-    doc.text(label, MARGIN + CONTENT_W - 210, y, { width: 110, align: "right" });
-    doc.text(val, MARGIN + CONTENT_W - 96, y, { width: 96, align: "right" });
-    y += 15;
-  }
-  doc.moveTo(MARGIN + CONTENT_W - 210, y - 14).lineTo(MARGIN + CONTENT_W, y - 14).lineWidth(0.6).strokeColor(accent).stroke();
-  if (spec.totals.tax == null) { doc.font("Helvetica-Oblique").fontSize(8).fillColor("#666").text("Prices exclude applicable taxes.", MARGIN + CONTENT_W - 210, y, { width: 210, align: "right" }); y += 12; }
+    doc.text(label, MARGIN + CONTENT_W - LABEL_W - VALUE_W - 6, y, { width: LABEL_W, align: "right" });
+    doc.text(val, MARGIN + CONTENT_W - VALUE_W, y, { width: VALUE_W, align: "right" });
+    y += rowHeights[i];
+  });
+  if (spec.totals.tax == null) { doc.font("Helvetica-Oblique").fontSize(8).fillColor("#666").text("Prices exclude applicable taxes.", MARGIN + CONTENT_W - 272, y, { width: 272, align: "right" }); y += 12; }
   y += 8;
 
   // Notes + terms
@@ -143,9 +155,14 @@ function draw(doc: PDFKit.PDFDocument, spec: DocSpec) {
   const range = doc.bufferedPageRange();
   for (let i = range.start; i < range.start + range.count; i++) {
     doc.switchToPage(i);
+    // pdfkit starts a new page whenever text is placed below page.maxY() (height − bottom margin), even with
+    // lineBreak:false. The footer lives in the margin, so lift the margin for the duration of the stamp.
+    const savedBottom = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
     const foot = [b.footer, [b.legalName, b.website, b.phone].filter(Boolean).join(" · ")].filter(Boolean).join("  ·  ");
     doc.font("Helvetica").fontSize(7.5).fillColor("#888").text(foot, MARGIN, 792 - MARGIN + 6, { width: CONTENT_W - 60, lineBreak: false });
     doc.text(`Page ${i - range.start + 1} of ${range.count}`, MARGIN + CONTENT_W - 60, 792 - MARGIN + 6, { width: 60, align: "right", lineBreak: false });
+    doc.page.margins.bottom = savedBottom;
   }
 }
 

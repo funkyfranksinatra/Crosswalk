@@ -10,7 +10,10 @@ export async function GET(req: Request) {
       listDelegations(actor, { all }),
       prisma.user.findMany({ where: { isActive: true }, select: { id: true, name: true, email: true, roles: { select: { role: true } } }, orderBy: { name: "asc" } }),
     ]);
-    return { delegations, users: users.map((u) => ({ id: u.id, name: u.name, email: u.email, roles: u.roles.map((r) => r.role) })), me: actor.id, admin: actor.roles.includes("ADMIN") };
+    const admin = actor.roles.includes("ADMIN");
+    const canDelegate = actor.permissions.has("approve_discount") || admin;
+    // The directory is only for choosing a delegate; non-admins see approvers by name, never emails.
+    return { delegations, users: canDelegate ? users.map((u) => ({ id: u.id, name: u.name, email: admin ? u.email : null, roles: u.roles.map((r) => r.role) })) : [], me: actor.id, admin };
   });
 }
 

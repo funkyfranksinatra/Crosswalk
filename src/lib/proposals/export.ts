@@ -9,6 +9,7 @@ import { type Actor, requirePermission } from "@/lib/auth";
 import { money, num, times, round, ZERO } from "@/lib/money";
 import { finalizeCheck } from "@/lib/approvals/service";
 import { toCsv } from "@/lib/sheets/csv";
+import { quoteTotals } from "@/lib/tax";
 
 const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "").replace(/(\d{8})(\d{4})/, "$1_$2");
 
@@ -24,15 +25,21 @@ export async function quoteRows(proposalId: string) {
     // The customer sees the customer note only; justification is the internal case made to approvers.
     rows.push([l.competitorCode, l.competitorDescription ?? "", l.sku ?? "", l.description ?? "", (l.equivalenceLevel ?? "").replace(/_/g, " ").toLowerCase(), num(l.quantity), num(round(money(l.proposedPrice)!, p.currency)), num(ext), l.customerNote ?? ""]);
   }
-  rows.push(["TOTAL", "", "", "", "", null, null, num(round(total, p.currency)), ""]);
-  return { proposal: p, rows, total: num(total)! };
+  // Quote-level freight and tax (Tier 3): the same figures the PDF prints, never part of a line.
+  const t = await quoteTotals(proposalId);
+  rows.push(["SUBTOTAL", "", "", "", "", null, null, num(round(total, p.currency)), ""]);
+  if (t.freightMode !== "NONE") rows.push([t.freightMode === "PCT" ? `FREIGHT (${p.freightValue?.toString() ?? "0"}%)` : "FREIGHT", "", "", "", "", null, null, num(t.freight), ""]);
+  if (t.taxMode !== "NONE") rows.push([t.taxMode === "EXEMPT" ? `TAX (exempt${p.taxExemptionNo ? ` · ${p.taxExemptionNo}` : ""})` : `TAX${t.taxNote ? ` (${t.taxNote})` : ""}`, "", "", "", "", null, null, num(t.tax ?? ZERO), ""]);
+  rows.push(["TOTAL", "", "", "", "", null, null, num(t.total), t.taxMode === "NONE" ? "excludes tax" : ""]);
+  return { proposal: p, rows, total: num(t.total)!, taxStale: t.taxStale };
 }
 
 export async function buildQuote(actor: Actor, proposalId: string, format: "xlsx" | "csv") {
   requirePermission(actor, "export_proposals");
   const f = await finalizeCheck(proposalId);
   if (!f.ok) throw new Error(`Quote is locked until approval is complete: ${f.reason}`);
-  const { proposal: p, rows } = await quoteRows(proposalId);
+  const { proposal: p, rows, taxStale } = await quoteRows(proposalId);
+  if (taxStale) throw new Error("Tax was calculated before the latest price or freight change — recalculate it (Freight & tax) before exporting");
   const filename = `Crosswalk_Quote_${p.reference}_${p.account.name.replace(/[^A-Za-z0-9]+/g, "_")}_${stamp()}.${format}`;
   await audit({ actorUserId: actor.id, entityType: "Proposal", entityId: proposalId, action: "EXPORTED", context: { format, filename, validThrough: p.validThrough?.toISOString() ?? null } });
   if (format === "csv") return { filename, buffer: Buffer.from(toCsv(rows), "utf8"), contentType: "text/csv; charset=utf-8" };
@@ -49,7 +56,7 @@ export async function buildQuote(actor: Actor, proposalId: string, format: "xlsx
   for (let i = 5; i <= ws.rowCount; i++) { ws.getRow(i).getCell(7).numFmt = '"$"#,##0.00'; ws.getRow(i).getCell(8).numFmt = '"$"#,##0.00'; }
   ws.getRow(ws.rowCount).font = { bold: true };
   ws.addRow([]);
-  ws.addRow(["Equivalents are proposed on the basis of the published clinical cross-reference; clinical evaluation by your staff is recommended before conversion. Prices are per unit, exclude tax and freight unless otherwise agreed."]);
+  ws.addRow([`Equivalents are proposed on the basis of the published clinical cross-reference; clinical evaluation by your staff is recommended before conversion. Prices are per unit${p.taxMode === "NONE" ? "; tax is excluded" : ""}${p.freightMode === "NONE" ? "; freight is not included unless otherwise agreed" : ""}.`]);
   ws.views = [{ state: "frozen", ySplit: 4 }];
   return { filename, buffer: Buffer.from(await wb.xlsx.writeBuffer()), contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
 }

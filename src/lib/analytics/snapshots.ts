@@ -25,6 +25,12 @@ export const STALE_AFTER_MS = Math.max(60_000, Number(process.env.ANALYTICS_STAL
 /** History kept per report (for "as of" comparisons and debugging); older rows are pruned on refresh. */
 const KEEP = 24;
 
+/** Keep a short history per report; the pages only read the newest. */
+async function prune(report: Report) {
+  const old = await prisma.analyticsSnapshot.findMany({ where: { report }, orderBy: { computedAt: "desc" }, skip: KEEP, select: { id: true } }).catch(() => []);
+  if (old.length) await prisma.analyticsSnapshot.deleteMany({ where: { id: { in: old.map((o) => o.id) } } }).catch(() => undefined);
+}
+
 export async function refreshSnapshots(reports: readonly string[] | undefined, trigger: "schedule" | "event" | "manual" = "schedule"): Promise<Record<string, { ms: number; ok: boolean; error?: string }>> {
   const list = (reports?.length ? reports : REPORTS).filter(isReport);
   const out: Record<string, { ms: number; ok: boolean; error?: string }> = {};
@@ -34,9 +40,7 @@ export async function refreshSnapshots(reports: readonly string[] | undefined, t
       const data = await compute[r]();
       const ms = Date.now() - t0;
       await prisma.analyticsSnapshot.create({ data: { report: r, json: JSON.stringify(data), durationMs: ms, trigger } });
-      // Keep a short history; the pages only read the newest.
-      const old = await prisma.analyticsSnapshot.findMany({ where: { report: r }, orderBy: { computedAt: "desc" }, skip: KEEP, select: { id: true } });
-      if (old.length) await prisma.analyticsSnapshot.deleteMany({ where: { id: { in: old.map((o) => o.id) } } });
+      await prune(r);
       out[r] = { ms, ok: true };
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e);
@@ -63,15 +67,20 @@ export async function readReport<T = unknown>(report: Report, opts: { fresh?: bo
   const data = (await compute[report]()) as T;
   const durationMs = Date.now() - t0;
   const row = await prisma.analyticsSnapshot.create({ data: { report, json: JSON.stringify(data), durationMs, trigger: "manual" } }).catch(() => null);
+  await prune(report);
   return { data, asOf: (row?.computedAt ?? new Date()).toISOString(), ageMs: 0, stale: false, source: "live", durationMs };
 }
 
-/** Ask for a refresh after a commercial event. Debounced: one queued refresh at a time, 30 s after the event. */
-export async function requestAnalyticsRefresh(reports?: Report[]): Promise<void> {
+/**
+ * Ask for a refresh after a commercial event. Debounced: one queued refresh at a time, 30 s after the
+ * event. The queue keeps only the first job's payload while one is waiting, so an event refresh always
+ * covers every report — a second event's list would otherwise be dropped.
+ */
+export async function requestAnalyticsRefresh(_reports?: readonly string[], trigger: "event" | "manual" = "event"): Promise<void> {
   try {
     const { enqueue, jobsEnabled } = await import("@/lib/jobs/boss");
     if (!jobsEnabled()) return;
-    await enqueue("analytics.refresh", { reports, trigger: "event" }, { singletonKey: "analytics:event", startAfterSeconds: 30 });
+    await enqueue("analytics.refresh", { trigger }, { singletonKey: trigger === "manual" ? "analytics:manual" : "analytics:event", startAfterSeconds: trigger === "manual" ? 0 : 30 });
   } catch (e) {
     log.warn("analytics.enqueue_failed", { error: e instanceof Error ? e.message : String(e) });
   }

@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fmtMoney } from "@/components/commercial";
 
 type L = { freightMode: string; freightValue: string | null; taxMode: string; taxRate: string | null; taxExemptionNo: string | null; shipTo: Record<string, string | null> | null; taxProvider: string | null; totals: { currency: string; subtotal: string; freight: string; tax: string | null; total: string; taxCalculatedAt: string | null; taxStale: boolean; taxNote: string | null }; summary: { jurisdiction: string; taxName: string; rate: number | null; tax: string }[] | null; service: { provider: string; avatax: { configured: boolean; env: string; dryRun: boolean }; note: string } };
@@ -7,20 +7,24 @@ type L = { freightMode: string; freightValue: string | null; taxMode: string; ta
 /** Freight & tax: quote-level, never in margin. Collapsed to one line of totals until opened. */
 export function LogisticsPanel({ id, editable, version }: { id: string; editable: boolean; version: string }) {
   const [d, setD] = useState<L | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(false);
+  const openRef = useRef(false);
+  const setOpen = (v: boolean) => { openRef.current = v; setOpenState(v); };
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ freightMode: "NONE", freightValue: "", taxMode: "NONE", taxRate: "", taxExemptionNo: "", line1: "", city: "", region: "", postalCode: "" });
   const load = useCallback(async () => {
     const r = await fetch(`/api/proposals/${id}/logistics`, { cache: "no-store" }); if (!r.ok) return;
     const j: L = await r.json(); setD(j);
-    setForm({ freightMode: j.freightMode, freightValue: j.freightValue ?? "", taxMode: j.taxMode, taxRate: j.taxRate ?? "", taxExemptionNo: j.taxExemptionNo ?? "", line1: j.shipTo?.line1 ?? "", city: j.shipTo?.city ?? "", region: j.shipTo?.region ?? "", postalCode: j.shipTo?.postalCode ?? "" });
+    // Never overwrite an open form with a colleague's change; the totals line updates regardless.
+    if (!openRef.current) setForm({ freightMode: j.freightMode, freightValue: j.freightValue ?? "", taxMode: j.taxMode, taxRate: j.taxRate ?? "", taxExemptionNo: j.taxExemptionNo ?? "", line1: j.shipTo?.line1 ?? "", city: j.shipTo?.city ?? "", region: j.shipTo?.region ?? "", postalCode: j.shipTo?.postalCode ?? "" });
   }, [id]);
   useEffect(() => { load(); }, [load, version]);
   async function save() {
     setBusy(true); setErr(null);
-    const r = await fetch(`/api/proposals/${id}/logistics`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ freightMode: form.freightMode, freightValue: form.freightValue || null, taxMode: form.taxMode, taxRate: form.taxRate || null, taxExemptionNo: form.taxExemptionNo || null, shipTo: { line1: form.line1, city: form.city, region: form.region, postalCode: form.postalCode, country: "US" } }) });
-    const j = await r.json(); setBusy(false); if (!r.ok) { setErr(j.error); return; } setD(j);
+    const blankShipTo = ![form.line1, form.city, form.region, form.postalCode].some((v) => v.trim());
+    const r = await fetch(`/api/proposals/${id}/logistics`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ freightMode: form.freightMode, freightValue: form.freightValue || null, taxMode: form.taxMode, taxRate: form.taxRate || null, taxExemptionNo: form.taxExemptionNo || null, shipTo: blankShipTo ? null : { line1: form.line1, city: form.city, region: form.region, postalCode: form.postalCode, country: "US" } }) });
+    const j = await r.json(); setBusy(false); if (!r.ok) { setErr(j.error); return; } setD(j); setOpen(false);
   }
   async function calculate() {
     setBusy(true); setErr(null);

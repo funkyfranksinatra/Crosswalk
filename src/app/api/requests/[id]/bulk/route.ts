@@ -13,7 +13,7 @@ import { recordLineDecision } from "@/lib/xref/learning";
  *   review_exact       mark reviewed every line whose selected candidate is an Exact Match
  *   review_matched     mark reviewed every line with a selected (non-No-Match) candidate
  *   select_top         select the top-ranked candidate on lines that have candidates but no selection
- *   flag_verify        flag every line needing attention (unresolved, low-confidence resolution, no selection, or selected Alternative)
+ *   flag_verify        flag every unreviewed line needing attention (unresolved, low-confidence resolution, no selection, or selected Alternative)
  *   clear_flags        remove the verify flag from every line
  *   unreview_all       clear the reviewed mark on every line
  */
@@ -30,6 +30,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const request = await prisma.request.findUnique({ where: { id }, select: { id: true, status: true } });
   if (!request) return NextResponse.json({ error: "not found" }, { status: 404 });
   if (["running", "queued"].includes(request.status)) return NextResponse.json({ error: "The run is in progress; wait for it to finish" }, { status: 409 });
+  if (Array.isArray(body.lineIds) && body.lineIds.length > 5000) return NextResponse.json({ error: "lineIds is capped at 5000" }, { status: 400 });
   const only = Array.isArray(body.lineIds) && body.lineIds.length ? new Set(body.lineIds.map(String)) : null;
   const lines = await prisma.requestLine.findMany({ where: { requestId: id, ...(only ? { id: { in: [...only] } } : {}) }, include: { competitorProduct: { select: { resolution: true, confidence: true } }, candidates: { orderBy: { rank: "asc" }, select: { id: true, matchType: true, rank: true } } }, orderBy: { lineNo: "asc" } });
   const sel = (l: (typeof lines)[number]) => l.candidates.find((c) => c.id === l.selectedCandidateId) ?? null;
@@ -58,9 +59,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
       case "flag_verify": {
         const cp = l.competitorProduct;
+        // A line the rep already reviewed is their decision: the flag is for the ones nobody has looked at.
         const attention = !cp || cp.resolution === "not-found" || (cp.confidence ?? 1) < 0.75 || !s || s.matchType === "Alternative Match";
-        if (!attention || l.flag === "verify") break;
-        await prisma.requestLine.update({ where: { id: l.id }, data: { flag: "verify", reviewed: false } });
+        if (!attention || l.flag === "verify" || l.reviewed) break;
+        await prisma.requestLine.update({ where: { id: l.id }, data: { flag: "verify" } });
         changed++; touched.push(l.id); break;
       }
       case "clear_flags": {

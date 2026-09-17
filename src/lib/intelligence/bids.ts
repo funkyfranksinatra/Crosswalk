@@ -75,9 +75,13 @@ let fetchImpl: FetchLike | null = null;
 export function setBidFetchForTests(fn: FetchLike | null) { fetchImpl = fn; }
 const doFetch: FetchLike = (url, init) => (fetchImpl ?? fetch)(url, init);
 
+/** A source told us to stop for now (quota): the run fails without the queue retrying it. */
+export class BidQuotaExceeded extends Error { constructor(msg: string) { super(msg); this.name = "BidQuotaExceeded"; } }
+
 async function getJson(url: string, init?: RequestInit): Promise<unknown> {
   const res = await doFetch(url, { ...init, headers: { accept: "application/json", ...(init?.headers ?? {}) }, signal: AbortSignal.timeout(Number(process.env.BIDS_TIMEOUT_MS ?? 45_000)) });
   const text = await res.text();
+  if (res.status === 429) throw new BidQuotaExceeded(`429 rate limited by ${new URL(url).host}: ${text.slice(0, 160)}`);
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}: ${text.slice(0, 200)}`);
   try { return JSON.parse(text); } catch { throw new Error(`non-JSON response (${text.slice(0, 80)})`); }
 }
@@ -106,9 +110,18 @@ export type AwardRecord = {
   lines?: { competitorName: string; competitorCode: string; unitPrice: unknown; quantity?: unknown; uom?: string }[];
 };
 
+/** USAspending returns NAICS / PSC as a string in some versions and `{ code, description }` in others. */
+const codeOf = (v: unknown): string | null => (v == null ? null : typeof v === "object" ? (((v as { code?: unknown }).code ?? null) === null ? null : String((v as { code?: unknown }).code)) : String(v));
 const mmddyyyy = (d: Date) => `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")}/${d.getUTCFullYear()}`;
 const iso = (d: Date) => d.toISOString().slice(0, 10);
-const dateOrNull = (v: unknown) => { if (!v) return null; const d = new Date(String(v)); return Number.isNaN(d.getTime()) ? null : d; };
+const dateOrNull = (v: unknown) => {
+  if (!v) return null;
+  // Excel serial dates arrive as numbers from a raw grid (1 = 1900-01-01; 25569 = 1970-01-01).
+  if (typeof v === "number" && v > 20000 && v < 80000) return new Date(Math.round((v - 25569) * 86_400_000));
+  const d = new Date(String(v)); return Number.isNaN(d.getTime()) || d.getFullYear() < 1990 || d.getFullYear() > 2100 ? null : d;
+};
+/** "$1,250.00" → 1250.00; anything else money() can read passes through. */
+const amountOf = (v: unknown): unknown => (typeof v === "string" ? v.replace(/[$,\s]/g, "").replace(/^\((.*)\)$/, "-$1") : v);
 
 /** SAM.gov award notices for each configured NAICS code in the window (one request per code, up to 3 pages). */
 export async function pullSam(settings: BidSettings, opts: { from: Date; to: Date }): Promise<AwardRecord[]> {
@@ -117,11 +130,14 @@ export async function pullSam(settings: BidSettings, opts: { from: Date; to: Dat
   const base = process.env.SAM_API_URL?.trim() || "https://api.sam.gov/opportunities/v2/search";
   const out: AwardRecord[] = [];
   const codes = settings.naics.length ? settings.naics : [""];
+  // The public (non-federal) key allows only a handful of calls a day: one call per NAICS by default.
+  const maxPages = Math.max(1, Math.min(5, Number(process.env.SAM_MAX_PAGES ?? 1) || 1));
   for (const ncode of codes) {
-    for (let offset = 0, page = 0; page < 3; page++, offset += 1000) {
-      const params = new URLSearchParams({ api_key: key, postedFrom: mmddyyyy(opts.from), postedTo: mmddyyyy(opts.to), ptype: "a", limit: "1000", offset: String(offset) });
+    for (let offset = 0, page = 0; page < maxPages; page++, offset += 1000) {
+      const params = new URLSearchParams({ postedFrom: mmddyyyy(opts.from), postedTo: mmddyyyy(opts.to), ptype: "a", limit: "1000", offset: String(offset) });
       if (ncode) params.set("ncode", ncode);
-      const data = (await getJson(`${base}?${params}`)) as { totalRecords?: number; opportunitiesData?: Record<string, unknown>[] };
+      // The key goes in a header, never the query string (proxy and access logs).
+      const data = (await getJson(`${base}?${params}`, { headers: { "x-api-key": key } })) as { totalRecords?: number; opportunitiesData?: Record<string, unknown>[] };
       const items = data.opportunitiesData ?? [];
       for (const it of items) {
         const award = (it.award ?? {}) as { date?: string; number?: string; amount?: string | number; awardee?: { name?: string; ueiSAM?: string } };
@@ -140,6 +156,17 @@ export async function pullSam(settings: BidSettings, opts: { from: Date; to: Dat
   return out;
 }
 
+/**
+ * USAspending wants a PSC as a path through its hierarchy: ["Product", "65", "6515"], ["Service", "Q", "Q5", "Q501"],
+ * ["Research and Development", "AC", "AC11"]. Products are numeric; R&D codes start with A; the rest are services.
+ */
+export function pscPath(code: string): string[] {
+  const c = code.toUpperCase();
+  if (/^\d/.test(c)) return [...new Set(["Product", c.slice(0, 2), c])];
+  if (c.startsWith("A")) return [...new Set(["Research and Development", c.slice(0, 2), c])];
+  return [...new Set(["Service", c.slice(0, 1), c.slice(0, 2), c])];
+}
+
 /** USAspending contract awards by NAICS / PSC / keywords in the window (paged, up to 10 pages). */
 export async function pullUsaspending(settings: BidSettings, opts: { from: Date; to: Date }): Promise<AwardRecord[]> {
   const base = process.env.USASPENDING_API_URL?.trim() || "https://api.usaspending.gov/api/v2/search/spending_by_award/";
@@ -148,7 +175,7 @@ export async function pullUsaspending(settings: BidSettings, opts: { from: Date;
     time_period: [{ start_date: iso(opts.from), end_date: iso(opts.to) }],
     award_type_codes: ["A", "B", "C", "D"], // contracts: BPA call, purchase order, delivery order, definitive contract
     ...(settings.naics.length ? { naics_codes: { require: settings.naics } } : {}),
-    ...(settings.psc.length ? { psc_codes: { require: settings.psc.map((p) => [p]) } } : {}),
+    ...(settings.psc.length ? { psc_codes: { require: settings.psc.map(pscPath) } } : {}),
     ...(settings.keywords.length && !settings.naics.length && !settings.psc.length ? { keywords: settings.keywords } : {}),
   };
   const fields = ["Award ID", "Recipient Name", "Award Amount", "Start Date", "End Date", "Awarding Agency", "Awarding Sub Agency", "Description", "NAICS", "PSC", "generated_internal_id", "recipient_id"];
@@ -160,7 +187,7 @@ export async function pullUsaspending(settings: BidSettings, opts: { from: Date;
         source: "USASPENDING", externalId: gid || String(r["Award ID"] ?? createHash("sha1").update(JSON.stringify(r)).digest("hex")),
         title: (r["Description"] as string) ?? null, agency: [r["Awarding Agency"], r["Awarding Sub Agency"]].filter(Boolean).join(" · ") || null,
         awardee: (r["Recipient Name"] as string) ?? null, awardeeId: (r.recipient_id as string) ?? null,
-        naics: r["NAICS"] == null ? null : String(r["NAICS"]), psc: r["PSC"] == null ? null : String(r["PSC"]),
+        naics: codeOf(r["NAICS"]), psc: codeOf(r["PSC"]),
         amount: r["Award Amount"] ?? null, awardDate: dateOrNull(r["Start Date"]), postedDate: null,
         description: r["Award ID"] ? `Award ${r["Award ID"]}` : null, url: gid ? `https://www.usaspending.gov/award/${gid}` : null, raw: r,
       });
@@ -184,7 +211,7 @@ export async function matchCompetitor(awardee: string | null, competitors?: { id
   let best: { id: string; len: number } | null = null;
   for (const c of list) {
     const names = [c.name, ...(JSON.parse(c.aliasesJson || "[]") as string[])].map(norm).filter((n) => n.length >= 3);
-    for (const n of names) if (hay.includes(` ${n} `) || hay.startsWith(`${n} `) || hay.includes(` ${n}`)) if (!best || n.length > best.len) best = { id: c.id, len: n.length };
+    for (const n of names) if (hay.includes(` ${n} `)) if (!best || n.length > best.len) best = { id: c.id, len: n.length };
   }
   return best?.id ?? null;
 }
@@ -201,12 +228,14 @@ export async function upsertAwards(records: AwardRecord[], settings: BidSettings
   const competitors = await prisma.competitor.findMany({ select: { id: true, name: true, aliasesJson: true } });
   let created = 0, updated = 0, skipped = 0, matched = 0;
   for (const r of records) {
-    const amount = money(r.amount as never);
+    const amount = money(amountOf(r.amount) as never);
     if (amount && settings.minAmount && amount.lt(settings.minAmount)) { skipped++; continue; }
     const competitorId = await matchCompetitor(r.awardee, competitors);
     if (competitorId) matched++;
     const hits = keywordsHit(r, settings);
-    const data = { title: r.title?.slice(0, 500) ?? null, agency: r.agency?.slice(0, 300) ?? null, awardee: r.awardee?.slice(0, 300) ?? null, awardeeId: r.awardeeId ?? null, naics: r.naics ?? null, psc: r.psc ?? null, amount: toDb(amount), currency: r.currency ?? "USD", awardDate: r.awardDate, postedDate: r.postedDate, description: r.description?.slice(0, 2000) ?? null, url: r.url, competitorId, keywordsMatched: hits.length ? hits.join(", ") : null, rawJson: JSON.stringify(r.raw).slice(0, 20_000) };
+    const url = r.url && /^https?:\/\/\S{1,2000}$/i.test(r.url) ? r.url : null;
+    const raw = JSON.stringify(r.raw);
+    const data = { title: r.title?.slice(0, 500) ?? null, agency: r.agency?.slice(0, 300) ?? null, awardee: r.awardee?.slice(0, 300) ?? null, awardeeId: r.awardeeId?.slice(0, 64) ?? null, naics: r.naics?.slice(0, 16) ?? null, psc: r.psc?.slice(0, 16) ?? null, amount: toDb(amount), currency: r.currency ?? "USD", awardDate: r.awardDate, postedDate: r.postedDate, description: r.description?.slice(0, 2000) ?? null, url, competitorId, keywordsMatched: hits.length ? hits.join(", ") : null, rawJson: raw.length <= 20_000 ? raw : null };
     const existing = await prisma.publicAward.findUnique({ where: { source_externalId: { source: r.source, externalId: r.externalId } }, select: { id: true } });
     if (existing) { await prisma.publicAward.update({ where: { id: existing.id }, data }); updated++; }
     else { await prisma.publicAward.create({ data: { source: r.source, externalId: r.externalId, ...data } }); created++; }
@@ -219,7 +248,10 @@ export async function ingestPublicAwards(source: BidSource, opts: { trigger: "sc
   const settings = await bidSettings();
   const to = new Date();
   const from = new Date(to.getTime() - (opts.lookbackDays ?? settings.lookbackDays) * 86_400_000);
-  const run = await prisma.feedRun.create({ data: { feed: `bids-${source}`, trigger: opts.trigger, sourceRef: source === "sam" ? "api.sam.gov/opportunities/v2" : "api.usaspending.gov/v2/search/spending_by_award", jobId: opts.jobId ?? null } });
+  const feed = `bids-${source}`;
+  // A RUNNING row from a crashed process (same job retried, or older than an hour) is closed out, not left spinning.
+  await prisma.feedRun.updateMany({ where: { feed, status: "RUNNING", OR: [...(opts.jobId ? [{ jobId: opts.jobId }] : []), { startedAt: { lt: new Date(Date.now() - 3_600_000) } }] }, data: { status: "FAILED", error: "interrupted (process restarted)", finishedAt: new Date() } });
+  const run = await prisma.feedRun.create({ data: { feed, trigger: opts.trigger, sourceRef: source === "sam" ? "api.sam.gov/opportunities/v2" : "api.usaspending.gov/v2/search/spending_by_award", jobId: opts.jobId ?? null } });
   try {
     const records = source === "sam" ? await pullSam(settings, { from, to }) : await pullUsaspending(settings, { from, to });
     const res = await upsertAwards(records, settings);
@@ -229,7 +261,9 @@ export async function ingestPublicAwards(source: BidSource, opts: { trigger: "sc
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);
     await prisma.feedRun.update({ where: { id: run.id }, data: { status: "FAILED", error: error.slice(0, 1000), finishedAt: new Date() } });
-    log.error("bids.failed", { source, error });
+    log.error("bids.failed", { source, error, quota: e instanceof BidQuotaExceeded });
+    // Quota: retrying within the hour only burns more of it — fail the run, do not fail the job.
+    if (e instanceof BidQuotaExceeded) return { runId: run.id, rows: 0, created: 0, updated: 0, skipped: 0, matched: 0, quotaExceeded: true };
     throw e;
   }
 }
@@ -246,10 +280,10 @@ function readGrid(ws: ExcelJS.Worksheet): (string | number | null)[][] {
   return grid;
 }
 
-export async function importBidFileXlsx(actorUserId: string, buffer: Buffer, sourceRef?: string | null) {
+export async function importBidFileXlsx(actorUserId: string, buffer: Buffer, sourceRef?: string | null, documentId?: string | null) {
   const wb = new ExcelJS.Workbook(); await wb.xlsx.load(buffer as unknown as Parameters<typeof wb.xlsx.load>[0]);
   const ws = wb.worksheets[0]; if (!ws) throw new Error("Workbook has no sheets");
-  return importBidFileRows(actorUserId, readGrid(ws), sourceRef);
+  return importBidFileRows(actorUserId, readGrid(ws), sourceRef, documentId);
 }
 
 /**
@@ -257,11 +291,29 @@ export async function importBidFileXlsx(actorUserId: string, buffer: Buffer, sou
  * NAICS | Competitor | Competitor Code | Unit Price | Qty | UOM | URL | Notes.
  * A row with a competitor code and a unit price also records a price observation (PUBLIC_BID_DB).
  */
-export async function importBidFileRows(actorUserId: string, grid: (string | number | null | undefined)[][], sourceRef?: string | null): Promise<BidFileResult> {
+export const BID_FILE_MAX_ROWS = 20_000;
+
+export async function importBidFileRows(actorUserId: string, grid: (string | number | null | undefined)[][], sourceRef?: string | null, documentId?: string | null): Promise<BidFileResult> {
   const header = (grid[0] ?? []).map((c) => String(c ?? "").trim().toLowerCase());
-  const col = (re: RegExp) => { const i = header.findIndex((h) => re.test(h)); return i < 0 ? null : i; };
-  const cSrc = col(/^(source|portal|system)$/), cId = col(/^(bid|award|solicitation|contract)?\s*(id|number|no\.?)$/), cTitle = col(/title|description of (bid|award)|^description$/), cBuyer = col(/buyer|agency|hospital|system|customer/), cVendor = col(/awardee|vendor|winner|supplier|recipient/), cDate = col(/date/), cAmt = col(/^(amount|award amount|total|value)$/), cNaics = col(/naics/), cComp = col(/^(competitor|manufacturer)( name)?$/), cCode = col(/competitor code|cfn|catalog|part|sku|item number/), cPrice = col(/unit price|price each|^price$/), cQty = col(/qty|quantity/), cUom = col(/uom|unit of measure/), cUrl = col(/url|link/), cNotes = col(/note/);
+  // Exact / anchored names first, loose matches only as a fallback — "Department" must never become the code column.
+  const col = (...res: RegExp[]) => { for (const re of res) { const i = header.findIndex((h) => re.test(h)); if (i >= 0) return i; } return null; };
+  const cSrc = col(/^(source|portal|system)$/);
+  const cId = col(/^(bid|award|solicitation|contract|notice)\s*(id|number|no\.?|#)$/, /^(id|number|no\.?)$/);
+  const cTitle = col(/^(title|bid title|award title|description of (bid|award))$/, /^description$/, /title/);
+  const cBuyer = col(/^(buyer|agency|hospital|health system|customer|purchaser)( name)?$/, /buyer|agency|hospital|customer/);
+  const cVendor = col(/^(awardee|vendor|winner|supplier|recipient|winning vendor)( name)?$/, /awardee|vendor|winner|supplier|recipient/);
+  const cDate = col(/^(award date|date awarded|bid date|date)$/, /^(?!.*(updat|valid|expir|due|open|clos)).*date/);
+  const cAmt = col(/^(amount|award amount|total|total amount|value|contract value)$/);
+  const cNaics = col(/^naics( code)?$/, /naics/);
+  const cComp = col(/^(competitor|manufacturer)( name)?$/);
+  const cCode = col(/^(competitor code|competitor sku|cfn|catalog(ue)? (number|no\.?|#)|part (number|no\.?|#)|sku|item (number|no\.?|#)|mfr part)$/, /competitor code|catalog|cfn|\bsku\b/);
+  const cPrice = col(/^(unit price|price each|price|unit cost|bid price)$/, /unit price/);
+  const cQty = col(/^(qty|quantity|units)$/, /qty|quantity/);
+  const cUom = col(/^(uom|unit of measure|unit)$/, /uom|unit of measure/);
+  const cUrl = col(/^(url|link|web link)$/, /^url|\burl\b/);
+  const cNotes = col(/^(notes?|comments?)$/, /note/);
   if (cId === null && cTitle === null) throw new Error("Need a Bid Id or Title column");
+  if (grid.length - 1 > BID_FILE_MAX_ROWS) throw new Error(`Bid files are capped at ${BID_FILE_MAX_ROWS} rows; split the file`);
   const res: BidFileResult = { awards: 0, observations: 0, rows: 0, skipped: [] };
   const settings = await bidSettings();
   for (let r = 1; r < grid.length; r++) {
@@ -273,13 +325,13 @@ export async function importBidFileRows(actorUserId: string, grid: (string | num
       const title = at(cTitle) ? String(at(cTitle)) : null;
       const externalId = `${norm(portal)}:${idRaw ?? createHash("sha1").update(`${title}|${at(cBuyer)}|${at(cDate)}`).digest("hex").slice(0, 16)}`;
       const compName = at(cComp) ? String(at(cComp)) : at(cVendor) ? String(at(cVendor)) : null;
-      const rec: AwardRecord = { source: "BIDFILE", externalId, title, agency: at(cBuyer) ? String(at(cBuyer)) : null, awardee: at(cVendor) ? String(at(cVendor)) : compName, awardeeId: null, naics: at(cNaics) ? String(at(cNaics)) : null, psc: null, amount: at(cAmt), awardDate: dateOrNull(at(cDate)), postedDate: null, description: [portal, at(cNotes)].filter(Boolean).join(" · ") || null, url: at(cUrl) ? String(at(cUrl)) : null, raw: Object.fromEntries(header.map((h, i) => [h, row[i] ?? null])) };
+      const rec: AwardRecord = { source: "BIDFILE", externalId, title, agency: at(cBuyer) ? String(at(cBuyer)) : null, awardee: at(cVendor) ? String(at(cVendor)) : compName, awardeeId: null, naics: at(cNaics) ? String(at(cNaics)) : null, psc: null, amount: amountOf(at(cAmt)), awardDate: dateOrNull(at(cDate)), postedDate: null, description: [portal, at(cNotes)].filter(Boolean).join(" · ") || null, url: at(cUrl) ? String(at(cUrl)) : null, raw: Object.fromEntries(header.map((h, i) => [h, row[i] ?? null])) };
       const up = await upsertAwards([rec], { ...settings, minAmount: 0 });
       res.awards += up.created + up.updated;
       const code = at(cCode) ? normalizeCfn(at(cCode)) : "";
-      const price = money(at(cPrice) as never);
+      const price = money(amountOf(at(cPrice)) as never);
       if (code && !isPlaceholderSku(code) && price && price.gt(0) && compName) {
-        await recordObservation(actorUserId, { competitorName: compName, competitorSku: code, price, currency: "USD", uom: at(cUom) ? String(at(cUom)) : "EA", observedAt: dateOrNull(at(cDate)) ?? new Date(), sourceType: "PUBLIC_BID_DB", sourceRef: `${portal}${idRaw ? ` ${idRaw}` : ""}`, notes: [title, at(cQty) ? `qty ${at(cQty)}` : null].filter(Boolean).join(" · ") || null });
+        await recordObservation(actorUserId, { competitorName: compName, competitorSku: code, price, currency: "USD", uom: at(cUom) ? String(at(cUom)) : "EA", observedAt: dateOrNull(at(cDate)) ?? new Date(), sourceType: "PUBLIC_BID_DB", sourceRef: `${portal}${idRaw ? ` ${idRaw}` : ""}`, documentId: documentId ?? null, notes: [title, at(cQty) ? `qty ${at(cQty)}` : null].filter(Boolean).join(" · ") || null });
         res.observations++;
       }
     } catch (e) { res.skipped.push({ row: r + 1, reason: e instanceof Error ? e.message : String(e) }); }
@@ -299,15 +351,17 @@ export async function listAwards(opts: { q?: string | null; source?: string | nu
     where: {
       ...(opts.source ? { source: opts.source.toUpperCase() } : {}),
       ...(opts.competitorId ? { competitorId: opts.competitorId } : {}),
-      ...(since ? { OR: [{ awardDate: { gte: since } }, { awardDate: null, importedAt: { gte: since } }] } : {}),
-      ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { awardee: { contains: q, mode: "insensitive" } }, { agency: { contains: q, mode: "insensitive" } }, { description: { contains: q, mode: "insensitive" } }] } : {}),
+      AND: [
+        ...(since ? [{ OR: [{ awardDate: { gte: since } }, { awardDate: null, importedAt: { gte: since } }] }] : []),
+        ...(q ? [{ OR: [{ title: { contains: q, mode: "insensitive" as const } }, { awardee: { contains: q, mode: "insensitive" as const } }, { agency: { contains: q, mode: "insensitive" as const } }, { description: { contains: q, mode: "insensitive" as const } }] }] : []),
+      ],
     },
     orderBy: [{ awardDate: { sort: "desc", nulls: "last" } }, { importedAt: "desc" }],
     take,
   });
   const competitors = await prisma.competitor.findMany({ select: { id: true, name: true } });
   const byId = new Map(competitors.map((c) => [c.id, c.name]));
-  const runs = await prisma.feedRun.findMany({ where: { feed: { startsWith: "bids-" } }, orderBy: { startedAt: "desc" }, take: 10 });
+  const runs = (await prisma.feedRun.findMany({ where: { feed: { startsWith: "bids-" } }, orderBy: { startedAt: "desc" }, take: 10 })).map((r) => (r.status === "RUNNING" && Date.now() - r.startedAt.getTime() > 3_600_000 ? { ...r, status: "STALE" } : r));
   const totals = await prisma.publicAward.groupBy({ by: ["source"], _count: { _all: true } });
   return { awards: rows.map((r) => ({ ...r, competitorName: r.competitorId ? byId.get(r.competitorId) ?? null : null, rawJson: undefined })), runs, totals: totals.map((t) => ({ source: t.source, count: t._count._all })), competitors };
 }

@@ -111,14 +111,20 @@ async function register<N extends QueueName>(boss: PgBoss, name: N) {
 async function registerSchedules(boss: PgBoss) {
   await boss.schedule("alerts.evaluate", CRON["alerts.evaluate"], {}, { tz: "UTC", singletonKey: "cron" });
   await boss.schedule("gudid.refresh", CRON["gudid.refresh"], { limit: Number(process.env.GUDID_REFRESH_BATCH ?? 200) }, { tz: "UTC", singletonKey: "refresh:sweep" });
-  await boss.schedule("embed.refresh", CRON["embed.refresh"], { limit: Number(process.env.EMBED_REFRESH_BATCH ?? 5000) }, { tz: "UTC", singletonKey: "embed:sweep" });
-  await boss.schedule("analytics.refresh", CRON["analytics.refresh"], { trigger: "schedule" }, { tz: "UTC", singletonKey: "analytics:cron" });
+  // A bad or "off" cron for one of these must not stop feeds scheduling and orphan recovery below.
+  // Schedule keys allow only [A-Za-z0-9_-]; the job's singletonKey may carry ":" like the manual ones.
+  const sched = async (queue: "embed.refresh" | "analytics.refresh", cron: string, data: object, key: string, singletonKey: string) => {
+    if (cron === "off") { await boss.unschedule(queue, key).catch(() => undefined); return; }
+    try { await boss.schedule(queue, cron, data, { tz: "UTC", key, singletonKey }); } catch (e) { log.error("jobs.schedule_failed", { queue, cron, error: e instanceof Error ? e.message : String(e) }); }
+  };
+  await sched("embed.refresh", CRON["embed.refresh"], { limit: Number(process.env.EMBED_REFRESH_BATCH ?? 5000) }, "embed-sweep", "embed:sweep");
+  await sched("analytics.refresh", CRON["analytics.refresh"], { trigger: "schedule" }, "analytics-cron", "analytics:cron");
   const { bidSourcesConfigured, BID_SOURCES } = await import("@/lib/intelligence/bids");
   const configured = new Set(await bidSourcesConfigured());
   for (const source of BID_SOURCES) {
     const key = `bids-${source}`;
     if (!configured.has(source) || CRON["bids.ingest"] === "off") { await boss.unschedule("bids.ingest", key).catch(() => undefined); continue; }
-    await boss.schedule("bids.ingest", CRON["bids.ingest"], { source, trigger: "schedule" }, { tz: "UTC", key, singletonKey: `bids:${source}`, missed: "once" });
+    try { await boss.schedule("bids.ingest", CRON["bids.ingest"], { source, trigger: "schedule" }, { tz: "UTC", key, singletonKey: `bids:${source}`, missed: "once" }); } catch (e) { log.error("jobs.schedule_failed", { queue: "bids.ingest", cron: CRON["bids.ingest"], error: e instanceof Error ? e.message : String(e) }); }
   }
   const { scheduleFeeds } = await import("@/lib/feeds/schedule");
   await scheduleFeeds(boss);

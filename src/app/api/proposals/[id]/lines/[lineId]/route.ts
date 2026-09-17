@@ -25,10 +25,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       await audit({ actorUserId: actor.id, entityType: "ProposalLine", entityId: lineId, action: "NOTES_CHANGED", before: { justification: line.justification, notes: line.notes }, after: { justification: b.justification ?? line.justification, notes: b.notes ?? line.notes } });
     }
     if ("customerNote" in b) {
-      // Printed on the quote: editable until the proposal closes, audited, never part of what approvers review.
+      // Printed on the quote, so it is part of what was approved: it follows the same lock as the price
+      // (edit it in the draft; after approval, reopen or create a new version).
       if (typeof b.customerNote === "string" && b.customerNote.length > 1000) throw new Error("customer note is too long (max 1000 characters)");
-      const p = await prisma.proposal.findUniqueOrThrow({ where: { id }, select: { status: true } });
-      if (["WON", "LOST"].includes(p.status)) throw new Error("Closed proposals cannot be edited; create a new version");
+      await assertEditable(id);
       const customerNote = b.customerNote == null || b.customerNote === "" ? null : String(b.customerNote);
       await prisma.proposalLine.update({ where: { id: lineId }, data: { customerNote } });
       await audit({ actorUserId: actor.id, entityType: "ProposalLine", entityId: lineId, action: "CUSTOMER_NOTE_CHANGED", before: { customerNote: line.customerNote }, after: { customerNote } });
