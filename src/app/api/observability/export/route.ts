@@ -21,7 +21,7 @@ export async function GET(req: Request) {
   let rows: unknown[];
   switch (kind) {
     case "llm": rows = await prisma.llmCall.findMany({ where: { createdAt: { gte: since } }, orderBy: { createdAt: "asc" }, take: limit }); break;
-    case "runs": rows = (await prisma.request.findMany({ where: { updatedAt: { gte: since } }, orderBy: { updatedAt: "asc" }, take: limit, select: { id: true, reference: true, status: true, stage: true, progress: true, error: true, attempt: true, checkpoint: true, startedAt: true, completedAt: true, updatedAt: true, logJson: true, _count: { select: { lines: true } } } })).map((r) => ({ ...r, lines: r._count.lines, _count: undefined, log: JSON.parse(r.logJson), logJson: undefined })); break;
+    case "runs": rows = (await prisma.request.findMany({ where: { updatedAt: { gte: since } }, orderBy: { updatedAt: "asc" }, take: limit, select: { id: true, reference: true, status: true, stage: true, progress: true, error: true, attempt: true, checkpoint: true, startedAt: true, completedAt: true, updatedAt: true, logJson: true, _count: { select: { lines: true } } } })).map((r) => { let log: unknown = []; try { log = JSON.parse(r.logJson); } catch { log = [{ m: "(log unreadable)" }]; } return { ...r, lines: r._count.lines, _count: undefined, log, logJson: undefined }; }); break;
     case "sync": rows = await prisma.syncLog.findMany({ where: { at: { gte: since } }, orderBy: { at: "asc" }, take: limit }); break;
     case "feeds": rows = await prisma.feedRun.findMany({ where: { startedAt: { gte: since } }, orderBy: { startedAt: "asc" }, take: limit }); break;
     case "alerts": rows = await prisma.alert.findMany({ where: { lastFiredAt: { gte: since } }, orderBy: { lastFiredAt: "asc" }, take: limit }); break;

@@ -35,7 +35,7 @@ export async function modelRule(): Promise<Condition[]> {
 
 export async function resolutionRule(): Promise<Condition[]> {
   const min = num("ALERT_RESOLUTION_MIN", 0.7);
-  const last = await prisma.request.findFirst({ where: { status: "complete" }, orderBy: { completedAt: "desc" }, select: { id: true, reference: true, _count: { select: { lines: true } } } });
+  const last = await prisma.request.findFirst({ where: { status: "complete", NOT: { reference: { startsWith: "BENCH-" } } }, orderBy: { completedAt: "desc" }, select: { id: true, reference: true, _count: { select: { lines: true } } } });
   if (!last || last._count.lines < 5) return [];
   const resolved = await prisma.requestLine.count({ where: { requestId: last.id, resolutionStatus: "resolved" } });
   const rate = resolved / last._count.lines;
@@ -53,7 +53,9 @@ export async function runsRule(): Promise<Condition[]> {
 export async function queueRule(): Promise<Condition[]> {
   const stallMin = num("ALERT_QUEUE_STALL_MIN", 15);
   const out: Condition[] = [];
-  try {
+  const { jobsEnabled } = await import("@/lib/jobs/boss");
+  if (!jobsEnabled()) return out;
+  {
     const { queueHealth, recentFailures } = await import("@/lib/jobs/boss");
     for (const q of await queueHealth()) {
       if (q.oldestReadySeconds !== null && q.oldestReadySeconds > stallMin * 60) {
@@ -63,8 +65,6 @@ export async function queueRule(): Promise<Condition[]> {
     }
     const failures = (await recentFailures(50)).filter((f) => f.failedAt && Date.now() - new Date(f.failedAt).getTime() < 86_400_000);
     if (failures.length) out.push({ fingerprint: "jobs_failed", rule: "jobs_failed", severity: "WARNING", title: `${failures.length} background job${failures.length === 1 ? "" : "s"} exhausted retries in the last 24 hours`, detail: failures.slice(0, 3).map((f) => `${f.queue}: ${f.error ?? "?"}`).join("\n"), context: { count: failures.length } });
-  } catch (e) {
-    log.warn("alerts.queue_rule_error", { error: e instanceof Error ? e.message : String(e) });
   }
   return out;
 }
@@ -79,14 +79,25 @@ export async function feedRule(): Promise<Condition[]> {
   return out;
 }
 
-export const RULES: (() => Promise<Condition[]>)[] = [modelRule, resolutionRule, runsRule, queueRule, feedRule];
+/** Each rule owns a family of fingerprints; a rule that could not run leaves its alerts exactly as they were. */
+export const RULES: { name: string; run: () => Promise<Condition[]>; owns: (fingerprint: string) => boolean }[] = [
+  { name: "model", run: modelRule, owns: (f) => f === "model_unreachable" },
+  { name: "resolution", run: resolutionRule, owns: (f) => f === "resolution_rate_low" },
+  { name: "runs", run: runsRule, owns: (f) => f === "runs_failing" },
+  { name: "queue", run: queueRule, owns: (f) => f.startsWith("queue_stalled:") || f === "jobs_failed" },
+  { name: "feeds", run: feedRule, owns: (f) => f.startsWith("feed_") },
+];
+
+const SEVERITY_RANK: Record<string, number> = { CRITICAL: 0, WARNING: 1, INFO: 2 };
 
 /** Run every rule, reconcile the Alert table, notify on new/renewed conditions. */
-export async function evaluateAlerts(): Promise<{ firing: Condition[]; resolved: number; notified: number }> {
+export async function evaluateAlerts(rules: typeof RULES = RULES): Promise<{ firing: Condition[]; resolved: number; notified: number; rulesFailed: string[] }> {
   const firing: Condition[] = [];
-  for (const rule of RULES) {
-    try { firing.push(...(await rule())); } catch (e) { log.error("alerts.rule_error", { rule: rule.name, error: e instanceof Error ? e.message : String(e) }); }
+  const rulesFailed: string[] = [];
+  for (const rule of rules) {
+    try { firing.push(...(await rule.run())); } catch (e) { rulesFailed.push(rule.name); log.error("alerts.rule_error", { rule: rule.name, error: e instanceof Error ? e.message : String(e) }); }
   }
+  const failed = rules.filter((r) => rulesFailed.includes(r.name));
   const renotifyMs = num("ALERT_RENOTIFY_HOURS", 6) * 3600_000;
   const now = new Date();
   let notified = 0;
@@ -101,18 +112,27 @@ export async function evaluateAlerts(): Promise<{ firing: Condition[]; resolved:
     });
     const due = renewed || !row.lastNotifiedAt || now.getTime() - row.lastNotifiedAt.getTime() > renotifyMs;
     if (due) {
-      await notifyAlert({ fingerprint: row.fingerprint, severity: row.severity, title: row.title, detail: row.detail, id: row.id }).catch((e) => log.warn("alerts.notify_failed", { fingerprint: c.fingerprint, error: e instanceof Error ? e.message : String(e) }));
-      await prisma.alert.update({ where: { id: row.id }, data: { lastNotifiedAt: now } });
-      notified++;
+      try {
+        await notifyAlert({ fingerprint: row.fingerprint, severity: row.severity, title: row.title, detail: row.detail, id: row.id });
+        await prisma.alert.update({ where: { id: row.id }, data: { lastNotifiedAt: now } }); // only a delivered notification counts
+        notified++;
+      } catch (e) {
+        log.warn("alerts.notify_failed", { fingerprint: c.fingerprint, error: e instanceof Error ? e.message : String(e) });
+      }
     }
   }
-  const resolvedRes = await prisma.alert.updateMany({ where: { resolvedAt: null, fingerprint: { notIn: firing.map((c) => c.fingerprint) } }, data: { resolvedAt: now } });
+  // Resolve only what a rule that actually ran no longer reports.
+  const open = await prisma.alert.findMany({ where: { resolvedAt: null }, select: { id: true, fingerprint: true } });
+  const stillFiring = new Set(firing.map((c) => c.fingerprint));
+  const toResolve = open.filter((a) => !stillFiring.has(a.fingerprint) && !failed.some((r) => r.owns(a.fingerprint))).map((a) => a.id);
+  const resolvedRes = toResolve.length ? await prisma.alert.updateMany({ where: { id: { in: toResolve } }, data: { resolvedAt: now } }) : { count: 0 };
   alertsFiring.clear();
   for (const sev of ["INFO", "WARNING", "CRITICAL"] as const) alertsFiring.set({ severity: sev }, firing.filter((c) => c.severity === sev).length);
-  log.info("alerts.evaluated", { firing: firing.length, resolved: resolvedRes.count, notified });
-  return { firing, resolved: resolvedRes.count, notified };
+  log.info("alerts.evaluated", { firing: firing.length, resolved: resolvedRes.count, notified, rulesFailed });
+  return { firing, resolved: resolvedRes.count, notified, rulesFailed };
 }
 
 export async function activeAlerts() {
-  return prisma.alert.findMany({ where: { resolvedAt: null }, orderBy: [{ severity: "desc" }, { lastFiredAt: "desc" }] });
+  const rows = await prisma.alert.findMany({ where: { resolvedAt: null }, orderBy: { lastFiredAt: "desc" } });
+  return rows.sort((a, b) => (SEVERITY_RANK[a.severity] ?? 9) - (SEVERITY_RANK[b.severity] ?? 9));
 }

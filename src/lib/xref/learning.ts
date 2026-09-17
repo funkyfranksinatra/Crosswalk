@@ -22,10 +22,10 @@ import { normalizeCfn } from "@/lib/cfn";
 import { equivalenceFromMatchType } from "./governance";
 import { log } from "@/lib/log";
 
-type Evidence = { endorsements: number; accounts: string[]; users: string[]; lastAt: string };
+type Evidence = { endorsements: number; accounts: string[]; users: string[]; lines: string[]; lastAt: string };
 
 function parseEvidence(json: string | null): Evidence {
-  try { const e = json ? (JSON.parse(json) as Partial<Evidence>) : {}; return { endorsements: e.endorsements ?? 0, accounts: e.accounts ?? [], users: e.users ?? [], lastAt: e.lastAt ?? "" }; } catch { return { endorsements: 0, accounts: [], users: [], lastAt: "" }; }
+  try { const e = json ? (JSON.parse(json) as Partial<Evidence>) : {}; return { endorsements: e.endorsements ?? 0, accounts: e.accounts ?? [], users: e.users ?? [], lines: e.lines ?? [], lastAt: e.lastAt ?? "" }; } catch { return { endorsements: 0, accounts: [], users: [], lines: [], lastAt: "" }; }
 }
 
 /**
@@ -35,7 +35,10 @@ function parseEvidence(json: string | null): Evidence {
 export async function recordLineDecision(actor: Actor, lineId: string, decision: { selectedCandidateId?: string | null; reviewed?: boolean; overrideNote?: string | null }) {
   const line = await prisma.requestLine.findUniqueOrThrow({ where: { id: lineId }, include: { request: { select: { id: true, accountId: true, accountName: true, accountNumber: true } }, competitorProduct: true, candidates: { orderBy: { rank: "asc" }, include: { ownProduct: { select: { id: true, sku: true, description: true, category: true } } } } } });
   const top = line.candidates[0] ?? null;
-  const chosen = decision.selectedCandidateId ? line.candidates.find((c) => c.id === decision.selectedCandidateId) ?? null : null;
+  const selecting = decision.selectedCandidateId !== undefined;
+  // "Reviewed" without a new selection judges the line's CURRENT selection, not "nothing".
+  const chosenId = selecting ? decision.selectedCandidateId : line.selectedCandidateId;
+  const chosen = chosenId ? line.candidates.find((c) => c.id === chosenId) ?? null : null;
   const learned: { proposedCrossId?: string; retiredCrossId?: string; decisionId?: string } = {};
   if (!top) return learned;
 
@@ -44,8 +47,8 @@ export async function recordLineDecision(actor: Actor, lineId: string, decision:
   const norm = normalizeCfn(line.cfnNorm);
   const acceptedTop = Boolean(chosen && chosen.id === top.id);
 
-  // A choice was made (not just "reviewed"): record the decision.
-  if ("selectedCandidateId" in decision || decision.reviewed) {
+  // A choice was made (or the current one confirmed): record the decision.
+  if (selecting || decision.reviewed) {
     const d = await prisma.matchDecision.create({ data: { requestLineId: line.id, topRecommendedSku: top.ownProduct.sku, chosenSku: chosen?.ownProduct.sku ?? null, acceptedTop, overrideReason: decision.overrideNote ?? line.overrideNote ?? null, productFamily: chosen?.ownProduct.category ?? top.ownProduct.category, competitorName, confidence: top.score, decidedByUserId: actor.id } });
     learned.decisionId = d.id;
   }
@@ -57,10 +60,14 @@ export async function recordLineDecision(actor: Actor, lineId: string, decision:
     const ev = parseEvidence(existing?.evidenceJson ?? null);
     const accounts = [...new Set([...ev.accounts, line.request.accountNumber ?? line.request.accountId ?? ""].filter(Boolean))];
     const users = [...new Set([...ev.users, actor.id])];
-    const evidence: Evidence = { endorsements: ev.endorsements + 1, accounts, users, lastAt: new Date().toISOString() };
+    // One endorsement per request line: toggling the same choice back and forth is not new evidence.
+    const lines = [...new Set([...ev.lines, line.id])];
+    const evidence: Evidence = { endorsements: lines.length, accounts, users, lines, lastAt: new Date().toISOString() };
     const matchType = chosen.matchType === "No Match" ? "Alternative Match" : chosen.matchType;
+    // A cross under review or approved only gains evidence; its tier, status and justification belong to the reviewers.
+    const reviewed = existing && ["IN_REVIEW", "APPROVED"].includes(existing.approvalStatus);
     const row = existing
-      ? await prisma.knownCross.update({ where: { id: existing.id }, data: { isActive: true, evidenceJson: JSON.stringify(evidence), ...(existing.approvalStatus === "RETIRED" || existing.approvalStatus === "REJECTED" ? { approvalStatus: "DRAFT", clinicalReviewStatus: "PENDING", marketingReviewStatus: "PENDING" } : {}), justification: decision.overrideNote ?? existing.justification } })
+      ? await prisma.knownCross.update({ where: { id: existing.id }, data: reviewed ? { evidenceJson: JSON.stringify(evidence) } : { isActive: true, evidenceJson: JSON.stringify(evidence), ...(existing.approvalStatus === "RETIRED" || existing.approvalStatus === "REJECTED" ? { approvalStatus: "DRAFT", clinicalReviewStatus: "PENDING", marketingReviewStatus: "PENDING" } : {}), justification: decision.overrideNote ?? existing.justification } })
       : await prisma.knownCross.create({ data: { ownSku, ownDescription: chosen.ownProduct.description, category: chosen.ownProduct.category, competitorName, competitorCode, competitorCodeNorm: norm, competitorDescription: line.competitorProduct?.description ?? null, matchType, source: "rep", approvalStatus: "DRAFT", clinicalReviewStatus: "PENDING", marketingReviewStatus: "PENDING", equivalenceLevel: equivalenceFromMatchType(matchType), justification: decision.overrideNote ?? null, accountId: line.request.accountId ?? null, createdByUserId: actor.id, evidenceJson: JSON.stringify(evidence) } });
     learned.proposedCrossId = row.id;
     await audit({ actorUserId: actor.id, entityType: "KnownCross", entityId: row.id, action: existing ? "ENDORSED_BY_REP" : "PROPOSED_BY_REP", after: { ownSku, competitorCode, matchType, endorsements: evidence.endorsements, requestLineId: line.id, over: top.ownProduct.sku } });
@@ -71,7 +78,8 @@ export async function recordLineDecision(actor: Actor, lineId: string, decision:
     const mine = await prisma.knownCross.findMany({ where: { competitorCodeNorm: norm, source: "rep", approvalStatus: "DRAFT", createdByUserId: actor.id, isActive: true } });
     for (const k of mine) {
       const ev = parseEvidence(k.evidenceJson);
-      if (ev.endorsements <= 1) {
+      // Only a lone opinion is withdrawn: a draft someone else also chose stays for review.
+      if (ev.users.filter((u) => u !== actor.id).length === 0) {
         await prisma.knownCross.update({ where: { id: k.id }, data: { isActive: false, approvalStatus: "RETIRED" } });
         await audit({ actorUserId: actor.id, entityType: "KnownCross", entityId: k.id, action: "RETIRED_BY_REP", after: { reason: "override undone" } });
         learned.retiredCrossId = k.id;

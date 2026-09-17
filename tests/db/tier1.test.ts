@@ -16,7 +16,8 @@ import { permissionsFor } from "@/lib/auth/permissions";
 import type { Actor } from "@/lib/auth";
 import { setFetchForTests } from "@/lib/gudid/http";
 import { runScenario } from "../recorded/openfda-scenario";
-import { runRequest, enqueueRun, cancelRun, RunCancelled } from "@/lib/pipeline/run";
+import { runRequest, enqueueRun, cancelRun, RunCancelled, RunInterrupted } from "@/lib/pipeline/run";
+import { proposeCross } from "@/lib/xref/governance";
 import { getBoss, enqueue, queueHealth, recentFailures, stopBoss } from "@/lib/jobs/boss";
 import { startWorkers } from "@/lib/jobs/workers";
 import { refreshStaleRecords } from "@/lib/gudid/refresh";
@@ -24,7 +25,7 @@ import { recordLineDecision, crossesForMatching } from "@/lib/xref/learning";
 import { ingestFeed, feedStatuses } from "@/lib/feeds";
 import { notify, notifyApprovalRequested, preferencesFor, setPreference, inboxFor, markRead } from "@/lib/notifications";
 import { deliver, setTransportsForTests } from "@/lib/notifications/deliver";
-import { evaluateAlerts, modelRule, feedRule } from "@/lib/observability/alerts";
+import { evaluateAlerts, modelRule, feedRule, RULES } from "@/lib/observability/alerts";
 import { driftFor, refreshContext } from "@/lib/proposals/drift";
 import { createFromRequest, setProposedPrice } from "@/lib/proposals/service";
 import { submitForApproval, decide } from "@/lib/approvals/service";
@@ -61,8 +62,8 @@ async function cleanup() {
   await prisma.request.deleteMany({ where: { id: { in: ids } } });
   await prisma.knownCross.deleteMany({ where: { source: "rep", competitorCodeNorm: { in: CODES } } });
   await prisma.notification.deleteMany({ where: { OR: [{ title: { contains: "TIER1" } }, { entityType: "TIER1" }, { entityId: { in: ids } }] } });
-  await prisma.alert.deleteMany({ where: { fingerprint: { startsWith: "tier1" } } });
-  await prisma.feedRun.deleteMany({ where: { feed: "pricing", sourceRef: { contains: "tier1-feeds" } } });
+  await prisma.alert.deleteMany({ where: { OR: [{ fingerprint: { startsWith: "tier1" } }, { fingerprint: { contains: "tier1x" } }] } });
+  await prisma.feedRun.deleteMany({ where: { feed: { in: ["pricing", "crm"] }, OR: [{ sourceRef: "pricing.csv" }, { sourceRef: null }] } });
   await prisma.llmCall.deleteMany({ where: { subject: "tier1-test" } });
   await prisma.priceEntry.deleteMany({ where: { contract: { contractNumber: "TIER1-LOCAL" } } });
   await prisma.contract.deleteMany({ where: { contractNumber: "TIER1-LOCAL" } });
@@ -128,7 +129,8 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       const row2 = await prisma.request.findUniqueOrThrow({ where: { id: r.id } });
       const log2 = (JSON.parse(row2.logJson) as { m: string }[]).map((l) => l.m);
       expect(row2.status).toBe("complete");
-      expect(log2.filter((m) => /Resumed \(attempt 1\)/.test(m)).length).toBe(1);
+      expect(log2.filter((m) => /Resumed \(attempt \d+\)/.test(m)).length).toBe(2);
+      expect(row2.attempt).toBe(3); // attempts are monotonic across retries and restarts
     }, 60_000);
 
     test("a fresh run (attempt 1) never resumes, even if a stale checkpoint is on the row", async () => {
@@ -153,28 +155,63 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       expect(row.status).toBe("cancelled");
       expect(row.cancelRequested).toBe(false);
       expect(await prisma.matchCandidate.count({ where: { line: { requestId: r.id } } })).toBe(before);
-      // Queued path: enqueue with the worker stopped, cancel → job cancelled, status cancelled.
-      const ac = new AbortController(); ac.abort();
-      await expect(runRequest(r.id, { signal: ac.signal })).resolves.toBeUndefined();
-      row = await prisma.request.findUniqueOrThrow({ where: { id: r.id } });
-      expect(row.status).toBe("cancelled");
       const q = await cancelRun(r.id);
       expect(q.cancelled).toBe(false); // nothing to cancel any more
       expect(new RunCancelled().name).toBe("RunCancelled");
     }, 60_000);
 
-    test("a failing run is retried by the queue and the final failure is reported", async () => {
-      // A request whose lines table is empty fails fast ("no lines"? no — it completes with 0). Use a bogus company id instead.
-      const r = await makeRequest("fail", rep);
-      await prisma.request.update({ where: { id: r.id }, data: { companyId: "no-such-company" } }).catch(() => undefined);
-      // FK may refuse the bogus id; if so, force failure through an invalid optionsJson.
-      await prisma.request.update({ where: { id: r.id }, data: { optionsJson: "{not json" } });
-      await expect(runRequest(r.id, { attempt: 1 })).rejects.toThrow();
+    test("an aborted signal (queue expiry / shutdown) is an interruption: status and checkpoint stay for the retry, nobody is told it was cancelled", async () => {
+      const r = await makeRequest("abort", rep);
+      await runRequest(r.id);
+      await prisma.request.update({ where: { id: r.id }, data: { status: "running", checkpoint: "resolve" } });
+      const ac = new AbortController(); ac.abort();
+      await expect(runRequest(r.id, { signal: ac.signal, attempt: 2 })).rejects.toBeInstanceOf(RunInterrupted);
       const row = await prisma.request.findUniqueOrThrow({ where: { id: r.id } });
+      expect(row.status).toBe("running");
+      expect(row.checkpoint).toBe("resolve");
+      expect(row.stage).toMatch(/Interrupted/);
+      expect(await prisma.notification.count({ where: { entityId: r.id, kind: { in: ["RUN_FAILED", "RUN_COMPLETE"] }, title: { contains: "cancelled" } } })).toBe(0);
+      // A cancel flag set while the row says running is honoured by the very next attempt before any work.
+      await prisma.request.update({ where: { id: r.id }, data: { cancelRequested: true } });
+      await runRequest(r.id, { attempt: 3 });
+      expect((await prisma.request.findUniqueOrThrow({ where: { id: r.id } })).status).toBe("cancelled");
+    }, 60_000);
+
+    test("enqueueRun on a request with a live job is a no-op; on an orphan it re-queues without wiping the checkpoint", async () => {
+      const r = await makeRequest("noop", rep);
+      // Orphan: says running, has a checkpoint, no job → re-queued to resume.
+      await prisma.request.update({ where: { id: r.id }, data: { status: "running", checkpoint: "bin", stage: "Binning" } });
+      const res = await enqueueRun(r.id);
+      expect(res.alreadyQueued).toBe(false); expect(res.resumed).toBe(true);
+      let row = await prisma.request.findUniqueOrThrow({ where: { id: r.id } });
+      expect(row.status).toBe("queued"); expect(row.checkpoint).toBe("bin"); expect(row.jobId).toBe(res.jobId);
+      // Live job now exists → a second call is a no-op that changes nothing.
+      const again = await enqueueRun(r.id);
+      expect(again.alreadyQueued).toBe(true);
+      row = await prisma.request.findUniqueOrThrow({ where: { id: r.id } });
+      expect(row.checkpoint).toBe("bin"); expect(row.jobId).toBe(res.jobId);
+      const boss = await getBoss();
+      await boss.cancel("request.run", res.jobId!);
+      await prisma.request.update({ where: { id: r.id }, data: { status: "draft", checkpoint: null } });
+    });
+
+    test("a failing attempt that the queue will retry stays 'running' and says so; the final attempt fails the run, tells the creator, and never shows raw driver text", async () => {
+      const r = await makeRequest("fail", rep);
+      await prisma.request.update({ where: { id: r.id }, data: { optionsJson: "{not json" } });
+      await expect(runRequest(r.id, { attempt: 1, finalAttempt: false })).rejects.toThrow();
+      let row = await prisma.request.findUniqueOrThrow({ where: { id: r.id } });
+      expect(row.status).toBe("queued"); // the retry is queued; the reason is on the stage
+      expect(row.stage).toMatch(/Attempt 1 failed — retrying/);
+      expect(await prisma.notification.count({ where: { entityId: r.id, kind: "RUN_FAILED" } })).toBe(0);
+      await expect(runRequest(r.id, { attempt: 3, finalAttempt: true })).rejects.toThrow();
+      row = await prisma.request.findUniqueOrThrow({ where: { id: r.id } });
       expect(row.status).toBe("failed");
       expect(row.error).toBeTruthy();
+      expect(row.error).not.toMatch(/Invalid `prisma|PrismaClient/);
       const log = (JSON.parse(row.logJson) as { m: string }[]).map((l) => l.m);
-      expect(log.some((m) => /Failed \(attempt 1\)/.test(m))).toBe(true);
+      expect(log.some((m) => /Attempt 1 failed, will retry/.test(m))).toBe(true);
+      expect(log.some((m) => /^Failed:/.test(m))).toBe(true);
+      expect(await prisma.notification.count({ where: { userId: rep.id, entityId: r.id, kind: "RUN_FAILED" } })).toBe(1);
     }, 30_000);
 
     test("queue health reports counts; recent failures are readable", async () => {
@@ -243,8 +280,15 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       // Reviewers were told.
       const reviewer = await prisma.user.findUniqueOrThrow({ where: { email: "dr.clinical@crosswalk.dev" } });
       expect(await prisma.notification.count({ where: { userId: reviewer.id, kind: "CROSS_PROPOSED", entityId: k.id } })).toBe(1);
-      // Same choice by a manager → endorsement, not a duplicate.
-      const again = await recordLineDecision(manager, line.id, { selectedCandidateId: second.id });
+      // The same rep toggling the same line again is NOT new evidence; a manager choosing it on another list is.
+      const toggle = await recordLineDecision(rep, line.id, { selectedCandidateId: second.id });
+      expect(toggle.proposedCrossId).toBe(k.id);
+      expect(JSON.parse((await prisma.knownCross.findUniqueOrThrow({ where: { id: k.id } })).evidenceJson!)).toMatchObject({ endorsements: 1 });
+      const r2 = await makeRequest("learn2", manager, ["1DLMC05"]);
+      await runRequest(r2.id);
+      const line2b = await prisma.requestLine.findFirstOrThrow({ where: { requestId: r2.id }, include: { candidates: { orderBy: { rank: "asc" } } } });
+      const sameSku = line2b.candidates.find((c) => c.ownProductId === second.ownProductId)!;
+      const again = await recordLineDecision(manager, line2b.id, { selectedCandidateId: sameSku.id });
       expect(again.proposedCrossId).toBe(k.id);
       expect(JSON.parse((await prisma.knownCross.findUniqueOrThrow({ where: { id: k.id } })).evidenceJson!)).toMatchObject({ endorsements: 2 });
       expect(await prisma.knownCross.count({ where: { competitorCodeNorm: "1DLMC05", source: "rep" } })).toBe(1);
@@ -252,13 +296,28 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       const forMatch = await crossesForMatching();
       const mine = forMatch.find((x) => x.id === k.id)!;
       expect(mine.approvalStatus).toBe("DRAFT"); expect(mine.endorsements).toBe(2);
-      // Undo by the rep does not retire a cross two people endorsed.
+      // Undo by the rep does not retire a cross someone else also chose.
       const undo = await recordLineDecision(rep, line.id, { selectedCandidateId: line.candidates[0].id });
       expect(undo.retiredCrossId).toBeUndefined();
-      // Reviewed + top kept → acceptedTop ground truth.
-      const ok = await recordLineDecision(rep, line.id, { selectedCandidateId: line.candidates[0].id, reviewed: true });
+      // "Reviewed" with no new selection judges the CURRENT selection (the top pick) → acceptedTop ground truth.
+      const ok = await recordLineDecision(rep, line.id, { reviewed: true });
       expect(ok.decisionId).toBeTruthy();
-      expect((await prisma.matchDecision.findUniqueOrThrow({ where: { id: ok.decisionId! } })).acceptedTop).toBe(true);
+      const dd = await prisma.matchDecision.findUniqueOrThrow({ where: { id: ok.decisionId! } });
+      expect(dd.acceptedTop).toBe(true); expect(dd.chosenSku).toBe((await prisma.ownProduct.findUniqueOrThrow({ where: { id: line.candidates[0].ownProductId } })).sku);
+      // Once under review, a rep cannot change its tier by re-proposing; it only gains evidence.
+      await prisma.knownCross.update({ where: { id: k.id }, data: { approvalStatus: "IN_REVIEW" } });
+      await expect(proposeCross(rep.id, { ownSku: k.ownSku, competitorName: k.competitorName, competitorCode: k.competitorCode, matchType: "Exact Match" })).rejects.toThrow(/already in review/);
+      const r3 = await makeRequest("learn3", rep, ["1DLMC05"]);
+      await runRequest(r3.id);
+      const line3 = await prisma.requestLine.findFirstOrThrow({ where: { requestId: r3.id }, include: { candidates: { orderBy: { rank: "asc" } } } });
+      const same3 = line3.candidates.find((c) => c.ownProductId === second.ownProductId)!;
+      await recordLineDecision(rep, line3.id, { selectedCandidateId: same3.id, overrideNote: "TIER1 trying to rewrite" });
+      const afterReview = await prisma.knownCross.findUniqueOrThrow({ where: { id: k.id } });
+      expect(afterReview.approvalStatus).toBe("IN_REVIEW");
+      expect(afterReview.matchType).toBe(k.matchType);
+      expect(afterReview.justification).toBe(k.justification);
+      expect(JSON.parse(afterReview.evidenceJson!)).toMatchObject({ endorsements: 3 });
+      await prisma.knownCross.update({ where: { id: k.id }, data: { approvalStatus: "DRAFT" } });
       // A lone draft by this rep on another code IS retired on undo.
       const line2 = await prisma.requestLine.findFirstOrThrow({ where: { requestId: r.id, lineNo: 2 }, include: { candidates: { orderBy: { rank: "asc" } } } });
       if (line2.candidates.length >= 2) {
@@ -277,7 +336,7 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       const c = line.candidates.find((x) => x.ownProduct.sku.toUpperCase() === k.ownSku)!;
       expect(c).toBeTruthy();
       expect(c.source).not.toBe("known-cross");
-      expect(c.rationale).toMatch(/chosen by 2 reps before/);
+      expect(c.rationale).toMatch(/chosen by 3 reps before/);
     }, 60_000);
   });
 
@@ -302,14 +361,26 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       expect((await prisma.ownProduct.findFirstOrThrow({ where: { sku: "PPM1510X3" } })).listPrice?.toString()).toMatch(/^102/);
       const forced = await ingestFeed("pricing", { trigger: "manual", force: true });
       expect(forced.status).toBe("OK");
-      const runs = await prisma.feedRun.findMany({ where: { feed: "pricing", sourceRef: { contains: "tier1-feeds" } } });
+      const runs = await prisma.feedRun.findMany({ where: { feed: "pricing", sourceRef: "pricing.csv" } });
       expect(runs.map((x) => x.status).sort()).toEqual(["OK", "OK", "OK", "SKIPPED"]);
+      expect(runs.every((x) => !x.sourceRef?.includes("/"))).toBe(true); // file names, never server paths
+      // A run with rejected rows does not "consume" the file: the next schedule tries again.
+      write("SKU,List Price\nPPM1510X3,103.00\nNO-SUCH-SKU,1.00\n");
+      const partial = await ingestFeed("pricing", { trigger: "schedule" });
+      expect(partial.status).toBe("OK"); expect((partial as { failed: number }).failed).toBe(1);
+      const retry = await ingestFeed("pricing", { trigger: "schedule" });
+      expect(retry.status).toBe("OK");
+      // One ingestion of a feed at a time, whichever door it came through.
+      const stuck = await prisma.feedRun.create({ data: { feed: "pricing", trigger: "manual", status: "RUNNING" } });
+      await expect(ingestFeed("pricing", { trigger: "manual", force: true })).rejects.toThrow(/already being ingested/);
+      await prisma.feedRun.delete({ where: { id: stuck.id } });
       await prisma.ownProduct.update({ where: { id: before.id }, data: { listPrice: before.listPrice } });
     });
 
     test("a missing file is SKIPPED with the reason; a bad file FAILS, is recorded, and admins are told", async () => {
       process.env.INTEGRATION_FEED_DIR = dir;
       fs.rmSync(path.join(dir, "pricing.csv"));
+      await expect(ingestFeed("constructor", { trigger: "manual" })).rejects.toThrow(/unknown feed/);
       const none = await ingestFeed("pricing", { trigger: "schedule" });
       expect(none.status).toBe("SKIPPED"); expect(none.reason).toMatch(/no source configured/);
       write("garbage without a header\n");
@@ -322,7 +393,7 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       expect(st.source.kind).toBe("file"); expect(st.lastRun?.status).toBe("FAILED");
       const conds = await feedRule();
       expect(conds.find((c) => c.fingerprint === "feed_failed:pricing")?.severity).toBe("CRITICAL");
-      await prisma.feedRun.deleteMany({ where: { feed: "pricing", status: "FAILED", sourceRef: { contains: "tier1-feeds" } } });
+      await prisma.feedRun.deleteMany({ where: { feed: "pricing", status: "FAILED", sourceRef: "pricing.csv" } });
     });
 
     test("the manual Sync-now path and the feed path share one FeedRun history", async () => {
@@ -372,8 +443,11 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       await setPreference(rep.id, "*", { inApp: true, email: false, teams: false });
       const one = await notify({ kind, userIds: [rep.id, rep.id], title: "TIER1 dedupe", entityType: "TIER1", entityId: "x", dedupeKey: "k" });
       expect(one.created).toBe(1);
-      const two = await notify({ kind, userIds: [rep.id], title: "TIER1 dedupe", entityType: "TIER1", entityId: "x", dedupeKey: "k" });
+      const two = await notify({ kind, userIds: [rep.id], title: "TIER1 dedupe (title changed, same key)", entityType: "TIER1", entityId: "x", dedupeKey: "k" });
       expect(two.created).toBe(0);
+      const three = await notify({ kind, userIds: [rep.id], title: "TIER1 dedupe", entityType: "TIER1", entityId: "x", dedupeKey: "k2" });
+      expect(three.created).toBe(1); // a different key is a different message even with the same title
+      expect((await notify({ kind, userIds: ["no-such-user"], title: "TIER1 ghost", entityType: "TIER1" })).created).toBe(0); // never throws
       await setPreference(rep.id, kind, { inApp: false, email: false, teams: false });
       expect((await preferencesFor(rep.id, kind)).inApp).toBe(false);
       expect((await notify({ kind, userIds: [rep.id], title: "TIER1 muted", entityType: "TIER1" })).created).toBe(0);
@@ -414,11 +488,15 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       const repNotes = await prisma.notification.count({ where: { userId: rep.id, kind: "APPROVAL_REQUESTED", entityId: p.id } });
       expect(managerNotes + (await prisma.notification.count({ where: { kind: "APPROVAL_REQUESTED", entityId: p.id, user: { roles: { some: { role: { in: ["PRICING_DIRECTOR", "PRICING_COMMITTEE", "CONTRACTING_MANAGER", "ADMIN"] } } } } } }))).toBeGreaterThan(0);
       expect(repNotes).toBe(0);
-      await notifyApprovalRequested(p.id); // repeat within the hour → deduped
+      await notifyApprovalRequested(p.id); // repeat within the hour for the SAME submission → deduped
       expect(await prisma.notification.count({ where: { userId: manager.id, kind: "APPROVAL_REQUESTED", entityId: p.id } })).toBe(managerNotes);
       const decider = ["REGIONAL_MANAGER"].includes(req.requiredRole) ? manager : await actor("dana.director@crosswalk.dev");
-      await decide(decider, req.id, "APPROVED", "TIER1 ok");
+      await decide(decider, req.id, "CHANGES_REQUESTED", "TIER1 please lower");
       expect(await prisma.notification.count({ where: { userId: rep.id, kind: "APPROVAL_DECIDED", entityId: req.id } })).toBe(1);
+      // Resubmission within the hour is a NEW ask: approvers are told again.
+      const beforeResubmit = await prisma.notification.count({ where: { kind: "APPROVAL_REQUESTED", entityId: p.id } });
+      await submitForApproval(rep, p.id);
+      expect(await prisma.notification.count({ where: { kind: "APPROVAL_REQUESTED", entityId: p.id } })).toBeGreaterThan(beforeResubmit);
     }, 90_000);
   });
 
@@ -447,6 +525,18 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       if (hadKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = hadKey;
     });
 
+    test("a rule that cannot run leaves its own alerts untouched instead of resolving them", async () => {
+      await prisma.alert.create({ data: { fingerprint: "feed_failed:tier1x", rule: "feed_failed", severity: "CRITICAL", title: "TIER1 synthetic" } });
+      const broken = RULES.map((r) => (r.name === "feeds" ? { ...r, run: async () => { throw new Error("feed store down"); } } : r));
+      const res = await evaluateAlerts(broken);
+      expect(res.rulesFailed).toEqual(["feeds"]);
+      expect((await prisma.alert.findUniqueOrThrow({ where: { fingerprint: "feed_failed:tier1x" } })).resolvedAt).toBeNull();
+      const healthy = await evaluateAlerts();
+      expect(healthy.rulesFailed).toEqual([]);
+      expect((await prisma.alert.findUniqueOrThrow({ where: { fingerprint: "feed_failed:tier1x" } })).resolvedAt).not.toBeNull();
+      await prisma.alert.delete({ where: { fingerprint: "feed_failed:tier1x" } });
+    });
+
     test("metrics render the application series and never leak secrets", () => {
       const out = render();
       expect(out).toMatch(/crosswalk_runs_total\{outcome="complete"\} \d+/);
@@ -466,9 +556,11 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       expect((await driftFor(p.id)).lines).toHaveLength(0); // fresh: nothing moved
       const line = await prisma.proposalLine.findFirstOrThrow({ where: { proposalId: p.id, included: true, productId: { not: null } } });
       // The world moves: a new LOCAL contract with a lower price for this SKU.
-      const contract = await prisma.contract.create({ data: { contractNumber: "TIER1-LOCAL", name: "TIER1 local", type: "LOCAL", status: "ACTIVE", accountId: acc.id, currency: "USD", effectiveFrom: new Date(Date.now() - 86_400_000), effectiveTo: new Date(Date.now() + 30 * 86_400_000), sourceSystem: "test", createdByUserId: admin.id } });
+      // Effective from now: the newest local contract is the account's primary one (context.ts).
+      const from = new Date(Date.now() - 1000);
+      const contract = await prisma.contract.create({ data: { contractNumber: "TIER1-LOCAL", name: "TIER1 local", type: "LOCAL", status: "ACTIVE", accountId: acc.id, currency: "USD", effectiveFrom: from, effectiveTo: new Date(Date.now() + 30 * 86_400_000), sourceSystem: "test", createdByUserId: admin.id } });
       const newPrice = (money(line.contractPrice) ?? money(line.listPrice)!).times(0.5).toFixed(2);
-      await prisma.priceEntry.create({ data: { contractId: contract.id, accountId: acc.id, productId: line.productId!, productFamily: line.productFamily, price: newPrice, currency: "USD", effectiveFrom: new Date(Date.now() - 86_400_000), effectiveTo: new Date(Date.now() + 30 * 86_400_000), source: "test", status: "ACTIVE", approvalState: "APPROVED" } });
+      await prisma.priceEntry.create({ data: { contractId: contract.id, accountId: acc.id, productId: line.productId!, productFamily: line.productFamily, price: newPrice, currency: "USD", effectiveFrom: from, effectiveTo: new Date(Date.now() + 30 * 86_400_000), source: "test", status: "ACTIVE", approvalState: "APPROVED" } });
       const d = await driftFor(p.id);
       expect(d.editable).toBe(true);
       const ld = d.lines.find((x) => x.lineId === line.id)!;
@@ -481,9 +573,20 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       const after = await prisma.proposalLine.findUniqueOrThrow({ where: { id: line.id } });
       expect(Number(after.contractPrice)).toBe(Number(newPrice));
       expect(after.proposedPrice?.toString()).toBe(proposedBefore);
-      expect((await prisma.proposal.findUniqueOrThrow({ where: { id: p.id } })).contractId).toBe(contract.id);
+      const pAfter = await prisma.proposal.findUniqueOrThrow({ where: { id: p.id } });
+      expect(pAfter.contractId).toBe(contract.id);
+      expect(pAfter.lockedAt).toBeNull(); // the refresh's claim is released
       expect(await prisma.auditEvent.count({ where: { entityType: "Proposal", entityId: p.id, action: "CONTEXT_REFRESHED" } })).toBe(1);
       expect((await driftFor(p.id)).lines).toHaveLength(0);
+      // A floor that moved for a policy reason (no cost change) is still reported, with the below-floor count.
+      await prisma.proposalLine.update({ where: { id: line.id }, data: { floorPrice: "0.01", proposedPrice: "0.005" } });
+      const dFloor = await driftFor(p.id);
+      const lf = dFloor.lines.find((x) => x.lineId === line.id)!;
+      expect(lf.changes.some((c) => c.field === "floorPrice")).toBe(true);
+      expect(lf.changes.some((c) => c.field === "cost")).toBe(false);
+      expect(dFloor.summary.belowNewFloor).toBe(1);
+      await refreshContext(rep, p.id);
+      await prisma.proposalLine.update({ where: { id: line.id }, data: { proposedPrice: after.proposedPrice } });
       // Submitted → reported but not refreshable; a rep without view_cost sees cost deltas redacted at the route (checked in adversarial pass).
       await submitForApproval(rep, p.id);
       await prisma.priceEntry.updateMany({ where: { contractId: contract.id }, data: { price: (Number(newPrice) * 0.9).toFixed(2) } });

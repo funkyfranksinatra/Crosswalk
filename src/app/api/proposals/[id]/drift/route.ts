@@ -1,6 +1,6 @@
 import { handle } from "@/lib/api";
 import { driftFor } from "@/lib/proposals/drift";
-import { redactJsonForActor, can } from "@/lib/auth";
+import { can } from "@/lib/auth";
 import type { ProposalDrift } from "@/lib/proposals/drift";
 
 /** Cost and floor deltas are commercially sensitive: a rep sees that they moved, not by how much. */
@@ -14,6 +14,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   return handle("view_pricing", async (actor) => {
     const d = await driftFor(id);
-    return redactJsonForActor(actor, redactDrift(actor, d));
+    return redactDrift(actor, d);
   });
 }

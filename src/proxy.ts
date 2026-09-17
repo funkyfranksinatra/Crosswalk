@@ -27,7 +27,7 @@ export function proxy(req: NextRequest) {
   // The route with ids collapsed, for bounded-cardinality metrics and log lines (src/lib/api.ts).
   headers.set("x-crosswalk-route", `${req.method} ${pathname.replace(/\/[a-z0-9]{20,}(?=\/|$)/gi, "/:id")}`.slice(0, 120));
   const next = () => { const res = NextResponse.next({ request: { headers } }); res.headers.set("x-request-id", id); return res; };
-  if (OPEN.some((p) => pathname === p || pathname.startsWith(p))) return next();
+  if (OPEN.some((p) => (p.endsWith("/") ? pathname.startsWith(p) : pathname === p))) return next();
   const hasSession = Boolean(req.cookies.get(DEV_COOKIE)?.value) || Boolean(req.headers.get("x-sso-subject"));
   if (!hasSession) { const res = NextResponse.json({ error: "Sign in required" }, { status: 401 }); res.headers.set("x-request-id", id); return res; }
   return next();

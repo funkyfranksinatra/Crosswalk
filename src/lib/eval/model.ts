@@ -47,7 +47,7 @@ export async function evaluateModel(opts: { n?: number; seed?: number; family?: 
   const n = opts.n ?? 40, seed = opts.seed ?? 7;
   const rand = rng(seed);
   const company = await getCompany();
-  const all = await prisma.knownCross.findMany({ where: { isActive: true, approvalStatus: "APPROVED", matchType: { in: ["Exact Match", "Close Match", "Alternative Match"] }, NOT: { competitorName: company.name }, ...(opts.family ? { category: opts.family } : {}) } });
+  const all = await prisma.knownCross.findMany({ where: { isActive: true, approvalStatus: "APPROVED", matchType: { in: ["Exact Match", "Close Match", "Alternative Match"] }, NOT: { competitorName: company.name }, ...(opts.family ? { category: opts.family } : {}) }, orderBy: [{ competitorCodeNorm: "asc" }, { ownSku: "asc" }] });
   const own = await prisma.ownProduct.findMany({ where: { isActive: true }, select: { id: true, sku: true, description: true, category: true, brand: true, listPrice: true, cogs: true, binJson: true, source: true } });
   const ownSkus = new Set(own.map((p) => p.sku.toUpperCase()));
   const byCode = new Map<string, { code: string; expected: Set<string>; name: string; desc: string | null; type: string }>();
@@ -57,7 +57,10 @@ export async function evaluateModel(opts: { n?: number; seed?: number; family?: 
     if (ownSkus.has(sku)) e.expected.add(sku);
     byCode.set(k.competitorCodeNorm, e);
   }
-  const pool = [...byCode.values()].filter((e) => e.expected.size > 0).sort(() => rand() - 0.5).slice(0, n);
+  // Fisher–Yates with the seeded RNG over a stably ordered list: the same seed grades the same codes.
+  const eligible = [...byCode.values()].filter((e) => e.expected.size > 0).sort((a, b) => a.code.localeCompare(b.code));
+  for (let i = eligible.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [eligible[i], eligible[j]] = [eligible[j], eligible[i]]; }
+  const pool = eligible.slice(0, n);
   const ownBins = own.map((p) => ({ p, bin: parseBin(p.binJson) ?? heuristicBin({ sku: p.sku, brand: p.brand, description: p.description, category: p.category }) }));
 
   const inputs: (GradeLineInput & { expected: Set<string>; curatedType: string; competitor: string })[] = [];

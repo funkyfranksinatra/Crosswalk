@@ -61,16 +61,31 @@ export function feedMaxAgeHours(name: FeedName): number {
   return Number.isFinite(v) && v > 0 ? v : FEEDS[name].maxAgeHours;
 }
 
-/** Where a feed's data comes from right now, and a content hash so unchanged drops are skipped. */
+const hashCache = new Map<string, { mtimeMs: number; size: number; hash: string }>();
+/** SHA-256 of a feed file, cached by (path, mtime, size): health checks and alert passes must not re-read a 300 MB purchases file. */
+function fileHash(p: string): string {
+  const st = fs.statSync(p);
+  const c = hashCache.get(p);
+  if (c && c.mtimeMs === st.mtimeMs && c.size === st.size) return c.hash;
+  const hash = createHash("sha256").update(fs.readFileSync(p)).digest("hex");
+  hashCache.set(p, { mtimeMs: st.mtimeMs, size: st.size, hash });
+  return hash;
+}
+
+export function isFeedName(name: unknown): name is FeedName {
+  return typeof name === "string" && Object.hasOwn(FEEDS, name);
+}
+
+/** Where a feed's data comes from right now, and a content hash so unchanged drops are skipped. `ref` names files, never server paths. */
 export function feedSource(name: FeedName): { kind: "api" | "file" | "none"; ref: string | null; hash: string | null; present: string[] } {
   const dir = feedDir();
   const present = dir ? FEEDS[name].files.filter((f) => fs.existsSync(path.join(dir, f))) : [];
   if (name === "crm" && process.env.SF_CLIENT_ID) return { kind: "api", ref: "Salesforce", hash: null, present };
   if (name === "erp" && process.env.SAP_ODATA_BASE_URL) return { kind: "api", ref: "SAP OData", hash: null, present };
-  if (!dir || !present.length) return { kind: "none", ref: dir, hash: null, present };
+  if (!dir || !present.length) return { kind: "none", ref: null, hash: null, present };
   const h = createHash("sha256");
-  for (const f of present) { h.update(f); h.update(fs.readFileSync(path.join(dir, f))); }
-  return { kind: "file", ref: present.map((f) => path.join(dir, f)).join(", "), hash: h.digest("hex"), present };
+  for (const f of present) { h.update(f); h.update(fileHash(path.join(dir, f))); }
+  return { kind: "file", ref: present.join(", "), hash: h.digest("hex"), present };
 }
 
 function readGrid(file: string): (string | number | null)[][] {
@@ -108,22 +123,24 @@ async function runFeed(name: FeedName, actorUserId: string | null): Promise<Coun
       const grid = readGrid("pricing.csv");
       if (!grid.length) throw new Error("pricing.csv is missing or empty");
       const r = await importPricingRows(grid, company.id);
-      return { rows: r.rows, created: 0, updated: r.updated, skipped: r.unknownSkus.length, failed: r.invalid.length, report: r };
+      // Rows that could not be applied (unknown SKU, invalid cell) count as failed: the file is not "consumed" and is retried on the next schedule.
+      return { rows: r.rows, created: 0, updated: r.updated, skipped: 0, failed: r.invalid.length + r.unknownSkus.length, report: r };
     }
     case "competitor-sizes": {
       const { importCompetitorSizesRows } = await import("@/lib/excel/sizes");
       const grid = readGrid("competitor-sizes.csv");
       if (!grid.length) throw new Error("competitor-sizes.csv is missing or empty");
       const r = await importCompetitorSizesRows(grid);
-      return { rows: r.rows, created: r.upserted, updated: 0, skipped: r.skipped.length, failed: 0, report: r };
+      return { rows: r.rows, created: r.upserted, updated: 0, skipped: 0, failed: r.skipped.length, report: r };
     }
     case "competitor-prices": {
       const { importObservationRows } = await import("@/lib/intelligence/import");
       const grid = readGrid("competitor-prices.csv");
       if (!grid.length) throw new Error("competitor-prices.csv is missing or empty");
       const system = await prisma.user.findFirst({ where: { roles: { some: { role: "ADMIN" } } }, select: { id: true } });
-      const r = await importObservationRows(actorUserId ?? system?.id ?? "system", grid, null);
-      return { rows: r.rows, created: r.recorded, updated: 0, skipped: r.skipped.length, failed: 0, report: r };
+      if (!actorUserId && !system) throw new Error("no ADMIN user exists to attribute the imported observations to");
+      const r = await importObservationRows(actorUserId ?? system!.id, grid, null);
+      return { rows: r.rows, created: r.recorded, updated: 0, skipped: 0, failed: r.skipped.length, report: r };
     }
   }
 }
@@ -132,15 +149,20 @@ export type IngestOptions = { trigger: "schedule" | "manual" | "startup"; actorU
 
 /** Ingest one feed: skip when nothing changed, record a FeedRun either way, notify on failure. */
 export async function ingestFeed(name: string, opts: IngestOptions) {
-  if (!(name in FEEDS)) throw new Error(`unknown feed "${name}"`);
-  const feed = name as FeedName;
+  if (!isFeedName(name)) throw new Error(`unknown feed "${name}"`);
+  const feed = name;
+  // One ingestion of a feed at a time, whichever door it came through (queue or "Sync now").
+  const active = await prisma.feedRun.findFirst({ where: { feed, status: "RUNNING", startedAt: { gt: new Date(Date.now() - RUNNING_STALE_MS) } }, select: { id: true, startedAt: true } });
+  if (active) throw new Error(`Feed "${feed}" is already being ingested (started ${active.startedAt.toISOString()})`);
   const source = feedSource(feed);
   if (source.kind === "none") {
     const run = await prisma.feedRun.create({ data: { feed, trigger: opts.trigger, status: "SKIPPED", sourceRef: source.ref, error: `no source configured (set INTEGRATION_FEED_DIR with ${FEEDS[feed].files.join(" / ")}, or the API credentials)`, finishedAt: new Date(), jobId: opts.jobId ?? null } });
     return { status: "SKIPPED" as const, runId: run.id, reason: run.error };
   }
   if (source.hash && !opts.force) {
-    const last = await prisma.feedRun.findFirst({ where: { feed, status: "OK", sourceHash: source.hash }, orderBy: { startedAt: "desc" }, select: { id: true, startedAt: true } });
+    // Only a fully clean run "consumes" a file: one with rejected rows (an ERP SKU file that landed
+    // after the pricing file) is tried again on the next schedule, not skipped forever.
+    const last = await prisma.feedRun.findFirst({ where: { feed, status: "OK", sourceHash: source.hash, failed: 0 }, orderBy: { startedAt: "desc" }, select: { id: true, startedAt: true } });
     if (last) {
       const run = await prisma.feedRun.create({ data: { feed, trigger: opts.trigger, status: "SKIPPED", sourceRef: source.ref, sourceHash: source.hash, error: `unchanged since ${last.startedAt.toISOString()}`, finishedAt: new Date(), jobId: opts.jobId ?? null } });
       return { status: "SKIPPED" as const, runId: run.id, reason: run.error };
@@ -150,7 +172,7 @@ export async function ingestFeed(name: string, opts: IngestOptions) {
   const t0 = Date.now();
   try {
     const c = await runFeed(feed, opts.actorUserId ?? null);
-    await prisma.feedRun.update({ where: { id: run.id }, data: { status: "OK", finishedAt: new Date(), rows: c.rows, created: c.created, updated: c.updated, skipped: c.skipped, failed: c.failed, reportJson: JSON.stringify(c.report).slice(0, 20000) } });
+    await prisma.feedRun.update({ where: { id: run.id }, data: { status: "OK", finishedAt: new Date(), rows: c.rows, created: c.created, updated: c.updated, skipped: c.skipped, failed: c.failed, reportJson: JSON.stringify(boundedReport(c.report)) } });
     await audit({ actorUserId: opts.actorUserId ?? null, entityType: "Feed", entityId: feed, action: "FEED_INGESTED", after: { trigger: opts.trigger, rows: c.rows, created: c.created, updated: c.updated, skipped: c.skipped, failed: c.failed, source: source.kind } });
     log.info("feed.ok", { feed, trigger: opts.trigger, ms: Date.now() - t0, ...c, report: undefined });
     feedAge.set({ feed }, 0);
@@ -165,11 +187,24 @@ export async function ingestFeed(name: string, opts: IngestOptions) {
   }
 }
 
-/** Queue a manual ingestion (dedupe: one queued/running job per feed). */
+/** A RUNNING row older than this belongs to a process that died (the queue's expiry has long passed). */
+const RUNNING_STALE_MS = 12 * 3600_000;
+
+/** Keep a report JSON-valid and small: long lists are truncated with a count, never cut mid-document. */
+function boundedReport(report: unknown, maxItems = 200): unknown {
+  const walk = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.length > maxItems ? [...v.slice(0, maxItems).map(walk), `… ${v.length - maxItems} more`] : v.map(walk);
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)]));
+    if (typeof v === "string" && v.length > 500) return v.slice(0, 500) + "…";
+    return v;
+  };
+  return walk(report);
+}
+
+/** Queue a manual ingestion (dedupe: one queued/running job per feed). `force` ingests even an unchanged file. */
 export async function requestIngest(feed: FeedName, actorUserId: string | null, force = false) {
   const { enqueue } = await import("@/lib/jobs/boss");
-  const { jobId, deduplicated } = await enqueue("feed.ingest", { feed, trigger: "manual", actorUserId }, { singletonKey: `feed:${feed}` });
-  if (force && jobId) await prisma.feedRun.deleteMany({ where: { feed, status: "SKIPPED", startedAt: { gt: new Date(Date.now() - 60_000) } } });
+  const { jobId, deduplicated } = await enqueue("feed.ingest", { feed, trigger: "manual", actorUserId, force }, { singletonKey: `feed:${feed}` });
   return { jobId, alreadyQueued: deduplicated };
 }
 
@@ -179,10 +214,12 @@ export type FeedStatus = { name: FeedName; title: string; description: string; c
 export async function feedStatuses(): Promise<FeedStatus[]> {
   const out: FeedStatus[] = [];
   for (const def of Object.values(FEEDS)) {
-    const [lastOk, lastRun] = await Promise.all([
+    const [lastOk, lastRunRaw] = await Promise.all([
       prisma.feedRun.findFirst({ where: { feed: def.name, status: "OK" }, orderBy: { startedAt: "desc" }, select: { startedAt: true } }),
       prisma.feedRun.findFirst({ where: { feed: def.name, status: { not: "SKIPPED" } }, orderBy: { startedAt: "desc" } }),
     ]);
+    // A RUNNING row whose process died is a failure, not "in progress".
+    const lastRun = lastRunRaw && lastRunRaw.status === "RUNNING" && Date.now() - lastRunRaw.startedAt.getTime() > RUNNING_STALE_MS ? { ...lastRunRaw, status: "FAILED", error: lastRunRaw.error ?? "the process running this ingestion stopped before it finished" } : lastRunRaw;
     const source = feedSource(def.name);
     const cron = feedCron(def.name);
     const ageHours = lastOk ? (Date.now() - lastOk.startedAt.getTime()) / 3600_000 : null;

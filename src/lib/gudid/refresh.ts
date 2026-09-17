@@ -47,8 +47,10 @@ export async function refreshStaleRecords(opts: { cfnNorm?: string; limit?: numb
   const rep: RefreshReport = { checked: 0, changed: 0, missing: 0, errors: 0, ownChecked: 0, ownChanged: 0 };
   const limit = Math.max(1, Math.min(2000, opts.limit ?? 200));
 
+  // The per-code path applies the same eligibility as the sweep: a row a person set to "manual"
+  // (or that lost its DI) since the job was queued must not be overwritten with openFDA data.
   const rows = opts.cfnNorm
-    ? await prisma.competitorProduct.findMany({ where: { cfnNorm: opts.cfnNorm } })
+    ? await prisma.competitorProduct.findMany({ where: { cfnNorm: opts.cfnNorm, resolution: { in: ["openfda", "openfda-variant", "llm"] }, gudidDi: { not: null } } })
     : await prisma.competitorProduct.findMany({
         where: { resolution: { in: ["openfda", "openfda-variant", "llm"] }, gudidDi: { not: null }, OR: [{ gudidCheckedAt: null, resolvedAt: { lt: cutoff } }, { gudidCheckedAt: { lt: cutoff } }] },
         orderBy: [{ gudidCheckedAt: { sort: "asc", nulls: "first" } }, { resolvedAt: "asc" }],
@@ -74,6 +76,8 @@ export async function refreshStaleRecords(opts: { cfnNorm?: string; limit?: numb
       rep.changed++;
     } catch (e) {
       rep.errors++;
+      // Stamp the row so a permanently failing lookup rotates to the back of the sweep instead of wedging it.
+      await prisma.competitorProduct.update({ where: { id: row.id }, data: { gudidCheckedAt: new Date() } }).catch(() => undefined);
       log.warn("gudid.refresh_error", { cfnNorm: row.cfnNorm, error: e instanceof Error ? e.message : String(e) });
     }
   }
@@ -93,6 +97,7 @@ export async function refreshStaleRecords(opts: { cfnNorm?: string; limit?: numb
         rep.ownChanged++;
       } catch (e) {
         rep.errors++;
+        await prisma.ownProduct.update({ where: { id: p.id }, data: { gudidSyncedAt: new Date() } }).catch(() => undefined);
         log.warn("gudid.refresh_own_error", { sku: p.sku, error: e instanceof Error ? e.message : String(e) });
       }
     }
@@ -102,6 +107,7 @@ export async function refreshStaleRecords(opts: { cfnNorm?: string; limit?: numb
 }
 
 function appendNote(existing: string | null, note: string) {
-  const base = (existing ?? "").replace(/\s*\|\s*GUDID record (updated|no longer found)[^|]*$/, "");
+  // One refresh note at a time: strip any previous one, wherever it sits.
+  const base = (existing ?? "").split(" | ").filter((part) => !/^GUDID record (updated|no longer found)/.test(part.trim())).join(" | ").trim();
   return `${base}${base ? " | " : ""}${note}`.slice(0, 1000);
 }

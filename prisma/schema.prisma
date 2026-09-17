@@ -1049,10 +1049,13 @@ model Notification {
   entityId      String?
   readAt        DateTime?
   deliveriesJson String?
+  /// Suppresses a repeat of the same message to the same person within an hour (alerts, feed failures, resubmissions)
+  dedupeKey     String?
   createdAt     DateTime  @default(now())
 
   @@index([userId, readAt, createdAt])
   @@index([entityType, entityId])
+  @@index([userId, dedupeKey, createdAt])
 }
 
 /// Per-user, per-kind channel switches. Absent row = defaults (in-app on; email on when SMTP is configured; Teams off).

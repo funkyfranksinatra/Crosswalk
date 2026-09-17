@@ -13,7 +13,7 @@
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { type Actor, requirePermission } from "@/lib/auth";
-import { money, toDb, type Money } from "@/lib/money";
+import { money, toDb, round, type Money } from "@/lib/money";
 import { loadPricingContext } from "@/lib/contracts/context";
 import { activePolicies, policyFor } from "@/lib/pricing/policy";
 import { floorFor, recommend } from "@/lib/pricing/recommend";
@@ -65,14 +65,14 @@ export async function driftFor(proposalId: string): Promise<ProposalDrift> {
     if (!same(money(l.listPrice), listPrice)) changes.push({ field: "listPrice", from: s(money(l.listPrice)), to: s(listPrice) });
     if (!same(money(l.contractPrice), contractPrice)) changes.push({ field: "contractPrice", from: s(money(l.contractPrice)), to: s(contractPrice), note: contractSource ? `now from ${contractSource}` : "no contract price applies now" });
     else if ((l.contractPriceSource ?? null) !== contractSource) changes.push({ field: "contractPriceSource", from: l.contractPriceSource, to: contractSource });
-    if (!same(money(l.cost), cost.cost ?? null)) {
-      changes.push({ field: "cost", from: s(money(l.cost)), to: s(cost.cost ?? null) });
-      const newFloor = floorFor(policy, cost.cost ?? null, listPrice);
-      if (!same(money(l.floorPrice), newFloor)) {
-        changes.push({ field: "floorPrice", from: s(money(l.floorPrice)), to: s(newFloor) });
-        const pp = money(l.proposedPrice);
-        if (pp && newFloor && pp.lt(newFloor)) belowNewFloor++;
-      }
+    if (!same(money(l.cost), cost.cost ?? null)) changes.push({ field: "cost", from: s(money(l.cost)), to: s(cost.cost ?? null) });
+    // The floor moves with cost, list price OR the policy (a higher minimum margin, a new method) — always recompute it.
+    const rawFloor = floorFor(policy, cost.cost ?? null, listPrice);
+    const newFloor = rawFloor ? round(rawFloor, p.currency) : null; // stored floors are rounded to the minor unit (recommend.ts)
+    if (!same(money(l.floorPrice), newFloor)) {
+      changes.push({ field: "floorPrice", from: s(money(l.floorPrice)), to: s(newFloor) });
+      const pp = money(l.proposedPrice);
+      if (pp && newFloor && pp.lt(newFloor)) belowNewFloor++;
     }
     if ((l.policyId ?? null) !== policy.id) changes.push({ field: "policy", from: l.policyId, to: policy.id, note: `${policy.productFamily} policy v${policy.version} is now active` });
     if ((l.equivalenceLevel ?? "NONE") !== equivalence) changes.push({ field: "equivalence", from: l.equivalenceLevel, to: equivalence, note: entry ? "published cross changed" : "no published cross for this pair any more" });
@@ -92,6 +92,11 @@ export async function refreshContext(actor: Actor, proposalId: string) {
   const before = await driftFor(proposalId);
   if (!before.editable) throw new Error(`Proposal is ${before.status.toLowerCase()}${before.status === "DRAFT" ? " but locked" : ""}; only an unlocked draft can be refreshed — reopen it first`);
   if (!before.lines.length && !before.proposal.length) return { refreshed: 0, drift: before };
+  // Claim the draft for the duration (same lock submission takes), so a submit racing this refresh
+  // cannot snapshot half-rewritten lines; released at the end, or if anything throws.
+  const claimed = await prisma.proposal.updateMany({ where: { id: proposalId, status: { in: ["DRAFT", "CHANGES_REQUESTED"] }, lockedAt: null }, data: { lockedAt: new Date() } });
+  if (claimed.count !== 1) throw new Error("Proposal is being submitted or refreshed by someone else; try again in a moment");
+  try {
   const { p, ctx, policies, version, asOf } = await liveContext(proposalId);
   let refreshed = 0;
   for (const d of before.lines) {
@@ -123,4 +128,7 @@ export async function refreshContext(actor: Actor, proposalId: string) {
   await audit({ actorUserId: actor.id, entityType: "Proposal", entityId: proposalId, action: "CONTEXT_REFRESHED", before: { checkedAt: before.checkedAt, proposal: before.proposal, lines: before.lines.map((d) => ({ line: d.lineNo, sku: d.sku, changes: d.changes })) }, after: { refreshedLines: refreshed, asOf: asOf.toISOString() } });
   log.info("proposal.context_refreshed", { proposalId, refreshed, proposalChanges: before.proposal.length });
   return { refreshed, drift: before };
+  } finally {
+    await prisma.proposal.updateMany({ where: { id: proposalId, status: { in: ["DRAFT", "CHANGES_REQUESTED"] } }, data: { lockedAt: null } });
+  }
 }

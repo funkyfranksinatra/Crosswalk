@@ -33,20 +33,26 @@ export async function sizeCoverage(opts: { limit?: number } = {}): Promise<{ row
   const [cps, specs, lines, obs] = await Promise.all([
     prisma.competitorProduct.findMany({ where: { resolution: { not: "not-found" } }, select: { cfnNorm: true, cfnMatched: true, manufacturer: true, description: true, category: true, binJson: true, gudidJson: true } }),
     prisma.competitorSpec.findMany({ select: { cfnNorm: true, dimsJson: true } }),
-    prisma.requestLine.findMany({ where: { resolutionStatus: "resolved" }, select: { cfnNorm: true, quantity: true, estCompetitorPrice: true, request: { select: { accountNumber: true, accountId: true } } } }),
-    prisma.competitorPriceObservation.findMany({ select: { competitorSku: true, price: true } }),
+    prisma.requestLine.findMany({ where: { resolutionStatus: "resolved", request: { NOT: { reference: { startsWith: "BENCH-" } } } }, select: { cfnNorm: true, quantity: true, estCompetitorPrice: true, request: { select: { id: true, accountNumber: true, accountId: true, createdAt: true } } }, orderBy: { request: { createdAt: "desc" } } }),
+    prisma.competitorPriceObservation.findMany({ where: { currency: "USD" }, select: { competitorSku: true, price: true } }),
   ]);
   const onFile = new Map(specs.map((s) => [s.cfnNorm, s.dimsJson]));
   const priceByCode = new Map<string, number[]>();
   for (const o of obs) { const k = compactCfn(normalizeCfn(o.competitorSku)); const v = Number(o.price); if (Number.isFinite(v) && v > 0) priceByCode.set(k, [...(priceByCode.get(k) ?? []), v]); }
   const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
 
+  // The same list re-uploaded or re-run must not count twice: one request per (account, code) — the latest.
+  const seenAccountCode = new Set<string>();
   const usage = new Map<string, { lines: number; accounts: Set<string>; units: number; est: number[] }>();
   for (const l of lines) {
     const k = compactCfn(normalizeCfn(l.cfnNorm));
+    const account = l.request.accountNumber ?? l.request.accountId ?? l.request.id;
+    const dedupe = `${account}|${k}`;
+    if (seenAccountCode.has(dedupe)) continue;
+    seenAccountCode.add(dedupe);
     const u = usage.get(k) ?? { lines: 0, accounts: new Set<string>(), units: 0, est: [] };
     u.lines++; u.units += Number(l.quantity) || 0;
-    u.accounts.add(l.request.accountNumber ?? l.request.accountId ?? "?");
+    u.accounts.add(account);
     const p = l.estCompetitorPrice === null ? null : Number(l.estCompetitorPrice);
     if (p !== null && Number.isFinite(p) && p > 0) u.est.push(p);
     usage.set(k, u);

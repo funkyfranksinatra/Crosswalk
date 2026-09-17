@@ -34,7 +34,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const updated = await prisma.requestLine.update({ where: { id: lineId }, data, include: { candidates: { orderBy: { rank: "asc" }, include: { ownProduct: true } }, competitorProduct: true } });
   // Learning loop: an override becomes a rep-proposed cross for review; a confirmed top pick is ground truth.
   let learned: Awaited<ReturnType<typeof recordLineDecision>> = {};
-  if ("selectedCandidateId" in body || body.reviewed) learned = await recordLineDecision(actor, lineId, { selectedCandidateId: body.selectedCandidateId, reviewed: body.reviewed, overrideNote: body.overrideNote }).catch((e) => { console.error("[learning]", e); return {}; });
+  if ("selectedCandidateId" in body || body.reviewed) learned = await recordLineDecision(actor, lineId, { ...("selectedCandidateId" in body ? { selectedCandidateId: body.selectedCandidateId ?? null } : {}), reviewed: body.reviewed, overrideNote: body.overrideNote }).catch((e) => { console.error("[learning]", e); return {}; });
   if (!can(actor, "view_cost") || !can(actor, "view_margin")) for (const c of updated.candidates) { if (!can(actor, "view_cost")) { c.ownProduct.cogs = null; c.scoreCogs = null; } if (!can(actor, "view_margin")) c.scoreMargin = null; }
   return NextResponse.json({ ...plain(updated), learned });
 }

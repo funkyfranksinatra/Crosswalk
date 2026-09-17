@@ -23,11 +23,11 @@ type Handler<N extends QueueName> = (data: JobData[N], meta: Meta & { attempt: n
 const handlers: { [N in QueueName]: Handler<N> } = {
   "request.run": async (data, meta) => {
     const { runRequest } = await import("@/lib/pipeline/run");
-    return runRequest(data.requestId, { jobId: meta.id, attempt: meta.attempt, freshGrades: data.freshGrades, signal: meta.signal, resume: data.resume });
+    return runRequest(data.requestId, { jobId: meta.id, attempt: meta.attempt, freshGrades: data.freshGrades, signal: meta.signal, resume: data.resume, finalAttempt: meta.finalAttempt });
   },
   "gudid.import": async (data, meta) => {
     const { runImport } = await import("@/lib/gudid/library");
-    return runImport(data.importId, { jobId: meta.id, attempt: meta.attempt, resume: data.resume });
+    return runImport(data.importId, { jobId: meta.id, attempt: meta.attempt, resume: data.resume, finalAttempt: meta.finalAttempt });
   },
   "gudid.refresh": async (data) => {
     const { refreshStaleRecords } = await import("@/lib/gudid/refresh");
@@ -42,7 +42,7 @@ const handlers: { [N in QueueName]: Handler<N> } = {
   },
   "feed.ingest": async (data, meta) => {
     const { ingestFeed } = await import("@/lib/feeds");
-    return ingestFeed(data.feed, { trigger: data.trigger, actorUserId: data.actorUserId ?? null, jobId: meta.id });
+    return ingestFeed(data.feed, { trigger: data.trigger, actorUserId: data.actorUserId ?? null, jobId: meta.id, force: Boolean(data.force) });
   },
   "notify.deliver": async (data) => {
     const { deliver } = await import("@/lib/notifications/deliver");
@@ -82,7 +82,8 @@ async function register<N extends QueueName>(boss: PgBoss, name: N) {
         return out;
       } catch (e) {
         const error = e instanceof Error ? e.message : String(e);
-        log.error("jobs.failed", { queue: name, jobId: job.id, attempt, finalAttempt, ms: Date.now() - t0, error });
+        const interrupted = e instanceof Error && e.name === "RunInterrupted";
+        log[interrupted ? "warn" : "error"]("jobs.failed", { queue: name, jobId: job.id, attempt, finalAttempt, interrupted, ms: Date.now() - t0, error });
         if (finalAttempt) await onFinalFailure(name, job.data, error);
         throw e;
       }
@@ -105,23 +106,35 @@ async function registerSchedules(boss: PgBoss) {
 async function recoverOrphans() {
   const { enqueue } = await import("./boss");
   // Requests marked queued/running without a job → (re)enqueue them; their pipeline resumes from its checkpoint.
-  const requests = await prisma.request.findMany({ where: { status: { in: ["queued", "running"] } }, select: { id: true, jobId: true, status: true } });
+  const boss = await getBoss();
+  // A job that is still live (its heartbeat will fail it soon if the process died) is left alone.
+  const live = async (queue: "request.run" | "gudid.import", jobId: string | null) => {
+    if (!jobId) return false;
+    const job = await boss.getJobById(queue, jobId).catch(() => null);
+    return Boolean(job && ["created", "retry", "active"].includes(job.state));
+  };
+  const requests = await prisma.request.findMany({ where: { status: { in: ["queued", "running"] } }, select: { id: true, jobId: true, status: true, attempt: true } });
+  const runCap = QUEUES["request.run"].retryLimit + 1;
   for (const r of requests) {
-    if (r.jobId) {
-      const boss = await getBoss();
-      const job = await boss.getJobById("request.run", r.jobId).catch(() => null);
-      if (job && ["created", "retry", "active"].includes(job.state)) continue;
+    if (await live("request.run", r.jobId)) continue;
+    // Recovery counts as an attempt: a request that keeps killing the process is not re-queued forever.
+    if (r.attempt >= runCap) {
+      await prisma.request.update({ where: { id: r.id }, data: { status: "failed", stage: "Failed", error: `Interrupted ${r.attempt} times (server restarts); not retried automatically — Re-run to try again` } });
+      log.error("jobs.recovery_gave_up", { crossRef: r.id, attempts: r.attempt });
+      continue;
     }
     const { jobId } = await enqueue("request.run", { requestId: r.id, resume: true }, { singletonKey: r.id });
     if (jobId) await prisma.request.update({ where: { id: r.id }, data: { jobId, status: "queued", stage: "Queued (recovered after restart)" } });
-    log.warn("jobs.recovered_request", { requestId: r.id, jobId });
+    log.warn("jobs.recovered_request", { crossRef: r.id, jobId });
   }
-  const imports = await prisma.gudidImport.findMany({ where: { status: { in: ["QUEUED", "RUNNING"] } }, select: { id: true, jobId: true } });
+  const imports = await prisma.gudidImport.findMany({ where: { status: { in: ["QUEUED", "RUNNING"] } }, select: { id: true, jobId: true, attempt: true } });
+  const importCap = QUEUES["gudid.import"].retryLimit + 1;
   for (const im of imports) {
-    if (im.jobId) {
-      const boss = await getBoss();
-      const job = await boss.getJobById("gudid.import", im.jobId).catch(() => null);
-      if (job && ["created", "retry", "active"].includes(job.state)) continue;
+    if (await live("gudid.import", im.jobId)) continue;
+    if (im.attempt >= importCap) {
+      await prisma.gudidImport.update({ where: { id: im.id }, data: { status: "FAILED", error: `Interrupted ${im.attempt} times (server restarts); start the import again to continue from where it stopped`, finishedAt: new Date() } });
+      log.error("jobs.recovery_gave_up", { importId: im.id, attempts: im.attempt });
+      continue;
     }
     const { jobId } = await enqueue("gudid.import", { importId: im.id, resume: true }, { singletonKey: im.id });
     if (jobId) await prisma.gudidImport.update({ where: { id: im.id }, data: { jobId, status: "QUEUED" } });

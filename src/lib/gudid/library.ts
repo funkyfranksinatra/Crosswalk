@@ -101,11 +101,12 @@ class ImportCancelled extends Error { constructor() { super("cancelled"); this.n
 /** Ask an import to stop. Works across processes: the flag is in the database and the runner checks it every page. */
 export async function cancelImport(id: string) {
   const job = await prisma.gudidImport.findUniqueOrThrow({ where: { id }, select: { status: true, jobId: true } });
+  // The flag is cleared only by the runner that honours it — a cancel racing the pick-up is not lost.
   await prisma.gudidImport.update({ where: { id }, data: { cancelRequested: true } });
-  if (job.status === "QUEUED" && job.jobId) {
+  const claimed = await prisma.gudidImport.updateMany({ where: { id, status: "QUEUED" }, data: { status: "CANCELLED", finishedAt: new Date(), cancelRequested: false } });
+  if (claimed.count === 1 && job.jobId) {
     const { getBoss } = await import("@/lib/jobs/boss");
     await (await getBoss()).cancel("gudid.import", job.jobId).catch(() => undefined);
-    await prisma.gudidImport.update({ where: { id }, data: { status: "CANCELLED", finishedAt: new Date(), cancelRequested: false } });
   }
 }
 
@@ -124,8 +125,14 @@ export async function startImport(opts: ImportOptions) {
     },
   });
   const { enqueue } = await import("@/lib/jobs/boss");
-  const { jobId } = await enqueue("gudid.import", { importId: row.id }, { singletonKey: row.id });
-  return prisma.gudidImport.update({ where: { id: row.id }, data: { jobId } });
+  try {
+    const { jobId } = await enqueue("gudid.import", { importId: row.id }, { singletonKey: row.id });
+    return await prisma.gudidImport.update({ where: { id: row.id }, data: { jobId } });
+  } catch (e) {
+    // Never leave a QUEUED row with no job behind: it would block every later import.
+    await prisma.gudidImport.update({ where: { id: row.id }, data: { status: "FAILED", error: `The job queue is unavailable: ${e instanceof Error ? e.message : String(e)}`, finishedAt: new Date() } }).catch(() => undefined);
+    throw new Error("The job queue is unavailable right now; try again in a moment");
+  }
 }
 
 async function appendLog(id: string, line: string, patch: Record<string, unknown> = {}) {
@@ -134,27 +141,40 @@ async function appendLog(id: string, line: string, patch: Record<string, unknown
   await prisma.gudidImport.update({ where: { id }, data: { log, ...patch } });
 }
 
-export async function runImport(id: string, runOpts: { jobId?: string | null; attempt?: number; resume?: boolean } = {}) {
+type Cursor = { leaf: number; skip: number; leaves?: { search: string; count: number }[] };
+
+export async function runImport(id: string, runOpts: { jobId?: string | null; attempt?: number; resume?: boolean; finalAttempt?: boolean } = {}) {
   const job = await prisma.gudidImport.findUniqueOrThrow({ where: { id } });
-  if (["DONE", "CANCELLED"].includes(job.status)) return; // a redelivered job for finished work is a no-op
+  if (["DONE", "CANCELLED", "FAILED"].includes(job.status)) return; // a redelivered job for finished work is a no-op
   const productCodes = job.productCodesJson ? (JSON.parse(job.productCodesJson) as string[]) : null;
   const families = job.familiesJson ? (JSON.parse(job.familiesJson) as Family[]) : null;
   let search = baseSearch({ query: job.query, inDistributionOnly: job.inDistributionOnly });
   if (productCodes?.length) search += `+AND+(${productCodes.map((c) => `product_codes.code:${phrase(c)}`).join("+OR+")})`;
-  const attempt = runOpts.attempt ?? 1;
-  // Resume: a retry continues from the page the previous attempt reached (counts carry over).
-  const cursor = (attempt > 1 || runOpts.resume) && job.cursorJson ? (JSON.parse(job.cursorJson) as { leaf: number; skip: number }) : null;
+  const resuming = (runOpts.attempt ?? 1) > 1 || Boolean(runOpts.resume);
+  // Attempts are monotonic across retries and restarts (a recovered orphan is a new job).
+  const attempt = resuming ? Math.max(runOpts.attempt ?? 1, job.attempt + 1) : Math.max(1, runOpts.attempt ?? 1);
+  // Resume: a retry continues from the page the previous attempt reached, over the SAME plan of
+  // sub-queries it recorded (openFDA bucket counts move week to week; re-planning would shift leaves).
+  const cursor = resuming && job.cursorJson ? (JSON.parse(job.cursorJson) as Cursor) : null;
 
   const seen = new Set<string>();
   let fetched = cursor ? job.fetched : 0, created = cursor ? job.created : 0, updated = cursor ? job.updated : 0, ownAdded = cursor ? job.ownAdded : 0, errors = cursor ? job.errors : 0;
   const isCancelled = async () => (await prisma.gudidImport.findUnique({ where: { id }, select: { cancelRequested: true } }))?.cancelRequested === true;
   try {
-    await prisma.gudidImport.update({ where: { id }, data: { status: "RUNNING", attempt, jobId: runOpts.jobId ?? job.jobId } });
+    // Conditional start: a cancel that landed between pick-up and here wins.
+    const started = await prisma.gudidImport.updateMany({ where: { id, cancelRequested: false, status: { in: ["QUEUED", "RUNNING"] } }, data: { status: "RUNNING", attempt, jobId: runOpts.jobId ?? job.jobId } });
+    if (started.count !== 1) throw new ImportCancelled();
     if (cursor) await appendLog(id, `Resumed (attempt ${attempt}) at query ${cursor.leaf + 1}, page ${cursor.skip / PAGE + 1} after an interruption`);
-    const total = await countFor(search);
-    await appendLog(id, `openFDA reports ${total.toLocaleString()} records for "${job.query}"`, { expected: total });
-    const leaves = await planSearches(search, total);
-    if (leaves.length > 1) await appendLog(id, `Split into ${leaves.length} product-code queries (openFDA pages at most 26,000 per query)`);
+    let leaves: { search: string; count: number }[];
+    if (cursor?.leaves?.length) leaves = cursor.leaves;
+    else {
+      const total = await countFor(search);
+      await appendLog(id, `openFDA reports ${total.toLocaleString()} records for "${job.query}"`, { expected: total });
+      leaves = await planSearches(search, total);
+      if (leaves.length > 1) await appendLog(id, `Split into ${leaves.length} product-code queries (openFDA pages at most 26,000 per query)`);
+      for (const leaf of leaves) if (leaf.count > PER_QUERY_CAP) await appendLog(id, `! "${leaf.search.slice(0, 80)}…" has ${leaf.count.toLocaleString()} records; only the first ${PER_QUERY_CAP.toLocaleString()} can be paged — narrow by product code to get the rest`);
+      await prisma.gudidImport.update({ where: { id }, data: { cursorJson: JSON.stringify({ leaf: 0, skip: 0, leaves } satisfies Cursor) } });
+    }
 
     for (const [leafIndex, leaf] of leaves.entries()) {
       if (cursor && leafIndex < cursor.leaf) continue;
@@ -175,7 +195,7 @@ export async function runImport(id: string, runOpts: { jobId?: string | null; at
           await appendLog(id, `! page skip=${skip}: ${e instanceof Error ? e.message : e}`);
         }
         // The cursor points at the NEXT page: a crash after this write resumes without re-fetching this one.
-        await prisma.gudidImport.update({ where: { id }, data: { fetched, created, updated, ownAdded, errors, cursorJson: JSON.stringify({ leaf: leafIndex, skip: skip + PAGE }) } });
+        await prisma.gudidImport.update({ where: { id }, data: { fetched, created, updated, ownAdded, errors, cursorJson: JSON.stringify({ leaf: leafIndex, skip: skip + PAGE, leaves } satisfies Cursor) } });
         if (recs.length < PAGE) break;
         await sleep(PACE_MS);
       }
@@ -189,8 +209,7 @@ export async function runImport(id: string, runOpts: { jobId?: string | null; at
       return;
     }
     // Leave the row RUNNING with its cursor: the queue retries and resumes. Only the final attempt fails it.
-    const { QUEUES } = await import("@/lib/jobs/queues");
-    const final = attempt > QUEUES["gudid.import"].retryLimit;
+    const final = runOpts.finalAttempt ?? true;
     await appendLog(id, `${final ? "Failed" : `Attempt ${attempt} failed, will retry`}: ${msg}`, final ? { status: "FAILED", error: msg, finishedAt: new Date(), fetched, created, updated, ownAdded, errors } : { fetched, created, updated, ownAdded, errors });
     slog.error("gudid.import_failed", { importId: id, attempt, final, error: msg });
     throw e;

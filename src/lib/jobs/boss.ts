@@ -14,12 +14,13 @@ import { PgBoss } from "pg-boss";
 
 type IDatabase = { executeSql(text: string, values?: unknown[]): Promise<{ rows: unknown[] }> };
 import { prisma, strictSsl } from "@/lib/db";
-import { log } from "@/lib/log";
+import { log, withRequestContext } from "@/lib/log";
 import { QUEUES, type QueueName, type JobData } from "./queues";
 
 export const JOBS_SCHEMA = process.env.JOBS_SCHEMA ?? "pgboss";
 
-type G = typeof globalThis & { __crosswalkBoss?: Promise<PgBoss> | null; __crosswalkBossStopped?: boolean };
+type Db = IDatabase & { end(): Promise<void> };
+type G = typeof globalThis & { __crosswalkBoss?: Promise<PgBoss> | null; __crosswalkBossStopped?: boolean; __crosswalkBossDb?: Db | null };
 const g = globalThis as G;
 
 export function jobsEnabled(): boolean {
@@ -36,22 +37,23 @@ async function makeDb(): Promise<IDatabase & { end(): Promise<void> }> {
     const ws = (await import("ws")).default;
     neonConfig.webSocketConstructor = ws;
     const pool = new Pool({ connectionString: url, max });
-    return { executeSql: async (text: string, values?: unknown[]) => { const r = await pool.query(text, values); return { rows: r.rows }; }, end: () => pool.end() };
+    // The raw driver result goes back as-is: pg-boss's multi-statement maintenance SQL yields an ARRAY of
+    // results (one per statement) that it unwraps itself; wrapping it as { rows } would hide them.
+    return { executeSql: (text: string, values?: unknown[]) => pool.query(text, values) as unknown as Promise<{ rows: unknown[] }>, end: () => pool.end() };
   }
   const { Pool } = await import("pg");
   const pool = new Pool({ connectionString: strictSsl(url), max });
-  return { executeSql: async (text: string, values?: unknown[]) => { const r = await pool.query(text, values); return { rows: r.rows }; }, end: () => pool.end() };
+  return { executeSql: (text: string, values?: unknown[]) => pool.query(text, values) as unknown as Promise<{ rows: unknown[] }>, end: () => pool.end() };
 }
-
-let dbHandle: (IDatabase & { end(): Promise<void> }) | null = null;
 
 /** The started pg-boss instance (starting it on first use). */
 export function getBoss(): Promise<PgBoss> {
   if (!g.__crosswalkBoss) {
-    g.__crosswalkBoss = (async () => {
-      dbHandle = await makeDb();
+    // Detached from any request's log context: the boss's timers outlive the request that started it.
+    g.__crosswalkBoss = detached(async () => {
+      g.__crosswalkBossDb = await makeDb();
       const boss = new PgBoss({
-        db: dbHandle,
+        db: g.__crosswalkBossDb,
         schema: JOBS_SCHEMA,
         // Maintenance (expiring dead jobs, archiving) runs in every process; cheap and idempotent.
         maintenanceIntervalSeconds: Number(process.env.JOBS_MAINTENANCE_SECONDS ?? 60),
@@ -64,23 +66,34 @@ export function getBoss(): Promise<PgBoss> {
       await boss.start();
       for (const [name, opts] of Object.entries(QUEUES)) {
         await boss.createQueue(name, { ...opts });
-        // A queue's policy is fixed at creation. If ours changed (an upgrade), recreate an empty
-        // queue; a queue holding jobs is left alone and reported, never dropped.
+        // createQueue is create-if-missing: push the current retry/expiry options onto an existing
+        // queue so an edit in queues.ts reaches every database. Policy is fixed at creation — if
+        // ours changed (an upgrade), recreate an empty queue; one holding jobs is reported, not dropped.
         const q = await boss.getQueue(name);
         if (q && q.policy !== opts.policy) {
           if (q.totalCount === 0) { await boss.deleteQueue(name); await boss.createQueue(name, { ...opts }); log.warn("jobs.queue_recreated", { queue: name, from: q.policy, to: opts.policy }); }
           else log.warn("jobs.queue_policy_mismatch", { queue: name, have: q.policy, want: opts.policy, jobs: q.totalCount });
+        } else if (q) {
+          const { policy: _p, heartbeatSeconds: _h, ...rest } = opts as Record<string, unknown> & { policy: string; heartbeatSeconds?: number };
+          void _p; void _h;
+          const differs = Object.entries(rest).some(([k, v]) => (q as unknown as Record<string, unknown>)[k] !== v);
+          if (differs) await boss.updateQueue(name, rest as never);
         }
       }
       g.__crosswalkBossStopped = false;
       log.info("jobs.started", { schema: JOBS_SCHEMA });
       return boss;
-    })().catch((e) => {
+    }).catch((e: unknown) => {
       g.__crosswalkBoss = null;
       throw e;
     });
   }
-  return g.__crosswalkBoss;
+  return g.__crosswalkBoss!;
+}
+
+/** Run `fn` outside the current AsyncLocalStorage log context. */
+function detached<T>(fn: () => Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => { setImmediate(() => { withRequestContext({ requestId: "boss" }, fn).then(resolve, reject); }); });
 }
 
 export type EnqueueOptions = { singletonKey?: string; startAfterSeconds?: number; priority?: number };
@@ -92,6 +105,9 @@ export type EnqueueOptions = { singletonKey?: string; startAfterSeconds?: number
 export async function enqueue<N extends QueueName>(name: N, data: JobData[N], opts: EnqueueOptions = {}): Promise<{ jobId: string | null; deduplicated: boolean }> {
   const boss = await getBoss();
   const sendOpts: Record<string, unknown> = {};
+  // Job-level heartbeat as well as the queue's, so it applies even on a queue created before the option existed.
+  const hb = (QUEUES[name] as { heartbeatSeconds?: number }).heartbeatSeconds;
+  if (hb) sendOpts.heartbeatSeconds = hb;
   if (opts.singletonKey) sendOpts.singletonKey = opts.singletonKey;
   if (opts.startAfterSeconds) sendOpts.startAfter = opts.startAfterSeconds;
   if (opts.priority !== undefined) sendOpts.priority = opts.priority;
@@ -136,7 +152,7 @@ export async function stopBoss() {
   const boss = await g.__crosswalkBoss;
   g.__crosswalkBossStopped = true;
   await boss.stop({ graceful: true, timeout: 10_000 });
-  await dbHandle?.end().catch(() => undefined);
-  dbHandle = null;
+  await g.__crosswalkBossDb?.end().catch(() => undefined);
+  g.__crosswalkBossDb = null;
   g.__crosswalkBoss = null;
 }

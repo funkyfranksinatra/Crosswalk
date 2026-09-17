@@ -8,7 +8,7 @@ import { summarizeLines } from "@/lib/requests";
 export default async function Overview() {
   const company = await getCompany();
   const [requests, products, priced, binned, crosses, competitors, unresolved] = await Promise.all([
-    prisma.request.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: { lines: { select: { quantity: true, estCompetitorPrice: true, resolutionStatus: true, matchStatus: true, reviewed: true, selectedCandidateId: true, candidates: { where: { isSelected: true }, select: { id: true, matchType: true, unitPrice: true } } } } } }),
+    prisma.request.findMany({ where: { NOT: { reference: { startsWith: "BENCH-" } } }, orderBy: { createdAt: "desc" }, take: 8, include: { lines: { select: { quantity: true, estCompetitorPrice: true, resolutionStatus: true, matchStatus: true, reviewed: true, selectedCandidateId: true, candidates: { where: { isSelected: true }, select: { id: true, matchType: true, unitPrice: true } } } } } }),
     prisma.ownProduct.count({ where: { companyId: company.id, isActive: true } }),
     prisma.ownProduct.count({ where: { companyId: company.id, OR: [{ listPrice: { not: null } }, { prices: { some: {} } }] } }),
     prisma.ownProduct.count({ where: { companyId: company.id, gudidSyncedAt: { not: null }, gudidDi: { not: null } } }),

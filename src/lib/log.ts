@@ -48,17 +48,22 @@ function format(): "json" | "pretty" {
 }
 
 /** Keys whose values must never reach a log line, whatever module passes them. */
-const SECRET_KEY = /(password|secret|token|api[_-]?key|authorization|cookie|connection[_-]?string|database[_-]?url)/i;
+const SECRET_KEY = /(password|passwd|secret|(^|[_-])token$|access[_-]?token|refresh[_-]?token|id[_-]?token|api[_-]?key|authorization|cookie|connection[_-]?string|database[_-]?url|webhook[_-]?url|smtp[_-]?url)/i;
+/** Values that look like credentials even under an innocent key. */
+const SECRET_VALUE = /^(sk-[A-Za-z0-9_-]{10,}|postgres(ql)?:\/\/\S+:\S+@|Bearer\s+\S+|smtps?:\/\/\S+:\S+@)/i;
+
+function scrubValue(v: unknown, depth: number): unknown {
+  if (v instanceof Error) return { message: scrubValue(v.message, depth + 1), name: v.name, stack: process.env.NODE_ENV === "production" ? undefined : v.stack?.split("\n").slice(0, 4).join("\n") };
+  if (typeof v === "string") { if (SECRET_VALUE.test(v)) return "[redacted]"; return v.length > 2000 ? v.slice(0, 2000) + "…" : v; }
+  if (depth >= 4 || v === null || typeof v !== "object") return v;
+  if (Array.isArray(v)) return v.slice(0, 50).map((x) => scrubValue(x, depth + 1));
+  const out: Record<string, unknown> = {};
+  for (const [k, x] of Object.entries(v as Record<string, unknown>)) out[k] = SECRET_KEY.test(k) ? "[redacted]" : scrubValue(x, depth + 1);
+  return out;
+}
 
 function scrub(fields: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(fields)) {
-    if (SECRET_KEY.test(k)) { out[k] = "[redacted]"; continue; }
-    if (v instanceof Error) { out[k] = { message: v.message, name: v.name, stack: process.env.NODE_ENV === "production" ? undefined : v.stack?.split("\n").slice(0, 4).join("\n") }; continue; }
-    if (typeof v === "string" && v.length > 2000) { out[k] = v.slice(0, 2000) + "…"; continue; }
-    out[k] = v;
-  }
-  return out;
+  return scrubValue(fields, 0) as Record<string, unknown>;
 }
 
 const listeners = new Set<(line: Record<string, unknown>) => void>();

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { getActor } from "@/lib/auth";
-import { render, queueDepth, queueOldestReady } from "@/lib/observability/metrics";
+import { render, queueDepth, queueOldestReady, alertsFiring, lastRunResolution, lastRunMatch } from "@/lib/observability/metrics";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +36,17 @@ export async function GET(req: Request) {
     }
     const { feedStatuses } = await import("@/lib/feeds");
     await feedStatuses(); // refreshes the feed-age gauges
+    // Gauges that only a worker process would otherwise set: read them from the database at scrape time.
+    const { prisma } = await import("@/lib/db");
+    const alerts = await prisma.alert.groupBy({ by: ["severity"], where: { resolvedAt: null }, _count: { _all: true } });
+    alertsFiring.clear();
+    for (const sev of ["INFO", "WARNING", "CRITICAL"]) alertsFiring.set({ severity: sev }, alerts.find((a) => a.severity === sev)?._count._all ?? 0);
+    const last = await prisma.request.findFirst({ where: { status: "complete", NOT: { reference: { startsWith: "BENCH-" } } }, orderBy: { completedAt: "desc" }, select: { id: true, _count: { select: { lines: true } } } });
+    if (last && last._count.lines > 0) {
+      const [resolved, matched] = await Promise.all([prisma.requestLine.count({ where: { requestId: last.id, resolutionStatus: "resolved" } }), prisma.requestLine.count({ where: { requestId: last.id, matchStatus: "matched" } })]);
+      lastRunResolution.set({}, resolved / last._count.lines);
+      lastRunMatch.set({}, matched / last._count.lines);
+    }
   } catch { /* metrics must render even when the queue is down */ }
   return new NextResponse(render(), { headers: { "content-type": "text/plain; version=0.0.4; charset=utf-8", "cache-control": "no-store" } });
 }

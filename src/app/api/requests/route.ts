@@ -10,7 +10,7 @@ import { authorize } from "@/lib/api";
 export async function GET() {
   const { deny } = await authorize("run_cross_reference");
   if (deny) return deny;
-  const requests = await prisma.request.findMany({ orderBy: { createdAt: "desc" }, include: { _count: { select: { lines: true } }, pricebook: true } });
+  const requests = await prisma.request.findMany({ where: { NOT: { reference: { startsWith: "BENCH-" } } }, orderBy: { createdAt: "desc" }, include: { _count: { select: { lines: true } }, pricebook: true } });
   return NextResponse.json(requests);
 }
 

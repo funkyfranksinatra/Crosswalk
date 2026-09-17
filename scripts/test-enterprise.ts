@@ -73,6 +73,8 @@ async function cleanup() {
   if (fileAcc) { await prisma.gpoMembership.deleteMany({ where: { accountId: fileAcc.id } }); await prisma.account.delete({ where: { id: fileAcc.id } }); }
   await prisma.competitorProduct.deleteMany({ where: { cfnNorm: { in: ["E2E-LIB-9001", "E2ELIB9001"] } } });
   await prisma.gudidDevice.deleteMany({ where: { recordKey: { startsWith: "e2e-lib-" } } });
+  // A real run since the last pass may have matched the fixture SKU: drop those candidates before the product.
+  await prisma.matchCandidate.deleteMany({ where: { ownProduct: { sku: "E2E-OWN-7001", source: "gudid-import" } } });
   await prisma.ownProduct.deleteMany({ where: { sku: "E2E-OWN-7001", source: "gudid-import" } });
   await prisma.gudidImport.deleteMany({ where: { query: "E2E fixture" } });
 }

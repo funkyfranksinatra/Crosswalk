@@ -1,6 +1,6 @@
 import { handle } from "@/lib/api";
 import { refreshContext } from "@/lib/proposals/drift";
-import { redactJsonForActor, can } from "@/lib/auth";
+import { can } from "@/lib/auth";
 import type { ProposalDrift } from "@/lib/proposals/drift";
 
 /** Cost and floor deltas are commercially sensitive: a rep sees that they moved, not by how much. */
@@ -12,5 +12,5 @@ function redactDrift(actor: Parameters<typeof can>[0], d: ProposalDrift): Propos
 /** Re-snapshot an unlocked draft to today's contracts, costs, policies and crosswalk version. */
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return handle("edit_proposed_pricing", async (actor) => { const r = await refreshContext(actor, id); return redactJsonForActor(actor, { ...r, drift: redactDrift(actor, r.drift) }); });
+  return handle("edit_proposed_pricing", async (actor) => { const r = await refreshContext(actor, id); return { ...r, drift: redactDrift(actor, r.drift) }; });
 }

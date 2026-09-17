@@ -48,11 +48,19 @@ export async function notify(input: NotifyInput): Promise<{ created: number }> {
   for (const userId of userIds) {
     const prefs = await preferencesFor(userId, input.kind);
     if (!prefs.inApp && !prefs.email && !prefs.teams) continue;
-    if (input.dedupeKey) {
-      const recent = await prisma.notification.findFirst({ where: { userId, kind: input.kind, entityType: input.entityType ?? null, entityId: input.entityId ?? null, title: input.title, createdAt: { gt: new Date(Date.now() - 3600_000) } }, select: { id: true } });
+    const dedupeKey = input.dedupeKey ? `${input.kind}:${input.entityType ?? ""}:${input.entityId ?? ""}:${input.dedupeKey}` : null;
+    if (dedupeKey) {
+      const recent = await prisma.notification.findFirst({ where: { userId, dedupeKey, createdAt: { gt: new Date(Date.now() - 3600_000) } }, select: { id: true } });
       if (recent) continue;
     }
-    const row = await prisma.notification.create({ data: { userId, kind: input.kind, title: input.title.slice(0, 300), body: input.body?.slice(0, 4000) ?? null, link: input.link ?? null, entityType: input.entityType ?? null, entityId: input.entityId ?? null, readAt: prefs.inApp ? null : new Date() } });
+    let row;
+    try {
+      row = await prisma.notification.create({ data: { userId, kind: input.kind, title: input.title.slice(0, 300), body: input.body?.slice(0, 4000) ?? null, link: input.link ?? null, entityType: input.entityType ?? null, entityId: input.entityId ?? null, dedupeKey, readAt: prefs.inApp ? null : new Date() } });
+    } catch (e) {
+      // A recipient that no longer exists (deleted user still referenced by a request) is skipped, never fatal.
+      log.warn("notify.create_failed", { userId, kind: input.kind, error: e instanceof Error ? e.message : String(e) });
+      continue;
+    }
     created++;
     notificationsSent.inc({ kind: input.kind, channel: "inapp", outcome: "ok" });
     const channels: Channel[] = [];
@@ -115,6 +123,9 @@ export async function notifyRunFinished(requestId: string) {
 export async function notifyApprovalRequested(proposalId: string) {
   const p = await prisma.proposal.findUnique({ where: { id: proposalId }, include: { account: { select: { name: true } }, approvals: { where: { status: "PENDING" }, include: { proposalLine: { select: { proposedPrice: true, floorPrice: true, sku: true } } } } } });
   if (!p || !p.approvals.length) return;
+  // Each submission is a new ask: key the dedupe on it, so a resubmission within the hour is not swallowed.
+  const submission = p.submittedAt?.toISOString() ?? String(Date.now());
+  const submitters = new Set(p.approvals.map((r) => r.requestedByUserId).filter((x): x is string => Boolean(x)));
   const byRole = new Map<string, { count: number; belowFloor: boolean }>();
   for (const r of p.approvals) {
     const bf = Boolean(r.proposalLine?.floorPrice && r.proposalLine.proposedPrice && Number(r.proposalLine.proposedPrice) < Number(r.proposalLine.floorPrice));
@@ -122,8 +133,9 @@ export async function notifyApprovalRequested(proposalId: string) {
     byRole.set(r.requiredRole, { count: cur.count + 1, belowFloor: cur.belowFloor || bf });
   }
   for (const [role, { count, belowFloor }] of byRole) {
-    const ids = (await approverIds(role, belowFloor)).filter((id) => id !== p.ownerUserId);
-    await notify({ kind: "APPROVAL_REQUESTED", userIds: ids, title: `${p.reference} needs your approval — ${count} line${count === 1 ? "" : "s"} (${role.replace(/_/g, " ").toLowerCase()})`, body: `${p.account.name}${belowFloor ? " · includes a below-floor price" : ""}`, link: `${baseUrl()}/approvals`, entityType: "Proposal", entityId: p.id, dedupeKey: `req:${role}` });
+    // Never the submitter (decide() refuses self-approval) — the owner or whoever submitted on their behalf.
+    const ids = (await approverIds(role, belowFloor)).filter((id) => id !== p.ownerUserId && !submitters.has(id));
+    await notify({ kind: "APPROVAL_REQUESTED", userIds: ids, title: `${p.reference} needs your approval — ${count} line${count === 1 ? "" : "s"} (${role.replace(/_/g, " ").toLowerCase()})`, body: `${p.account.name}${belowFloor ? " · includes a below-floor price" : ""}`, link: `${baseUrl()}/approvals`, entityType: "Proposal", entityId: p.id, dedupeKey: `req:${role}:${submission}` });
   }
 }
 
@@ -134,7 +146,7 @@ export async function notifyApprovalDecided(requestId: string) {
   const recipients = [...new Set([r.proposal.ownerUserId, r.requestedByUserId].filter((x): x is string => Boolean(x)))];
   const verb = r.status === "APPROVED" ? "approved" : r.status === "REJECTED" ? "rejected" : "sent back with changes requested";
   await notify({ kind: "APPROVAL_DECIDED", userIds: recipients, title: `${r.proposal.reference}: ${r.proposalLine?.sku ?? "a line"} ${verb} by ${decidedBy?.name ?? "an approver"}`, body: r.decisionComments ?? null, link: `${baseUrl()}/proposals/${r.proposal.id}`, entityType: "ApprovalRequest", entityId: r.id });
-  if (r.proposal.status === "APPROVED") await notify({ kind: "PROPOSAL_APPROVED", userIds: recipients, title: `${r.proposal.reference} is fully approved — ready to export`, link: `${baseUrl()}/proposals/${r.proposal.id}`, entityType: "Proposal", entityId: r.proposal.id, dedupeKey: "approved" });
+  if (r.proposal.status === "APPROVED") await notify({ kind: "PROPOSAL_APPROVED", userIds: recipients, title: `${r.proposal.reference} is fully approved — ready to export`, link: `${baseUrl()}/proposals/${r.proposal.id}`, entityType: "Proposal", entityId: r.proposal.id, dedupeKey: `approved:${r.decidedAt?.toISOString() ?? ""}` });
 }
 
 export async function notifyCrossProposed(knownCrossId: string) {

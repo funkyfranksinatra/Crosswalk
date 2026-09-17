@@ -22,24 +22,28 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 class TokenBucket {
   private tokens: number;
   private last = Date.now();
+  /** Nobody in this process calls openFDA before this time (a 429's Retry-After applies to everyone). */
+  pausedUntil = 0;
   constructor(private capacity: number, private perMs: number) { this.tokens = capacity; }
   private refill() {
     const now = Date.now();
     this.tokens = Math.min(this.capacity, this.tokens + (now - this.last) * this.perMs);
     this.last = now;
   }
-  /** Resolves when a token is available; returns the wait in ms. */
+  /** Resolves when a token is available and no pause is in force; returns the wait in ms. */
   async take(): Promise<number> {
     const t0 = Date.now();
     for (;;) {
+      const now = Date.now();
+      if (now < this.pausedUntil) { await sleep(Math.min(this.pausedUntil - now, 1000)); continue; }
       this.refill();
       if (this.tokens >= 1) { this.tokens -= 1; return Date.now() - t0; }
       const wait = Math.max(5, Math.ceil((1 - this.tokens) / this.perMs));
       await sleep(Math.min(wait, 1000));
     }
   }
-  /** Externally observed throttling: empty the bucket so the next calls wait. */
-  drain() { this.tokens = 0; this.last = Date.now(); }
+  /** Externally observed throttling: empty the bucket and hold every caller for `ms`. */
+  drain(ms = 0) { this.tokens = 0; this.last = Date.now(); this.pausedUntil = Math.max(this.pausedUntil, Date.now() + ms); }
   get available() { this.refill(); return this.tokens; }
 }
 
@@ -106,12 +110,13 @@ export async function openFdaGet(url: string, opts: { maxAttempts?: number } = {
     if (res.status === 429 || res.status >= 500) {
       openFdaRequests.inc({ outcome: res.status === 429 ? "rate_limited" : "server_error" });
       lastErr = `openFDA ${res.status}`;
-      if (res.status === 429) getBucket().drain();
+      const ra = retryAfterMs(res);
+      // A 429 pauses the whole process for the Retry-After window (or a floor), not just this caller.
+      if (res.status === 429) getBucket().drain(Math.min(ra ?? Math.max(5_000, backoff(baseDelay, attempt)), 120_000));
       if (attempt < maxAttempts) {
-        const ra = retryAfterMs(res);
-        const delay = ra ?? backoff(baseDelay, attempt);
+        const delay = Math.min(ra ?? backoff(baseDelay, attempt), 120_000);
         log.warn("openfda.retry", { status: res.status, attempt, delayMs: Math.round(delay), retryAfter: ra !== null });
-        await sleep(Math.min(delay, 120_000));
+        await sleep(delay);
         continue;
       }
       throw new OpenFdaError(res.status, `${lastErr} after ${attempt} attempts`, attempt);
@@ -121,19 +126,27 @@ export async function openFdaGet(url: string, opts: { maxAttempts?: number } = {
       throw new OpenFdaError(res.status, `openFDA ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`, attempt);
     }
     openFdaRequests.inc({ outcome: "ok" });
-    return { status: res.status, json: await res.json(), attempts: attempt };
+    try {
+      return { status: res.status, json: await res.json(), attempts: attempt };
+    } catch (e) {
+      // A 200 that is not JSON (an HTML error page from a proxy) is a server-side fault: retry like a 5xx.
+      lastErr = `openFDA returned a non-JSON body: ${e instanceof Error ? e.message : String(e)}`;
+      openFdaRequests.inc({ outcome: "server_error" });
+      if (attempt < maxAttempts) { await sleep(Math.min(backoff(baseDelay, attempt), 120_000)); continue; }
+      throw new OpenFdaError(res.status, lastErr, attempt);
+    }
   }
   throw new OpenFdaError(0, lastErr || "openFDA: no attempts made", 0);
 }
 
-/** Full jitter: random in [0, base * 2^(attempt-1)], capped. */
+/** Equal jitter: random in [max/2, max] with max = base * 2^(attempt-1), capped — never an instant retry. */
 export function backoff(baseMs: number, attempt: number, capMs = 60_000): number {
   const max = Math.min(capMs, baseMs * 2 ** (attempt - 1));
-  return Math.random() * max;
+  return max / 2 + Math.random() * (max / 2);
 }
 
 /** For the health endpoint / tests. */
 export function bucketState() {
   const b = getBucket();
-  return { rpm: bucketRpm, available: Math.floor(b.available) };
+  return { rpm: bucketRpm, available: Math.floor(b.available), pausedForMs: Math.max(0, b.pausedUntil - Date.now()) };
 }
