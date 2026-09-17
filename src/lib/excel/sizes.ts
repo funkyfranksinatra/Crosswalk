@@ -16,7 +16,7 @@ import { extractDimensions, parseBin, type Dimension } from "@/lib/match/bin";
 
 export type SizesImportResult = { upserted: number; rows: number; skipped: string[]; rebinned: number };
 
-const SIZE_NAMES = new Set(["width", "length", "diameter"]);
+export const SIZE_NAMES = new Set(["width", "length", "diameter"]);
 
 function readGrid(ws: ExcelJS.Worksheet): (string | number | null)[][] {
   const grid: (string | number | null)[][] = [];
@@ -130,33 +130,29 @@ export async function specFor(codes: (string | null | undefined)[]): Promise<{ d
   try { return { dims: JSON.parse(spec.dimsJson) as Dimension[], notes: spec.notes }; } catch { return null; }
 }
 
-export const SIZES_HEADERS = ["Competitor Code", "Manufacturer", "Description", "Width", "Length", "Diameter", "Thickness (mm)", "Unit", "Notes"] as const;
+export const SIZES_HEADERS = ["Competitor Code", "Manufacturer", "Description", "Width", "Length", "Diameter", "Thickness (mm)", "Unit", "Notes", "Priority", "Lists", "Units", "Est. spend", "Size on file from"] as const;
 
 /**
- * Template rows: every competitor code Crosswalk has resolved whose bin still has no
- * width / length / diameter (blank cells to fill), followed by the sizes already on file.
+ * Template rows, in worklist order: every competitor code Crosswalk has seen whose size is
+ * unknown, highest estimated spend first (catalog/size-coverage.ts), then the codes already
+ * sized (from an import, GUDID, or the description) so the sheet is the whole master.
+ * The trailing columns are context for the person filling it in; the importer ignores them.
  */
 export async function competitorSizesTemplateRows(): Promise<{ rows: (string | number | null)[][]; missing: number; onFile: number }> {
-  const [cps, specs] = await Promise.all([
-    prisma.competitorProduct.findMany({ where: { resolution: { not: "not-found" } }, orderBy: [{ manufacturer: "asc" }, { cfnNorm: "asc" }] }),
-    prisma.competitorSpec.findMany({ orderBy: [{ manufacturer: "asc" }, { cfnNorm: "asc" }] }),
-  ]);
-  const onFile = new Set(specs.map((s) => s.cfnNorm));
+  const { sizeCoverage } = await import("@/lib/catalog/size-coverage");
+  const { rows: cov } = await sizeCoverage();
+  const specs = await prisma.competitorSpec.findMany();
+  const specByCode = new Map(specs.map((s) => [s.cfnNorm, s]));
   const rows: (string | number | null)[][] = [[...SIZES_HEADERS]];
   let missing = 0;
-  for (const cp of cps) {
-    if (onFile.has(compactCfn(cp.cfnNorm)) || (cp.cfnMatched && onFile.has(compactCfn(cp.cfnMatched.toUpperCase())))) continue;
-    const bin = parseBin(cp.binJson, { allowStale: true });
-    if (bin && bin.dimensions.some((d) => SIZE_NAMES.has(d.name))) continue;
-    missing++;
-    rows.push([cp.cfnNorm, cp.manufacturer ?? "", cp.description ?? "", null, null, null, null, "cm", ""]);
-  }
-  for (const s of specs) {
+  for (const r of cov) {
+    const spec = specByCode.get(compactCfn(r.code));
     let dims: Dimension[] = [];
-    try { dims = JSON.parse(s.dimsJson); } catch {}
+    if (spec) { try { dims = JSON.parse(spec.dimsJson); } catch {} }
     const get = (n: string) => dims.find((d) => d.name === n) ?? null;
     const unit = (get("width") ?? get("length") ?? get("diameter"))?.unit ?? "cm";
-    rows.push([s.cfnNorm, s.manufacturer ?? "", s.description ?? "", get("width")?.value ?? null, get("length")?.value ?? null, get("diameter")?.value ?? null, get("thickness")?.value ?? null, unit, s.notes ?? ""]);
+    if (!r.sized) missing++;
+    rows.push([r.code, r.manufacturer ?? "", r.description ?? "", get("width")?.value ?? null, get("length")?.value ?? null, get("diameter")?.value ?? null, get("thickness")?.value ?? null, unit, spec?.notes ?? (r.sized && r.sized !== "import" ? `currently from ${r.sized}: ${r.dims ?? ""}` : ""), r.priority, r.lines, r.units, r.spend || null, r.sized ?? "—"]);
   }
   return { rows, missing, onFile: specs.length };
 }
@@ -170,7 +166,7 @@ export async function competitorSizesTemplate(): Promise<Buffer> {
   ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE3F1EF" } };
   // Rows that still need a size get a soft amber fill so they stand out from the ones already on file.
   for (let i = 2; i <= missing + 1; i++) ws.getRow(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDF3E1" } };
-  ws.columns = SIZES_HEADERS.map((h) => ({ width: h === "Description" ? 60 : h === "Notes" ? 32 : 16 }));
+  ws.columns = SIZES_HEADERS.map((h) => ({ width: h === "Description" ? 60 : h === "Notes" ? 40 : 14 }));
   ws.views = [{ state: "frozen", ySplit: 1 }];
   return Buffer.from(await wb.xlsx.writeBuffer());
 }

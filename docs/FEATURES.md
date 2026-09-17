@@ -1,7 +1,7 @@
 # Crosswalk — feature inventory and roadmap
 
-State of the build at v0.4.x (Sept 17, 2026), after the enterprise platform work,
-the GUDID library, the integration-connection work and the agentic debug run.
+State of the build at v0.5 (Sept 17, 2026), after the enterprise platform work, the GUDID
+library, the integration-connection work, the agentic debug run and the Tier 1 build.
 Part 1 is what exists and is exercised by a test. Part 2 is what does not exist
 yet, ordered by what blocks the next step rather than by size.
 
@@ -158,6 +158,26 @@ without the curated reference sheets; CI on Postgres 17 (migrate, typecheck,
 
 ---
 
+### 15. Pilot-quality platform (Tier 1, Sept 17, 2026)
+
+| Feature | Where |
+| --- | --- |
+| Job queue (pg-boss in the app database): runs, GUDID imports, feeds, deliveries and alert checks survive restarts; stage-checkpointed runs and page-cursored imports resume; orphans re-queued at start; cancel; inline or external workers | `src/lib/jobs/`, `src/instrumentation.ts`, `scripts/worker.ts` |
+| One openFDA client with a token bucket at 80 % of the limit, jittered backoff honouring Retry-After; GUDID cache TTL with background refresh (nightly sweep + on use) | `src/lib/gudid/http.ts`, `src/lib/gudid/refresh.ts` |
+| Learning loop: a rep's override becomes a DRAFT rep cross with evidence and a MatchDecision; the matcher uses it as a soft prior until review approves it | `src/lib/xref/learning.ts`, `src/lib/match/score.ts` |
+| Scheduled feeds (crm, erp, gpo, pricing, competitor-sizes, competitor-prices) with FeedRun history, unchanged-file skip, freshness and failure alerts | `src/lib/feeds/` |
+| Competitor size worklist ranked by estimated spend; the size template in that order | `src/lib/catalog/size-coverage.ts` |
+| Multi-list accuracy benchmark with per-family / per-tier reporting, persisted runs, cases from files or reviewed requests | `src/lib/eval/benchmark.ts`, `scripts/benchmark.ts` |
+| Model evaluation harness and gate: grading agreement vs curated crosses, accepted baseline, CI fails on an unmeasured prompt / bin / model change | `src/lib/eval/model.ts`, `scripts/model-eval.ts`, `data/eval/model-baseline.json` |
+| Vitest runner: pure checks bridged, Tier 1 unit tests, recorded-openFDA replay (no network), database-backed Tier 1 suite | `vitest.config.mts`, `tests/` |
+| Observability: JSON logs with request ids, `/api/health`, `/api/metrics` (Prometheus), NDJSON export, alert rules with dedupe / re-notify / resolve, Settings → System | `src/lib/log.ts`, `src/lib/observability/` |
+| Notifications: in-app inbox with per-kind channel switches, email (SMTP) and Teams (webhook) delivered by the queue with retries | `src/lib/notifications/`, `/notifications` |
+| Proposal context drift: per-line diff against live contracts, costs, policies and crosswalk version; audited one-click refresh of an unlocked draft; cost deltas redacted by role | `src/lib/proposals/drift.ts` |
+
+Operating guide: `docs/OPERATIONS.md`. Verification: `docs/TIER1_DEBUG_REPORT.md`.
+
+---
+
 ## Part 2 — What still needs building
 
 ### Tier 0 — required before any shared or customer-facing deployment
@@ -175,19 +195,10 @@ without the curated reference sheets; CI on Postgres 17 (migrate, typecheck,
 
 ### Tier 1 — pilot quality
 
-| # | Work | Why |
-| --- | --- | --- |
-| 1.1 | **Job queue (pg-boss) with resumable stages** for runs, GUDID imports and syncs | Everything runs in-process; a restart loses a run |
-| 1.2 | **openFDA backoff, token bucket and cache TTL** | Whole-labeler imports are the one place the public rate limit bites; cached GUDID records never expire |
-| 1.3 | **Learning loop** — a rep's correction (non-top candidate, edited match type) becomes a `KnownCross` with account and user | Every correction is ground truth that is currently thrown away |
-| 1.4 | **Real cost and price feeds** on a schedule, replacing manual imports | Ranking on price/COGS/margin is only as good as the last spreadsheet |
-| 1.5 | **Competitor size master populated** for the top few hundred competitor codes by spend | Ethicon meshes and most reloads carry no dimensions in GUDID, so those lines tie to our smallest product |
-| 1.6 | **Larger accuracy benchmark** — 5–10 historical account lists, per-family reporting, published internally before any external claim | One 30-line account list is an anecdote |
-| 1.7 | **Model evaluation harness** gating prompt and model changes on measured agreement | `LLM_MODEL` or a prompt edit can silently move accuracy |
-| 1.8 | **Proper test runner** (`node:test` or Vitest) with a fixture database and recorded openFDA responses | Three hand-rolled suites; no network isolation for pipeline tests |
-| 1.9 | **Observability** — ship `LlmCall`, run logs and sync logs to the company stack; alert on model unreachable and on resolution rate dropping | Failures are visible only in the UI today |
-| 1.10 | **Notifications** (email / Teams) on run completion, approval requested, approval decided | Deal desk currently depends on someone refreshing the queue |
-| 1.11 | **Proposal context-drift warning** | A draft created before a GPO or contract change silently keeps its snapshot (by design); the UI does not say the live context moved |
+Built (Part 1 §15). Two items depend on data the organisation supplies: the competitor
+size master needs product marketing to fill the worklist template, and the benchmark and
+model-eval baselines need historical account lists and a model key to be run once and
+accepted.
 
 ### Tier 2 — integrations that need credentials or a data owner
 

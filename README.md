@@ -95,8 +95,14 @@ LLM_MODEL=gpt-5.6-astra        # any model ID your endpoint accepts
 | `npm run db:studio` | Browse the Postgres database |
 | `npm run check` / `npm run check:enterprise` | Pure unit checks: matcher rules / commercial engines (waterfall, cost, confidence, recommendation, rebates, bundles, clauses) |
 | `npm run test:enterprise` | End-to-end commercial workflow against the database (request → proposal → approvals → export → won → compliance) |
+| `npm run test:adversarial` | State machines, concurrency, authorization, money and import edge cases against the database |
+| `npm test` | Vitest: the pure checks, Tier 1 unit tests, the resolver against recorded openFDA responses (no network), and the Tier 1 database suite |
+| `npm run worker` | A dedicated job worker (only when the web server runs with `JOBS_WORKER=external`); see `docs/OPERATIONS.md` |
+| `npm run benchmark [-- --llm --from-requests --out docs/benchmarks]` | Multi-list accuracy benchmark per family and tier (`data/benchmark/README.md`) |
+| `npm run eval:model [-- --accept]` / `npm run eval:gate` | Measure model grading agreement against the curated crosses; the gate (also in CI) fails on an unmeasured prompt / bin / model change |
 | `npx tsx scripts/run-sample.ts [file.xlsx]` | Headless run + both exports into `./out` |
 | `npx tsx scripts/eval.ts --n 80 --no-crosses` | Score the matcher against curated crosses |
+| `npx tsx scripts/record-openfda.ts` | Re-record the openFDA fixtures the offline tests replay |
 
 ## How matching works
 

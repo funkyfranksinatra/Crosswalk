@@ -8,7 +8,7 @@ import type { Bin } from "@/lib/match/bin";
 type Candidate = { id: string; rank: number; matchType: string; source: string; score: number; scoreBin: number | null; scorePrice: number | null; scoreCogs: number | null; scoreMargin: number | null; factorsJson: string | null; rationale: string | null; additionalProducts: string | null; unitPrice: number | null; ownProduct: { id: string; sku: string; description: string; category: string | null; brand: string | null; binJson: string | null; listPrice: number | null; cogs: number | null; gudidDi: string | null; status: string | null } };
 type Competitor = { id: string; cfnNorm: string; cfnMatched: string | null; manufacturer: string | null; brand: string | null; description: string | null; gudidDi: string | null; gmdnName: string | null; status: string | null; resolution: string; resolutionNote: string | null; confidence: number | null; alternatesJson: string | null; binJson: string | null; binSource: string | null };
 type Line = { id: string; lineNo: number; rawCode: string; cfnNorm: string; quantity: number; estCompetitorPrice: number | null; resolutionStatus: string; resolutionNote: string | null; matchStatus: string; selectedCandidateId: string | null; overrideNote: string | null; reviewed: boolean; competitorProduct: Competitor | null; candidates: Candidate[] };
-type RequestData = { id: string; reference: string; accountName: string | null; accountNumber: string | null; accountType: string | null; reportType: string; status: string; stage: string | null; progress: number; error: string | null; useLlm: boolean; sourceFileName: string | null; createdAt: string; completedAt: string | null; llmAvailable: boolean; modelStatus: { requested: boolean; used: boolean; model: string; error?: string } | null; google: { configured: boolean; canWrite: boolean; email: string | null }; sourceUrl: string | null; xrefSheetUrl: string | null; offerSheetUrl: string | null; company: { name: string }; pricebook: { name: string } | null; lines: Line[]; summary: { total: number; resolved: number; matched: number; exact: number; close: number; alternative: number; reviewed: number; ourExtended: number; competitorExtended: number; priced: number }; log: { t: string; m: string }[] };
+type RequestData = { id: string; reference: string; accountName: string | null; accountNumber: string | null; accountType: string | null; reportType: string; status: string; stage: string | null; progress: number; attempt: number; error: string | null; useLlm: boolean; sourceFileName: string | null; createdAt: string; completedAt: string | null; llmAvailable: boolean; modelStatus: { requested: boolean; used: boolean; model: string; error?: string } | null; google: { configured: boolean; canWrite: boolean; email: string | null }; sourceUrl: string | null; xrefSheetUrl: string | null; offerSheetUrl: string | null; company: { name: string }; pricebook: { name: string } | null; lines: Line[]; summary: { total: number; resolved: number; matched: number; exact: number; close: number; alternative: number; reviewed: number; ourExtended: number; competitorExtended: number; priced: number }; log: { t: string; m: string }[] };
 
 type Filter = "all" | "attention" | "exact" | "close" | "alt" | "retain";
 
@@ -56,6 +56,10 @@ export function RequestView({ id }: { id: string }) {
     const res = await fetch(`/api/requests/${id}/lines/${lineId}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     if (res.ok) load();
   }
+  async function cancel() {
+    await fetch(`/api/requests/${id}/cancel`, { method: "POST" });
+    load();
+  }
   async function rerun(useLlm?: boolean, freshGrades = false) {
     await fetch(`/api/requests/${id}/run`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...(useLlm == null ? {} : { useLlm }), freshGrades }) });
     load();
@@ -90,7 +94,8 @@ export function RequestView({ id }: { id: string }) {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button className="btn-secondary" onClick={() => rerun()} disabled={running} title="Replays cached model verdicts for unchanged lines — results cannot flip">{running ? "Running…" : "Re-run"}</button>
+          <button className="btn-secondary" onClick={() => rerun()} disabled={running} title="Replays cached model verdicts for unchanged lines — results cannot flip">{running ? (data.status === "queued" ? "Queued…" : "Running…") : "Re-run"}</button>
+          {running && <button className="btn-ghost" onClick={cancel} title="Stop at the next checkpoint; the previous results stay visible">Cancel</button>}
           {data.llmAvailable && <button className="btn-ghost" onClick={() => rerun(undefined, true)} disabled={running} title="Ask the model again for every line (ignores cached verdicts)">Re-grade fresh</button>}
           <ExportMenu id={id} />
           <SheetsButton id={id} google={data.google} xrefUrl={data.xrefSheetUrl} offerUrl={data.offerSheetUrl} onDone={load} />
@@ -107,7 +112,8 @@ export function RequestView({ id }: { id: string }) {
           <div className="h-1.5 rounded-full bg-line-2 overflow-hidden"><div className="h-full bg-accent rounded-full transition-all duration-500" style={{ width: `${data.progress}%` }} /></div>
         </div>
       )}
-      {data.status === "failed" && <div className="rounded-lg bg-none-soft text-none px-4 py-3 mb-4 text-[13px]"><b>Run failed:</b> {data.error}</div>}
+      {data.status === "failed" && <div className="rounded-lg bg-none-soft text-none px-4 py-3 mb-4 text-[13px]"><b>Run failed:</b> {data.error}{data.attempt > 1 ? <span className="block text-[12px] mt-1 opacity-90">Attempt {data.attempt}; the queue retried from the last completed stage.</span> : null}</div>}
+      {data.status === "cancelled" && <div className="rounded-lg bg-alt-soft text-alt px-4 py-3 mb-4 text-[13px]"><b>Run cancelled.</b> The results shown are from the last completed run. Re-run when ready.</div>}
       {data.modelStatus?.requested && !data.modelStatus.used && (
         <div className="rounded-lg bg-alt-soft text-alt px-4 py-3 mb-4 text-[13px]">
           <b>The model was not used on this run</b> — it fell back to heuristic matching. {data.modelStatus.error}

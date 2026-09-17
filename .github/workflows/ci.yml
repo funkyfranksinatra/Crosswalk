@@ -39,3 +39,9 @@ jobs:
         run: npm run test:adversarial
         env:
           SESSION_SECRET: ci-only-secret
+      - name: Vitest (pure checks, Tier 1 units, recorded openFDA replay, Tier 1 database suite)
+        run: npm test
+        env:
+          SESSION_SECRET: ci-only-secret
+      - name: Model evaluation gate (prompt / bin / model versions vs the accepted baseline)
+        run: npm run eval:gate

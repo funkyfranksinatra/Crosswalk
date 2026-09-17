@@ -86,14 +86,18 @@ export async function proposeCross(actorUserId: string | null, input: { ownSku: 
   const MATCH_TYPES = ["Exact Match", "Close Match", "Alternative Match", "US Downsell Match", "No Match"];
   if (!MATCH_TYPES.includes(input.matchType)) throw new Error(`matchType must be one of ${MATCH_TYPES.join(", ")}`);
   if ((input.justification ?? "").length > 4000) throw new Error("justification is too long");
-  const own = await prisma.ownProduct.findFirst({ where: { sku: input.ownSku.trim().toUpperCase() }, select: { id: true } });
+  const ownSku = input.ownSku.trim().toUpperCase();
+  const own = await prisma.ownProduct.findFirst({ where: { sku: ownSku }, select: { id: true } });
   if (!own) throw new Error(`${input.ownSku} is not in our catalog`);
   const norm = normalizeCfn(input.competitorCode);
-  const row = await prisma.knownCross.upsert({
-    where: { ownSku_competitorCodeNorm_source: { ownSku: input.ownSku.toUpperCase(), competitorCodeNorm: norm, source: "rep" } },
-    create: { ownSku: input.ownSku.toUpperCase(), ownDescription: input.ownDescription ?? null, category: input.category ?? null, competitorName: input.competitorName, competitorCode: input.competitorCode, competitorCodeNorm: norm, competitorDescription: input.competitorDescription ?? null, matchType: input.matchType, source: "rep", approvalStatus: "DRAFT", clinicalReviewStatus: "PENDING", marketingReviewStatus: "PENDING", equivalenceLevel: equivalenceFromMatchType(input.matchType), justification: input.justification ?? null, accountId: input.accountId ?? null, createdByUserId: actorUserId },
-    update: { matchType: input.matchType, justification: input.justification ?? undefined },
-  });
+  const existing = await prisma.knownCross.findUnique({ where: { ownSku_competitorCodeNorm_source: { ownSku, competitorCodeNorm: norm, source: "rep" } } });
+  // A cross that has entered review, or been approved, is only changed by reviewers (setReview):
+  // a rep re-proposing it must not rewrite its tier under a signature.
+  if (existing && !["DRAFT", "RETIRED", "REJECTED"].includes(existing.approvalStatus)) throw new Error(`${existing.competitorCode} → ${existing.ownSku} is already ${existing.approvalStatus.toLowerCase().replace(/_/g, " ")}; ask a reviewer to change it`);
+  const row = existing
+    ? await prisma.knownCross.update({ where: { id: existing.id }, data: { matchType: input.matchType, equivalenceLevel: equivalenceFromMatchType(input.matchType), justification: input.justification ?? undefined, isActive: true, ...(existing.approvalStatus !== "DRAFT" ? { approvalStatus: "DRAFT", clinicalReviewStatus: "PENDING", marketingReviewStatus: "PENDING" } : {}) } })
+    : await prisma.knownCross.create({ data: { ownSku, ownDescription: input.ownDescription ?? null, category: input.category ?? null, competitorName: input.competitorName, competitorCode: input.competitorCode, competitorCodeNorm: norm, competitorDescription: input.competitorDescription ?? null, matchType: input.matchType, source: "rep", approvalStatus: "DRAFT", clinicalReviewStatus: "PENDING", marketingReviewStatus: "PENDING", equivalenceLevel: equivalenceFromMatchType(input.matchType), justification: input.justification ?? null, accountId: input.accountId ?? null, createdByUserId: actorUserId } });
   await audit({ actorUserId, entityType: "KnownCross", entityId: row.id, action: "PROPOSED_BY_REP", after: { ownSku: row.ownSku, competitorCode: row.competitorCode, matchType: row.matchType } });
+  { const { notifyCrossProposed } = await import("@/lib/notifications"); await notifyCrossProposed(row.id).catch(() => undefined); }
   return row;
 }

@@ -4,13 +4,13 @@ import { parseIntakeAny } from "@/lib/excel/intake";
 import { SheetAccessError } from "@/lib/sheets/google";
 import { getCompany } from "@/lib/settings";
 import { nextReference } from "@/lib/requests";
-import { startRun } from "@/lib/pipeline/run";
+import { enqueueRun } from "@/lib/pipeline/run";
 import { authorize } from "@/lib/api";
 
 export async function GET() {
   const { deny } = await authorize("run_cross_reference");
   if (deny) return deny;
-  const requests = await prisma.request.findMany({ orderBy: { createdAt: "desc" }, include: { _count: { select: { lines: true } }, pricebook: true } });
+  const requests = await prisma.request.findMany({ where: { NOT: { reference: { startsWith: "BENCH-" } } }, orderBy: { createdAt: "desc" }, include: { _count: { select: { lines: true } }, pricebook: true } });
   return NextResponse.json(requests);
 }
 
@@ -52,10 +52,17 @@ export async function POST(req: Request) {
       sourceUrl: intake.source.url ?? null,
       useLlm: form.get("useLlm") !== "false",
       createdBy: actor.name,
+      createdByUserId: actor.id,
       status: "queued",
       lines: { create: intake.lines.map((l, i) => ({ lineNo: i + 1, rawCode: l.rawCode, cfnNorm: l.cfnNorm, quantity: l.quantity, estCompetitorPrice: l.estPrice })) },
     },
   });
-  startRun(request.id);
-  return NextResponse.json({ id: request.id, reference: request.reference, lines: intake.lines.length, skipped: intake.skipped.length, duplicatesMerged: intake.duplicatesMerged });
+  let jobId: string | null = null;
+  try {
+    ({ jobId } = await enqueueRun(request.id));
+  } catch (e) {
+    // The request is kept (marked failed with the reason) so the upload is not lost; the client gets a 503.
+    return NextResponse.json({ error: e instanceof Error ? e.message : String(e), id: request.id, reference: request.reference }, { status: 503 });
+  }
+  return NextResponse.json({ id: request.id, reference: request.reference, jobId, lines: intake.lines.length, skipped: intake.skipped.length, duplicatesMerged: intake.duplicatesMerged });
 }

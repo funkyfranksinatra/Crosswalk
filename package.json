@@ -19,7 +19,13 @@
     "test:enterprise": "tsx scripts/test-enterprise.ts",
     "test:adversarial": "tsx scripts/test-adversarial.ts",
     "db:seed:enterprise": "tsx prisma/seed-enterprise.ts",
-    "db:migrate:http": "tsx scripts/migrate-http.ts"
+    "db:migrate:http": "tsx scripts/migrate-http.ts",
+    "worker": "tsx scripts/worker.ts",
+    "benchmark": "tsx scripts/benchmark.ts",
+    "eval:model": "tsx scripts/model-eval.ts",
+    "eval:gate": "tsx scripts/model-eval.ts --gate",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -31,8 +37,10 @@
     "exceljs": "^4.4.0",
     "google-auth-library": "^11.0.2",
     "next": "16.3.5",
+    "nodemailer": "^10.0.10",
     "openai": "^7.15.0",
     "pg": "^8.23.0",
+    "pg-boss": "^12.33.0",
     "prisma": "^7.10.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -41,12 +49,14 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22.20.3",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/ws": "^8.18.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.1"
   }
 }

@@ -14,11 +14,7 @@ import { variantsFor } from "../src/lib/pipeline/resolve";
 import { toCsv, parseCsv } from "../src/lib/sheets/csv";
 import { toDeviceRow, baseSearch } from "../src/lib/gudid/library-model";
 
-let passed = 0;
-const failures: string[] = [];
-function test(name: string, fn: () => void) {
-  try { fn(); passed++; } catch (e) { failures.push(`${name}\n    ${e instanceof Error ? e.message : String(e)}`); }
-}
+import { test, report } from "./lib/harness";
 
 // ---- CFN handling -----------------------------------------------------------
 test("normalizeCfn uppercases, trims and keeps punctuation; compactCfn strips it", () => {
@@ -170,6 +166,4 @@ test("GUDID import search clause is a quoted labeler phrase, in-distribution by 
 });
 
 // ---- Report ------------------------------------------------------------------
-console.log(`${passed} passed, ${failures.length} failed`);
-for (const f of failures) console.log(`  ✗ ${f}`);
-if (failures.length) process.exit(1);
+report();

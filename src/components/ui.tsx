@@ -114,6 +114,7 @@ export function StatusPill({ status }: { status: string }) {
     running: "bg-info-soft text-info",
     queued: "bg-info-soft text-info",
     failed: "bg-none-soft text-none",
+    cancelled: "bg-alt-soft text-alt",
     draft: "bg-line-2 text-muted",
   };
   return (
