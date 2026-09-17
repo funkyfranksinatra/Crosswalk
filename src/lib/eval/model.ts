@@ -137,7 +137,12 @@ export async function gate(opts: { baseline?: Baseline | null; promptVersion?: n
   else {
     if (baseline.promptVersion !== current.promptVersion) reasons.push(`GRADE_PROMPT_VERSION is ${current.promptVersion} but the accepted baseline measured version ${baseline.promptVersion} — measure the new prompt and accept it`);
     if (baseline.binVersion !== current.binVersion) reasons.push(`BIN_VERSION is ${current.binVersion} but the accepted baseline measured version ${baseline.binVersion} — re-measure grading on the new bins and accept it`);
-    if (baseline.model !== current.model) reasons.push(`LLM_MODEL is ${current.model} but the accepted baseline measured ${baseline.model} — measure the new model and accept it`);
+    // The model name is only a fact where a model is configured. In CI (no key) llmConfig().model is
+    // the code default, not what anyone runs, so a mismatch there says nothing about the baseline.
+    if (baseline.model !== current.model) {
+      const configured = opts.model !== undefined || Boolean(process.env.LLM_MODEL?.trim()) || llmConfig().available;
+      (configured ? reasons : warnings).push(`LLM_MODEL is ${current.model} but the accepted baseline measured ${baseline.model}${configured ? " — measure the new model and accept it" : " (no model configured here; the versions still match)"}`);
+    }
     if (opts.checkDb) {
       const tol = opts.tolerancePts ?? 3;
       const latest = await prisma.modelEval.findFirst({ where: { model: current.model, promptVersion: current.promptVersion, binVersion: current.binVersion, sampleSeed: baseline.sampleSeed }, orderBy: { createdAt: "desc" } }).catch(() => null);

@@ -114,6 +114,21 @@ describe("model eval gate", () => {
     const none = await gate({ baseline: null, model: "m" });
     expect(none.ok).toBe(true); expect(none.warnings[0]).toMatch(/no accepted baseline/);
   });
+  test("a model-name mismatch is only a warning where no model is configured (CI without a key)", async () => {
+    const base = { model: "gpt-6-astra", promptVersion: GRADE_PROMPT_VERSION, binVersion: BIN_VERSION, sampleSeed: 7, sampleSize: 40, graded: 40, top1Agree: 27, tierAgree: 11, noMatchFalse: 2, acceptedAt: "", evalId: null };
+    const saved = { key: process.env.OPENAI_API_KEY, model: process.env.LLM_MODEL };
+    delete process.env.OPENAI_API_KEY; delete process.env.LLM_MODEL;
+    try {
+      const ci = await gate({ baseline: base });
+      expect(ci.ok).toBe(true); expect(ci.warnings[0]).toMatch(/LLM_MODEL is gpt-5.6-astra/);
+      process.env.LLM_MODEL = "gpt-5.6-astra";
+      const explicit = await gate({ baseline: base });
+      expect(explicit.ok).toBe(false); expect(explicit.reasons[0]).toMatch(/measure the new model/);
+    } finally {
+      if (saved.key !== undefined) process.env.OPENAI_API_KEY = saved.key; else delete process.env.OPENAI_API_KEY;
+      if (saved.model !== undefined) process.env.LLM_MODEL = saved.model; else delete process.env.LLM_MODEL;
+    }
+  });
 });
 
 describe("queue and feed configuration", () => {
