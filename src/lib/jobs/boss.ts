@@ -17,7 +17,9 @@ import { prisma, strictSsl } from "@/lib/db";
 import { log, withRequestContext } from "@/lib/log";
 import { QUEUES, type QueueName, type JobData } from "./queues";
 
-export const JOBS_SCHEMA = process.env.JOBS_SCHEMA ?? "pgboss";
+const schemaEnv = process.env.JOBS_SCHEMA ?? "pgboss";
+if (!/^[a-z_][a-z0-9_]{0,62}$/.test(schemaEnv)) throw new Error("JOBS_SCHEMA must be a plain lowercase identifier");
+export const JOBS_SCHEMA = schemaEnv;
 
 type Db = IDatabase & { end(): Promise<void> };
 type G = typeof globalThis & { __crosswalkBoss?: Promise<PgBoss> | null; __crosswalkBossStopped?: boolean; __crosswalkBossDb?: Db | null };

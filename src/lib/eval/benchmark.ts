@@ -151,7 +151,7 @@ export async function runBenchmark(cases: BenchmarkCase[], opts: { useLlm?: bool
       byCase[c.name] = { ...stats, account: c.meta.account, source: c.meta.source };
       opts.onProgress?.(`${c.name}: top-1 ${stats.top1}/${stats.lines}, top-3 ${stats.top3}/${stats.lines}`);
     } finally {
-      if (!opts.keep) await prisma.request.delete({ where: { id: request.id } }).catch((e) => log.warn("benchmark.cleanup_failed", { requestId: request.id, error: e instanceof Error ? e.message : String(e) }));
+      if (!opts.keep) await prisma.request.delete({ where: { id: request.id } }).catch((e) => log.warn("benchmark.cleanup_failed", { crossRef: request.id, error: e instanceof Error ? e.message : String(e) }));
     }
   }
   const byFamily: Record<string, FamilyStats> = {};

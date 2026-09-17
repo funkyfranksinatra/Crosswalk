@@ -43,7 +43,8 @@ export async function POST(req: Request) {
       const { recentFailures } = await import("@/lib/jobs/boss");
       const boss = await getBoss();
       let resumed = 0;
-      for (const f of await recentFailures(50)) { await boss.resume(f.queue, f.id).then(() => resumed++).catch(() => undefined); }
+      // `retry` is for failed jobs (`resume` is for cancelled ones); a retried run resumes from its checkpoint.
+      for (const f of await recentFailures(50)) { await boss.retry(f.queue, f.id).then(() => resumed++).catch(() => undefined); }
       const { audit } = await import("@/lib/audit");
       await audit({ actorUserId: actor.id, entityType: "Jobs", entityId: "retry-failed", action: "JOBS_RETRIED", after: { resumed } });
       return { resumed };

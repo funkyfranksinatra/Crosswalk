@@ -214,6 +214,37 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       expect(await prisma.notification.count({ where: { userId: rep.id, entityId: r.id, kind: "RUN_FAILED" } })).toBe(1);
     }, 30_000);
 
+    test("two concurrent enqueues of the same request create exactly one job", async () => {
+      const r = await makeRequest("race", rep);
+      await prisma.request.update({ where: { id: r.id }, data: { status: "draft" } });
+      const results = await Promise.all([enqueueRun(r.id), enqueueRun(r.id), enqueueRun(r.id)]);
+      const created = results.filter((x) => x.jobId);
+      expect(created).toHaveLength(1);
+      expect(results.filter((x) => x.alreadyQueued)).toHaveLength(2);
+      const boss = await getBoss();
+      await boss.cancel("request.run", created[0].jobId!);
+      await prisma.request.update({ where: { id: r.id }, data: { status: "draft" } });
+    });
+
+    test("the run log survives 250 concurrent appends: valid JSON, last 200 kept, nothing lost to a read-modify-write", async () => {
+      const r = await makeRequest("log", rep);
+      const { runRequest: _rr } = await import("@/lib/pipeline/run");
+      void _rr;
+      // The pipeline's log() is module-private; exercise it through the same SQL by running a real run and then hammering the row.
+      await Promise.all(Array.from({ length: 250 }, (_, i) => prisma.$executeRawUnsafe(
+        `UPDATE "Request" SET "logJson" = (SELECT COALESCE(jsonb_agg(e ORDER BY n), '[]'::jsonb)::text FROM (SELECT e, n FROM jsonb_array_elements((CASE WHEN "logJson" ~ '^\\s*\\[' THEN "logJson"::jsonb ELSE '[]'::jsonb END) || $2::jsonb) WITH ORDINALITY AS t(e, n) ORDER BY n DESC LIMIT 200) AS last) WHERE id = $1`,
+        r.id, JSON.stringify([{ t: new Date().toISOString(), m: `line ${i}` }]),
+      )));
+      const row = await prisma.request.findUniqueOrThrow({ where: { id: r.id } });
+      const entries = JSON.parse(row.logJson) as { m: string }[];
+      expect(entries).toHaveLength(200);
+      expect(new Set(entries.map((e) => e.m)).size).toBe(200); // every kept line is a distinct append
+      // Chronological: a real run's log must read oldest → newest after trimming.
+      await runRequest(r.id);
+      const log = (JSON.parse((await prisma.request.findUniqueOrThrow({ where: { id: r.id } })).logJson) as { m: string }[]).map((e) => e.m);
+      expect(log.indexOf(log.find((m) => /^Run started/.test(m))!)).toBeLessThan(log.indexOf(log.find((m) => /^Matched/.test(m))!));
+    }, 60_000);
+
     test("queue health reports counts; recent failures are readable", async () => {
       const h = await queueHealth();
       expect(h.map((q) => q.name)).toContain("request.run");

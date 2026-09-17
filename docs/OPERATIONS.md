@@ -18,11 +18,16 @@ no extra service.
 | `external` | only enqueues | required: `npm run worker` (one or more) |
 | `off` | no queue (scripts, tests) | — |
 
-Each queue has a retry policy and an **expiry** (`src/lib/jobs/queues.ts`). Expiry is the
-crash detector: a job still active past it is assumed dead and retried. Handlers resume:
-a run continues after its last completed stage (`Request.checkpoint`), an import continues
-at its page cursor (`GudidImport.cursorJson`). Rows the database says are running with no
-live job are re-queued at worker start (`jobs.recovered_*` log lines) and resume too.
+Each queue has a retry policy, a **heartbeat** and an expiry (`src/lib/jobs/queues.ts`).
+The heartbeat is the crash detector: a worker refreshes it every 30 s while a job runs,
+and a job whose process died is failed and retried within a minute or two. Expiry (23 h)
+is only the backstop for a handler that hangs. Handlers resume: a run continues after its
+last completed stage (`Request.checkpoint`), an import continues at its page cursor and
+over the same plan of sub-queries (`GudidImport.cursorJson`). Rows the database says are
+running with no live job are re-queued at worker start (`jobs.recovered_*` log lines) and
+resume too; after the retry cap they are marked failed instead of looping. A queue
+interruption (heartbeat lapse, shutdown) is never shown as "cancelled" — only a person's
+Cancel is.
 
 A second "run this request" while one is queued or running is a no-op (`exclusive`
 queue policy per key), so a double-click or a retrying client cannot start two runs.
@@ -31,7 +36,7 @@ queue policy per key), so a double-click or a retrying client cannot start two r
 
 | Endpoint | Who | What |
 | --- | --- | --- |
-| `GET /api/health` | anyone (load balancer) | 200 `ready` / 503 `degraded`; database, queue, model config, notification channels, feed freshness — no data, no hostnames |
+| `GET /api/health` | anyone (load balancer) | 200 `ready` / `degraded` (queue stalled) / 503 `down`; only "does the database answer, does the queue answer" — no names, counts or topology |
 | `GET /api/metrics` | `Authorization: Bearer $METRICS_TOKEN` or an ADMIN session | Prometheus text: HTTP requests/latency by route, openFDA calls by outcome and wait, model calls/tokens, runs by outcome, queue depth and oldest waiting job, feed age, alerts firing, last run's resolution/match ratio |
 | `GET /api/observability/export?kind=llm|runs|sync|feeds|alerts|jobs&since=…` | ADMIN | NDJSON for a log stack that pulls |
 | Settings → System | `configure_settings` | queues, recent failures (retry button), feeds (run now), active/resolved alerts, model/openFDA/notification/logging status |
@@ -71,6 +76,10 @@ decide it — never the submitter), approval decided / proposal fully approved (
 submitter), cross proposed by a rep (clinical + marketing reviewers), feed failed, alert,
 job failed after retries (admins).
 
+A Teams incoming webhook posts to ONE channel: everything a person switches on for Teams
+(including approvers' comments on their proposals) is visible to everyone in that channel.
+Use a deal-desk channel and leave the personal kinds on email or in-app.
+
 `NOTIFY_DRY_RUN=true` records deliveries without sending — for demos and CI.
 
 ## Feeds
@@ -107,7 +116,8 @@ noted on the row, never deleted.
 ## Runbook
 
 **A run is stuck at "Queued".** No worker is picking jobs up: check `JOBS_WORKER` on the
-web server, or that `npm run worker` is running; `/api/health` → `jobs` says `stalled`.
+web server, or that `npm run worker` is running; `/api/health` reports `degraded` and the
+`queue_stalled` alert fires after 15 minutes.
 
 **A run failed.** The request page shows the error and the attempt; the queue retries
 twice from the last checkpoint. After the last attempt admins get a `JOB_FAILED`
@@ -120,8 +130,8 @@ start and resumes.
 file drop landed and the schedule is not `off`. "Run now" forces an ingestion even when the
 file is unchanged.
 
-**Email/Teams are not arriving.** `/api/health` → `notifications` lists the configured
-channels; `/notifications` → Delivery shows the person's switches; Settings → System →
+**Email/Teams are not arriving.** Settings → System lists the configured channels;
+`/notifications` → Delivery shows the person's switches; Settings → System →
 recent failures shows `notify.deliver` errors (SMTP auth, webhook 4xx).
 
 **The model is failing.** `model_unreachable` fires; Settings → Model shows the last error

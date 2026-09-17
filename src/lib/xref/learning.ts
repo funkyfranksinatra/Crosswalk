@@ -66,9 +66,22 @@ export async function recordLineDecision(actor: Actor, lineId: string, decision:
     const matchType = chosen.matchType === "No Match" ? "Alternative Match" : chosen.matchType;
     // A cross under review or approved only gains evidence; its tier, status and justification belong to the reviewers.
     const reviewed = existing && ["IN_REVIEW", "APPROVED"].includes(existing.approvalStatus);
-    const row = existing
-      ? await prisma.knownCross.update({ where: { id: existing.id }, data: reviewed ? { evidenceJson: JSON.stringify(evidence) } : { isActive: true, evidenceJson: JSON.stringify(evidence), ...(existing.approvalStatus === "RETIRED" || existing.approvalStatus === "REJECTED" ? { approvalStatus: "DRAFT", clinicalReviewStatus: "PENDING", marketingReviewStatus: "PENDING" } : {}), justification: decision.overrideNote ?? existing.justification } })
-      : await prisma.knownCross.create({ data: { ownSku, ownDescription: chosen.ownProduct.description, category: chosen.ownProduct.category, competitorName, competitorCode, competitorCodeNorm: norm, competitorDescription: line.competitorProduct?.description ?? null, matchType, source: "rep", approvalStatus: "DRAFT", clinicalReviewStatus: "PENDING", marketingReviewStatus: "PENDING", equivalenceLevel: equivalenceFromMatchType(matchType), justification: decision.overrideNote ?? null, accountId: line.request.accountId ?? null, createdByUserId: actor.id, evidenceJson: JSON.stringify(evidence) } });
+    const createData = { ownSku, ownDescription: chosen.ownProduct.description, category: chosen.ownProduct.category, competitorName, competitorCode, competitorCodeNorm: norm, competitorDescription: line.competitorProduct?.description ?? null, matchType, source: "rep", approvalStatus: "DRAFT", clinicalReviewStatus: "PENDING", marketingReviewStatus: "PENDING", equivalenceLevel: equivalenceFromMatchType(matchType), justification: decision.overrideNote ?? null, accountId: line.request.accountId ?? null, createdByUserId: actor.id, evidenceJson: JSON.stringify(evidence) };
+    let row;
+    if (existing) {
+      row = await prisma.knownCross.update({ where: { id: existing.id }, data: reviewed ? { evidenceJson: JSON.stringify(evidence) } : { isActive: true, evidenceJson: JSON.stringify(evidence), ...(existing.approvalStatus === "RETIRED" || existing.approvalStatus === "REJECTED" ? { approvalStatus: "DRAFT", clinicalReviewStatus: "PENDING", marketingReviewStatus: "PENDING" } : {}), justification: decision.overrideNote ?? existing.justification } });
+    } else {
+      try {
+        row = await prisma.knownCross.create({ data: createData });
+      } catch (e) {
+        // Two reps overriding the same code at the same moment: the second create loses the unique race and endorses instead.
+        if (!(e instanceof Error && /Unique constraint/i.test(e.message))) throw e;
+        const raced = await prisma.knownCross.findUniqueOrThrow({ where: { ownSku_competitorCodeNorm_source: { ownSku, competitorCodeNorm: norm, source: "rep" } } });
+        const ev2 = parseEvidence(raced.evidenceJson);
+        const lines2 = [...new Set([...ev2.lines, line.id])];
+        row = await prisma.knownCross.update({ where: { id: raced.id }, data: { evidenceJson: JSON.stringify({ endorsements: lines2.length, accounts: [...new Set([...ev2.accounts, ...accounts])], users: [...new Set([...ev2.users, actor.id])], lines: lines2, lastAt: new Date().toISOString() } satisfies Evidence) } });
+      }
+    }
     learned.proposedCrossId = row.id;
     await audit({ actorUserId: actor.id, entityType: "KnownCross", entityId: row.id, action: existing ? "ENDORSED_BY_REP" : "PROPOSED_BY_REP", after: { ownSku, competitorCode, matchType, endorsements: evidence.endorsements, requestLineId: line.id, over: top.ownProduct.sku } });
     if (!existing) { const { notifyCrossProposed } = await import("@/lib/notifications"); await notifyCrossProposed(row.id).catch(() => undefined); }

@@ -103,10 +103,10 @@ async function log(requestId: string, message: string) {
   const entry = JSON.stringify({ t: new Date().toISOString(), m: message });
   await prisma.$executeRawUnsafe(
     `UPDATE "Request" SET "logJson" = (
-       SELECT COALESCE(jsonb_agg(e), '[]'::jsonb)::text FROM (
-         SELECT e FROM jsonb_array_elements((CASE WHEN "logJson" ~ '^\\s*\\[' THEN "logJson"::jsonb ELSE '[]'::jsonb END) || $2::jsonb) WITH ORDINALITY AS t(e, n)
+       SELECT COALESCE(jsonb_agg(e ORDER BY n), '[]'::jsonb)::text FROM (
+         SELECT e, n FROM jsonb_array_elements((CASE WHEN "logJson" ~ '^\\s*\\[' THEN "logJson"::jsonb ELSE '[]'::jsonb END) || $2::jsonb) WITH ORDINALITY AS t(e, n)
          ORDER BY n DESC LIMIT 200
-       ) AS last ORDER BY 1
+       ) AS last
      ) WHERE id = $1`,
     requestId, `[${entry}]`,
   ).catch(async () => {
