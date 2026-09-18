@@ -18,6 +18,8 @@ prisma/*.db-*
 .env
 .env.*
 !.env.example
+!.env.mac.example
+!.env.example
 google-service-account.json
 *.service-account.json
 
