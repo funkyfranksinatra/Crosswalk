@@ -29,6 +29,9 @@ the first-class path, and every download opens in Sheets for free.
 
 ## Quick start
 
+> **On a Mac for testing or demos?** Use the `mac-demo` branch and `npm run mac:setup` — see
+> [README-MAC.md](README-MAC.md). It is this same build with a local database and demo data.
+
 ```bash
 cp .env.example .env          # set DATABASE_URL (ask the owner for the shared Neon dev URL); add OPENAI_API_KEY + LLM_MODEL if you have them
 npm run setup                 # install, generate Prisma client, migrate, seed catalog + enterprise demo data
