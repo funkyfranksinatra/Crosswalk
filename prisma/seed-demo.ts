@@ -123,6 +123,12 @@ async function main() {
     crosses++;
   }
   console.log(`Demo crosses: ${crosses} added (existing approved crosses kept)`);
+  // Proposals pin a PUBLISHED crosswalk version; new crosses need one that includes them.
+  if (crosses > 0) {
+    const { publishVersion } = await import("../src/lib/xref/governance");
+    const v = await publishVersion(admin?.id ?? null, "Demo crosses (mac-demo seed)");
+    console.log(`Crosswalk v${v.version.number} published with ${v.entries} entries`);
+  }
 
   // Warm the competitor cache from the recorded openFDA responses so the demo list resolves offline.
   const dir = path.resolve(process.cwd(), "tests/recorded/openfda");
