@@ -12,6 +12,11 @@
     "db:studio": "prisma studio",
     "typecheck": "tsc --noEmit",
     "setup": "npm install && prisma generate && prisma migrate deploy && tsx prisma/seed.ts && tsx prisma/seed-enterprise.ts",
+    "mac:setup": "bash scripts/mac/setup.sh",
+    "mac:start": "bash scripts/mac/start.sh",
+    "mac:reset": "bash scripts/mac/reset.sh",
+    "mac:doctor": "bash scripts/mac/doctor.sh",
+    "mac:stop": "bash scripts/mac/stop.sh",
     "postinstall": "prisma generate",
     "check": "tsx scripts/check.ts",
     "eval": "tsx scripts/eval.ts",
@@ -19,6 +24,7 @@
     "test:enterprise": "tsx scripts/test-enterprise.ts",
     "test:adversarial": "tsx scripts/test-adversarial.ts",
     "db:seed:enterprise": "tsx prisma/seed-enterprise.ts",
+    "db:seed:demo": "tsx prisma/seed-demo.ts",
     "db:migrate:http": "tsx scripts/migrate-http.ts",
     "worker": "tsx scripts/worker.ts",
     "benchmark": "tsx scripts/benchmark.ts",
@@ -62,5 +68,8 @@
     "tsx": "^4.23.13",
     "typescript": "^5",
     "vitest": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=20.9 <25"
   }
 }

@@ -1,0 +1,24 @@
+# Local PostgreSQL with pgvector for running Crosswalk on a laptop (mac-demo branch).
+#   docker compose up -d        # start (data persists in the named volume)
+#   docker compose down         # stop; `docker compose down -v` also deletes the data
+# Port 5433 on the host so an existing local Postgres on 5432 is left alone.
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: crosswalk-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crosswalk
+      POSTGRES_PASSWORD: crosswalk
+      POSTGRES_DB: crosswalk
+    ports:
+      - "5433:5432"
+    volumes:
+      - crosswalk-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crosswalk -d crosswalk"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+volumes:
+  crosswalk-pgdata:
