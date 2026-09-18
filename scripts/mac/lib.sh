@@ -27,12 +27,15 @@ node_ok() {
 
 docker_running() { have docker && docker info >/dev/null 2>&1; }
 
-# Block until Postgres answers on the URL in .env (or the given one), up to N seconds.
+# Block until Postgres answers on the URL in .env (or the given one), up to N seconds. Uses only
+# Node's built-ins until dependencies are installed (setup runs before npm ci), then a real query.
 wait_for_db() {
   local url="${1:-$(env_get DATABASE_URL)}" tries="${2:-40}" i=0
   until node -e '
-    const { Client } = require("pg"); const c = new Client({ connectionString: process.argv[1] });
-    c.connect().then(() => c.query("select 1")).then(() => { c.end(); process.exit(0); }).catch(() => process.exit(1));
+    const u = new URL(process.argv[1]); const host = u.hostname || "localhost"; const port = Number(u.port || 5432);
+    let pg = null; try { pg = require("pg"); } catch {}
+    if (pg) { const c = new pg.Client({ connectionString: process.argv[1] }); c.connect().then(() => c.query("select 1")).then(() => { c.end(); process.exit(0); }).catch(() => process.exit(1)); }
+    else { const s = require("net").connect({ host, port }); s.setTimeout(1500); s.on("connect", () => { s.end(); process.exit(0); }); s.on("error", () => process.exit(1)); s.on("timeout", () => process.exit(1)); }
   ' "$url" >/dev/null 2>&1; do
     i=$((i+1)); [ "$i" -ge "$tries" ] && return 1
     sleep 1
