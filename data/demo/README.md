@@ -1,7 +1,7 @@
 # Demo data (mac-demo branch)
 
 `demo-usage-list.csv` is a fictional hospital usage list — competitor catalog numbers, annual
-quantities and the prices the customer reports paying — in the two-column-plus-price shape
+quantities and the unit prices the customer reports paying — in the two-column-plus-price shape
 Crosswalk's intake expects. Paste it into **New request** (or upload the file) to run a demo:
 the codes are real public catalog numbers from Gore, Ethicon, Bard and Applied Medical, and the
 `prisma/seed-demo.ts` seed gives the catalog approved crosses for every one of them, so the run

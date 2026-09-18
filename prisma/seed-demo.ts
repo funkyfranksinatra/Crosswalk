@@ -92,7 +92,6 @@ const CROSSES: [string, string, string, string, string][] = [
   ["CFI12", "Applied Medical", "Kii Fios First Entry Trocar 12 mm", "ONB12STF", "Close Match"],
   ["CTN14", "Applied Medical", "Kii Balloon Blunt Tip 12 mm", "ONB12STS", "Close Match"],
   ["HAR36", "Ethicon", "HARMONIC ACE+7 Shears 36 cm", "LF1937", "Alternative Match"],
-  ["CATCH10", "Applied Medical", "Inzii Retrieval System 10 mm", "173050G", "Close Match"],
 ];
 
 async function main() {
