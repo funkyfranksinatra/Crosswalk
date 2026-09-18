@@ -9,9 +9,9 @@ case "$URL" in
 esac
 db_up
 say "Dropping and recreating the schema"
-npx prisma migrate reset --force --skip-seed
+npx prisma migrate reset --force
 say "Seeding demo data"
-npx tsx prisma/seed.ts
+# (migrate reset already ran prisma/seed.ts — the config's seed — after recreating the schema)
 npx tsx prisma/seed-enterprise.ts
 npx tsx prisma/seed-demo.ts
 ok "Reset complete — npm run mac:start"
