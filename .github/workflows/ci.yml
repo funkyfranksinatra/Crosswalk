@@ -45,3 +45,36 @@ jobs:
           SESSION_SECRET: ci-only-secret
       - name: Model evaluation gate (prompt / bin / model versions vs the accepted baseline)
         run: npm run eval:gate
+
+  image:
+    # Builds the container image and boots it (migrate → web → health) against a pgvector
+    # database, so a Dockerfile or entrypoint regression fails here rather than on a server.
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: crosswalk:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Boot the image against Postgres and check health
+        run: |
+          docker network create cw
+          docker run -d --name db --network cw -e POSTGRES_USER=crosswalk -e POSTGRES_PASSWORD=ci-postgres-password-1 -e POSTGRES_DB=crosswalk pgvector/pgvector:pg17
+          for i in $(seq 1 30); do docker exec db pg_isready -U crosswalk && break; sleep 2; done
+          docker run -d --name web --network cw -p 3000:3000 \
+            -e DATABASE_URL=postgresql://crosswalk:ci-postgres-password-1@db:5432/crosswalk \
+            -e SESSION_SECRET=ci-only-secret-long-enough-for-the-check -e COMPANY_NAME=Medtronic -e JOBS_WORKER=external \
+            crosswalk:ci
+          for i in $(seq 1 60); do curl -sf http://localhost:3000/api/health && ok=1 && break; sleep 2; done
+          docker logs web
+          [ "${ok:-}" = "1" ]
+          curl -sI http://localhost:3000/ | grep -i "content-security-policy"
+          docker run --rm --network cw -e DATABASE_URL=postgresql://crosswalk:ci-postgres-password-1@db:5432/crosswalk -e SESSION_SECRET=ci-only-secret-long-enough-for-the-check crosswalk:ci check
+          # a weak secret must be refused
+          if docker run --rm --network cw -e DATABASE_URL=postgresql://crosswalk:ci-postgres-password-1@db:5432/crosswalk -e SESSION_SECRET=short crosswalk:ci check; then echo "weak secret accepted" && exit 1; fi

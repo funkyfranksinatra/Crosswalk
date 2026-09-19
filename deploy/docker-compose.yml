@@ -1,0 +1,66 @@
+# Crosswalk on one host: web + worker + PostgreSQL (pgvector). See docs/DEPLOYMENT.md.
+#
+#   cp .env.example .env            # fill in SESSION_SECRET, OPENAI_API_KEY, SSO_*, …
+#   export POSTGRES_PASSWORD=…      # a real one: the app refuses default passwords
+#   docker compose -f deploy/docker-compose.yml up -d --build
+#
+# DATABASE_URL is composed here from POSTGRES_PASSWORD and overrides the one in .env, so the
+# same .env can point a laptop at Neon and this stack at its own database. Drop the `db`
+# service and set DATABASE_URL to Neon to run only the app containers.
+name: crosswalk
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crosswalk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD to a real password}
+      POSTGRES_DB: crosswalk
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crosswalk -d crosswalk"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    # Not published: only the app containers reach it. Uncomment to reach it from the host.
+    # ports: ["5432:5432"]
+
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: crosswalk:latest
+    restart: unless-stopped
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://crosswalk:${POSTGRES_PASSWORD}@db:5432/crosswalk
+      JOBS_WORKER: external
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    image: crosswalk:latest
+    command: ["worker"]
+    restart: unless-stopped
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://crosswalk:${POSTGRES_PASSWORD}@db:5432/crosswalk
+      MIGRATE_ON_START: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+
+volumes:
+  pgdata:
