@@ -5,7 +5,7 @@ import { PageHeader, Card, Empty } from "@/components/ui";
 import { Pill, fmtMoney, fmtPct, label } from "@/components/commercial";
 import { DelegationPanel } from "./delegation";
 
-type Item = { onBehalfOf: { userId: string; name: string | null } | null; selfSubmitted: boolean; id: string; requiredRole: string; reason: string; notes: string | null; requestedAt: string; snapshotJson: string | null; proposal: { id: string; reference: string; currency: string; account: { name: string } }; proposalLine: { competitorCode: string; sku: string | null; description: string | null; quantity: number; proposedPrice: number | null; recommendedPrice: number | null; floorPrice: number | null; marginPct: number | null; discountFromListPct: number | null; discountFromContractPct: number | null } | null };
+type Item = { onBehalfOf: { userId: string; name: string | null } | null; selfSubmitted: boolean; breakGlassAllowed?: boolean; id: string; requiredRole: string; reason: string; notes: string | null; requestedAt: string; snapshotJson: string | null; proposal: { id: string; reference: string; currency: string; account: { name: string } }; proposalLine: { competitorCode: string; sku: string | null; description: string | null; quantity: number; proposedPrice: number | null; recommendedPrice: number | null; floorPrice: number | null; marginPct: number | null; discountFromListPct: number | null; discountFromContractPct: number | null } | null };
 
 export function ApprovalQueue() {
   const [items, setItems] = useState<Item[] | null>(null);
@@ -35,7 +35,8 @@ export function ApprovalQueue() {
                     {l && <div className="mt-1 text-[13px]"><span className="mono">{l.competitorCode}</span> → <span className="mono font-medium">{l.sku}</span> <span className="text-muted">{l.description}</span> · qty {Number(l.quantity).toLocaleString()}</div>}
                     <div className="mt-1 text-[12.5px] text-muted">{it.reason}{it.notes ? ` · "${it.notes}"` : ""} · requested {it.requestedAt.slice(0, 16).replace("T", " ")}</div>
                     {it.onBehalfOf && <div className="mt-1 text-[12px] text-alt">In your queue through {it.onBehalfOf.name ?? "a colleague"}'s delegation — you decide in your own name, on their behalf.</div>}
-                    {it.selfSubmitted && <div className="mt-1 text-[12px] text-none">You (or the person delegating to you) submitted this; someone else must decide it.</div>}
+                    {it.selfSubmitted && !it.breakGlassAllowed && <div className="mt-1 text-[12px] text-none">You (or the person delegating to you) submitted this; someone else must decide it.</div>}
+                    {it.breakGlassAllowed && <div className="mt-1 text-[12px] text-none">You submitted this. As an administrator you may still approve it as a <b>break-glass</b> action: write the reason in the comments (20+ characters) — it is recorded in the audit trail and the other administrators and pricing directors are notified.</div>}
                     {l && <div className="mt-2 grid grid-cols-5 gap-3 text-[12px]">
                       <div><div className="eyebrow">Proposed</div><div className={`mono ${belowFloor ? "text-none font-semibold" : ""}`}>{fmtMoney(l.proposedPrice, it.proposal.currency)}</div></div>
                       <div><div className="eyebrow">Recommended</div><div className="mono">{fmtMoney(l.recommendedPrice, it.proposal.currency)}</div></div>

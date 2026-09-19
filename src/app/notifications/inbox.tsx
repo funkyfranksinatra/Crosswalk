@@ -7,7 +7,7 @@ type Item = { id: string; kind: string; title: string; body: string | null; link
 type Pref = { kind: string; inApp: boolean; email: boolean; teams: boolean };
 type PrefData = { kinds: string[]; channels: { email: boolean; teams: boolean }; preferences: Pref[] };
 
-const LABEL: Record<string, string> = { RUN_COMPLETE: "Run complete", RUN_FAILED: "Run failed", APPROVAL_REQUESTED: "Approval requested", APPROVAL_DECIDED: "Approval decided", PROPOSAL_APPROVED: "Proposal approved", CROSS_PROPOSED: "Cross proposed", FEED_FAILED: "Feed failed", ALERT: "System alert", JOB_FAILED: "Job failed" };
+const LABEL: Record<string, string> = { RUN_COMPLETE: "Run complete", RUN_FAILED: "Run failed", APPROVAL_REQUESTED: "Approval requested", APPROVAL_DECIDED: "Approval decided", PROPOSAL_APPROVED: "Proposal approved", CROSS_PROPOSED: "Cross proposed", FEED_FAILED: "Feed failed", ALERT: "System alert", JOB_FAILED: "Job failed", BREAK_GLASS: "Break-glass approval" };
 const tone = (k: string) => (k === "ALERT" || k.endsWith("_FAILED") ? "none" : k === "PROPOSAL_APPROVED" || k === "RUN_COMPLETE" ? "exact" : k === "APPROVAL_REQUESTED" ? "alt" : "info");
 
 function toPath(link: string | null) {
@@ -31,7 +31,7 @@ export function Inbox() {
     const r = await fetch("/api/notifications/preferences", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, ...patch }) });
     if (r.ok) { const p = await fetch("/api/notifications/preferences", { cache: "no-store" }); setPrefs(await p.json()); }
   }
-  const prefFor = (kind: string): Pref => prefs?.preferences.find((p) => p.kind === kind) ?? prefs?.preferences.find((p) => p.kind === "*") ?? { kind, inApp: true, email: true, teams: ["ALERT", "FEED_FAILED", "JOB_FAILED"].includes(kind) };
+  const prefFor = (kind: string): Pref => prefs?.preferences.find((p) => p.kind === kind) ?? prefs?.preferences.find((p) => p.kind === "*") ?? { kind, inApp: true, email: true, teams: ["ALERT", "FEED_FAILED", "JOB_FAILED", "BREAK_GLASS"].includes(kind) };
   return (
     <div className="grid grid-cols-[1fr_360px] gap-4 items-start">
       <Card title="Inbox" actions={<div className="flex items-center gap-2"><label className="flex items-center gap-1.5 text-[12.5px]"><input type="checkbox" checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)} /> Unread only</label><button className="btn-ghost !py-1 !text-[12px]" onClick={markAll}>Mark all read</button></div>} padded={false}>

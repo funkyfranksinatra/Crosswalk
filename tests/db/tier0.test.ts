@@ -15,6 +15,7 @@ import { permissionsFor } from "@/lib/auth/permissions";
 import { AuthError, type Actor } from "@/lib/auth";
 import { getCompany } from "@/lib/settings";
 import { resolveUser, type Identity } from "@/lib/auth/oidc";
+import { decide } from "@/lib/approvals/service";
 import { scopeFor, accountWhere, requestWhere, proposalWhere, contractWhere, enforceScopeForPath, assertAccountWritable } from "@/lib/auth/scope";
 
 const hasDb = Boolean(process.env.DATABASE_URL);
@@ -170,5 +171,74 @@ describe.skipIf(!hasDb)("Tier 0.1 — OIDC subject → user resolution", () => {
     const d = await resolveUser({ ...cfg, defaultRole: "SALES_REP" }, id({ subject: `${RUN}-default`, email: `${RUN}.default@test.local`, roles: [] }));
     expect(d.created).toBe(true);
     expect((await prisma.userRole.findMany({ where: { userId: d.userId } })).map((r) => r.role)).toEqual(["SALES_REP"]);
+  });
+});
+
+describe.skipIf(!hasDb)("Tier 0.8 — audited break-glass self-approval", () => {
+  let admin: Awaited<ReturnType<typeof mkUser>>;
+  let admin2: Awaited<ReturnType<typeof mkUser>>;
+  let director: Awaited<ReturnType<typeof mkUser>>;
+  let accountId = "";
+  const made: string[] = [];
+
+  async function pendingRequest(requestedBy: string) {
+    const p = await prisma.proposal.create({ data: { reference: `${RUN}-P${made.length + 1}`, accountId, status: "SUBMITTED", ownerUserId: requestedBy, createdByUserId: requestedBy, lockedAt: new Date(), submittedAt: new Date(), lines: { create: [{ lineNo: 1, competitorCode: "X1", quantity: 10, proposedPrice: 80, listPrice: 100, floorPrice: 70, approvalState: "PENDING", included: true }] } }, include: { lines: true } });
+    made.push(p.id);
+    const req = await prisma.approvalRequest.create({ data: { proposalId: p.id, proposalLineId: p.lines[0].id, requiredRole: "PRICING_DIRECTOR", reason: "20% off list", requestedByUserId: requestedBy, snapshotJson: JSON.stringify({ proposedPrice: "80" }) } });
+    return { p, req };
+  }
+
+  beforeAll(async () => {
+    admin = await mkUser("bg-admin", ["ADMIN"]);
+    admin2 = await mkUser("bg-admin2", ["ADMIN"]);
+    director = await mkUser("bg-director", ["PRICING_DIRECTOR"]);
+    accountId = (await prisma.account.create({ data: { name: `${RUN} bg`, accountNumber: `${RUN}-bg` } })).id;
+  });
+  afterAll(async () => {
+    await prisma.notification.deleteMany({ where: { userId: { in: [admin.row.id, admin2.row.id, director.row.id] } } });
+    await prisma.proposal.deleteMany({ where: { id: { in: made } } });
+    await prisma.account.deleteMany({ where: { accountNumber: `${RUN}-bg` } });
+    await prisma.user.deleteMany({ where: { email: { startsWith: `${RUN}.bg-` } } });
+  });
+
+  test("a non-admin still cannot decide their own request", async () => {
+    const { req } = await pendingRequest(director.row.id);
+    await expect(decide(director.actor, req.id, "APPROVED", "a long enough reason for the record")).rejects.toThrow(/cannot approve your own/);
+  });
+
+  test("an ADMIN approving their own request must give a reason; the decision is flagged, audited and reported to the other admins and directors", async () => {
+    const { p, req } = await pendingRequest(admin.row.id);
+    await expect(decide(admin.actor, req.id, "APPROVED")).rejects.toMatchObject({ status: 400, message: /break-glass/ });
+    await expect(decide(admin.actor, req.id, "APPROVED", "too short")).rejects.toMatchObject({ status: 400 });
+    expect((await prisma.approvalRequest.findUniqueOrThrow({ where: { id: req.id } })).status).toBe("PENDING"); // refusals change nothing
+    const reason = "Customer deadline today; pricing director travelling, margin still above floor";
+    const out = await decide(admin.actor, req.id, "APPROVED", reason);
+    expect(out.status).toBe("APPROVED");
+    const after = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: req.id } });
+    expect(after).toMatchObject({ status: "APPROVED", breakGlass: true, decidedByUserId: admin.row.id, decisionComments: reason });
+    const events = await prisma.auditEvent.findMany({ where: { entityId: { in: [req.id, p.id] }, actorUserId: admin.row.id } });
+    expect(events.map((e) => e.action).sort()).toEqual(["APPROVED", "BREAK_GLASS_APPROVAL"]);
+    const flagged = events.find((e) => e.action === "APPROVED")!;
+    expect(JSON.parse(flagged.contextJson!).breakGlass).toBe(true);
+    const bg = events.find((e) => e.action === "BREAK_GLASS_APPROVAL")!;
+    expect(bg.reason).toBe(reason);
+    const told = await prisma.notification.findMany({ where: { kind: "BREAK_GLASS", entityId: req.id }, select: { userId: true, title: true } });
+    const ids = told.map((n) => n.userId);
+    expect(ids).toContain(admin2.row.id); expect(ids).toContain(director.row.id); // other admins and directors (seeded ones too)
+    expect(ids).not.toContain(admin.row.id); // never the actor
+    expect(told[0].title).toMatch(/Break-glass/);
+  });
+
+  test("rejecting or sending back one's own request is not break-glass and needs no reason", async () => {
+    const { req } = await pendingRequest(admin.row.id);
+    await decide(admin.actor, req.id, "CHANGES_REQUESTED");
+    expect(await prisma.approvalRequest.findUniqueOrThrow({ where: { id: req.id } })).toMatchObject({ status: "CHANGES_REQUESTED", breakGlass: false });
+    expect(await prisma.notification.count({ where: { kind: "BREAK_GLASS", entityId: req.id } })).toBe(0);
+  });
+
+  test("a normal approval by someone else is never flagged", async () => {
+    const { req } = await pendingRequest(admin.row.id);
+    await decide(director.actor, req.id, "APPROVED", "ok");
+    expect(await prisma.approvalRequest.findUniqueOrThrow({ where: { id: req.id } })).toMatchObject({ status: "APPROVED", breakGlass: false });
   });
 });

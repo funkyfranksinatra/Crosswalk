@@ -13,7 +13,7 @@ import { log } from "@/lib/log";
 import { satisfiesAuthority, ROLE_PERMISSIONS, type Role } from "@/lib/auth/permissions";
 import { notificationsSent } from "@/lib/observability/metrics";
 
-export const KINDS = ["RUN_COMPLETE", "RUN_FAILED", "APPROVAL_REQUESTED", "APPROVAL_DECIDED", "PROPOSAL_APPROVED", "CROSS_PROPOSED", "FEED_FAILED", "ALERT", "JOB_FAILED"] as const;
+export const KINDS = ["RUN_COMPLETE", "RUN_FAILED", "APPROVAL_REQUESTED", "APPROVAL_DECIDED", "PROPOSAL_APPROVED", "CROSS_PROPOSED", "FEED_FAILED", "ALERT", "JOB_FAILED", "BREAK_GLASS"] as const;
 export type Kind = (typeof KINDS)[number];
 export type Channel = "email" | "teams";
 
@@ -150,6 +150,15 @@ export async function notifyApprovalDecided(requestId: string) {
   const verb = r.status === "APPROVED" ? "approved" : r.status === "REJECTED" ? "rejected" : "sent back with changes requested";
   await notify({ kind: "APPROVAL_DECIDED", userIds: recipients, title: `${r.proposal.reference}: ${r.proposalLine?.sku ?? "a line"} ${verb} by ${decidedBy?.name ?? "an approver"}`, body: r.decisionComments ?? null, link: `${baseUrl()}/proposals/${r.proposal.id}`, entityType: "ApprovalRequest", entityId: r.id });
   if (r.proposal.status === "APPROVED") await notify({ kind: "PROPOSAL_APPROVED", userIds: recipients, title: `${r.proposal.reference} is fully approved — ready to export`, link: `${baseUrl()}/proposals/${r.proposal.id}`, entityType: "Proposal", entityId: r.proposal.id, dedupeKey: `approved:${r.decidedAt?.toISOString() ?? ""}` });
+}
+
+/** An ADMIN approved their own request: every other ADMIN and PRICING_DIRECTOR hears about it. */
+export async function notifyBreakGlass(requestId: string) {
+  const r = await prisma.approvalRequest.findUnique({ where: { id: requestId }, include: { proposal: { select: { id: true, reference: true } }, proposalLine: { select: { sku: true } } } });
+  if (!r || !r.breakGlass || !r.decidedByUserId) return;
+  const who = await prisma.user.findUnique({ where: { id: r.decidedByUserId }, select: { name: true } });
+  const recipients = (await adminIds()).filter((id) => id !== r.decidedByUserId);
+  await notify({ kind: "BREAK_GLASS", userIds: recipients, title: `Break-glass: ${who?.name ?? "an administrator"} approved their own request on ${r.proposal.reference}${r.proposalLine ? ` (${r.proposalLine.sku})` : ""}`, body: r.decisionComments ?? null, link: `${baseUrl()}/proposals/${r.proposal.id}`, entityType: "ApprovalRequest", entityId: r.id });
 }
 
 export async function notifyCrossProposed(knownCrossId: string) {

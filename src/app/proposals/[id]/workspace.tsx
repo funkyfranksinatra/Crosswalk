@@ -22,7 +22,7 @@ type Line = {
   marginAmount: number | null; marginPct: number | null; discountFromListPct: number | null; discountFromContractPct: number | null; requiredAuthority: string | null; approvalState: string; justification: string | null; notes: string | null; customerNote: string | null;
 };
 type Econ = { revenue: string; listValue: string; currentContractValue: string; competitorSpend: string; customerSavings: string; customerSavingsPct: string | null; grossProfit: string | null; blendedMarginPct: string | null; discountFromListPct: string | null; discountFromContractPct: string | null; shareOfWalletPct: string | null; linesProposed: number; linesTotal: number; approvalsPending: number; approvalsRequired: number; byFamily: { family: string; lines: number; revenue: string; grossProfit: string | null; marginPct: string | null; competitorSpend: string; customerSavings: string }[] };
-type Approval = { id: string; proposalLineId: string | null; requiredRole: string; reason: string; status: string; requestedAt: string; decidedAt: string | null; decisionComments: string | null };
+type Approval = { id: string; proposalLineId: string | null; requiredRole: string; reason: string; status: string; requestedAt: string; decidedAt: string | null; decisionComments: string | null; breakGlass?: boolean };
 type Proposal = {
   id: string; reference: string; version: number; status: string; currency: string; validThrough: string | null; lockedAt: string | null; gpoNameSnapshot: string | null; objectivesJson: string | null;
   account: { id: string; name: string; accountNumber: string | null; isStrategic: boolean; parent: { name: string } | null }; contract: { contractNumber: string; name: string } | null; crosswalkVersion: { number: number } | null; request: { id: string; reference: string } | null;
@@ -296,7 +296,7 @@ function LineDrawer({ l, p, editable, onInclude, onRecommend, onNote, approvals 
           <div className="col-span-4 text-[11.5px] text-muted">Only entries in the published crosswalk may be represented to a customer as an equivalence. {l.equivalenceLevel === "NONE" && l.sku ? "This pairing was produced by the cross-reference engine but is not yet approved: ask product marketing to review it under Crosswalk." : ""}</div>
         </div>
       )}
-      {tab === "approvals" && (approvals.length ? <table className="table !text-[12.5px]"><thead><tr><th>Requested</th><th>Needs</th><th>Reason</th><th>Status</th><th>Decision</th></tr></thead><tbody>{approvals.map((a) => <tr key={a.id}><td>{a.requestedAt.slice(0, 16).replace("T", " ")}</td><td>{label(a.requiredRole)}</td><td>{a.reason}</td><td><Pill value={a.status} /></td><td className="text-muted">{a.decisionComments ?? (a.decidedAt ? a.decidedAt.slice(0, 10) : "")}</td></tr>)}</tbody></table> : <span className="text-muted">No approval requests on this line.</span>)}
+      {tab === "approvals" && (approvals.length ? <table className="table !text-[12.5px]"><thead><tr><th>Requested</th><th>Needs</th><th>Reason</th><th>Status</th><th>Decision</th></tr></thead><tbody>{approvals.map((a) => <tr key={a.id}><td>{a.requestedAt.slice(0, 16).replace("T", " ")}</td><td>{label(a.requiredRole)}</td><td>{a.reason}</td><td><Pill value={a.status} />{a.breakGlass && <> <Pill value="REJECTED">break-glass</Pill></>}</td><td className="text-muted">{a.decisionComments ?? (a.decidedAt ? a.decidedAt.slice(0, 10) : "")}</td></tr>)}</tbody></table> : <span className="text-muted">No approval requests on this line.</span>)}
     </div>
   );
 }
