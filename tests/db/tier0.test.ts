@@ -59,8 +59,8 @@ describe.skipIf(!hasDb)("Tier 0.2 — ownership / territory scoping", () => {
     await mk("child", { parentAccountId: acc.idn, territory: "Pacific", ownerUserId: rep2.row.id });
     await mk("orphanTerritory", { territory: "Pacific" }); // territory set, no owner → not "unassigned"
     const companyId = (await getCompany()).id;
-    const r1 = await prisma.request.create({ data: { companyId, reference: `${RUN}-R1`, status: "DRAFT", createdByUserId: rep.row.id, accountId: acc.foreign } });
-    const r2 = await prisma.request.create({ data: { companyId, reference: `${RUN}-R2`, status: "DRAFT", createdByUserId: rep2.row.id, accountId: acc.foreign } });
+    const r1 = await prisma.request.create({ data: { companyId, reference: `${RUN}-R1`, status: "draft", createdByUserId: rep.row.id, accountId: acc.foreign } });
+    const r2 = await prisma.request.create({ data: { companyId, reference: `${RUN}-R2`, status: "draft", createdByUserId: rep2.row.id, accountId: acc.foreign } });
     ownRequestId = r1.id; foreignRequestId = r2.id;
   });
 

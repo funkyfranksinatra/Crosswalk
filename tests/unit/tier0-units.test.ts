@@ -17,6 +17,11 @@ import os from "node:os";
 import path from "node:path";
 import { RateLimiter, classify, clientKey, limitsFromEnv } from "@/lib/security/ratelimit";
 import { makeNonce, contentSecurityPolicy, hardeningHeaders, isHttps } from "@/lib/security/headers";
+import { ENUM_CONSTRAINTS, EXPR_CONSTRAINTS, constraintName, constraintExpr, migrationSql, violationQueries } from "@/lib/db/constraints";
+import { ROLES } from "@/lib/auth/permissions";
+import { KINDS } from "@/lib/notifications/kinds";
+import { EQUIVALENCE } from "@/lib/xref/equivalence";
+import { SOURCE_TYPES } from "@/lib/intelligence/summarize";
 import { checkSecrets, assertProductionSecrets, flattenSecrets, loadSecrets, resetSecretsForTests, setSecretsFetchForTests } from "@/lib/secrets";
 
 const actor = (roles: string[]): Actor => ({ id: "u1", email: "u@x", name: "U", roles, permissions: permissionsFor(roles), isDev: true });
@@ -379,5 +384,29 @@ describe("0.5 rate limiting and security headers", () => {
     const hs = new Headers({ "x-forwarded-proto": "https" });
     expect(isHttps(new URL("http://app/"), hs)).toBe(true);
     expect(isHttps(new URL("http://app/"), new Headers())).toBe(false);
+  });
+});
+
+describe("0.6 CHECK constraints", () => {
+  test("the committed migration is exactly what the definitions generate (regenerate with scripts/gen-constraints.ts)", () => {
+    const committed = fs.readFileSync(path.resolve(__dirname, "../../prisma/migrations/20260919000100_tier0_check_constraints/migration.sql"), "utf8");
+    expect(committed).toBe(migrationSql());
+  });
+  test("enum constraints track the application's own lists and never overlap", () => {
+    const byKey = new Map(ENUM_CONSTRAINTS.map((c) => [`${c.table}.${c.column}`, c.values]));
+    expect(byKey.get("UserRole.role")).toEqual(ROLES);
+    expect(byKey.get("Notification.kind")).toEqual(KINDS);
+    expect(byKey.get("KnownCross.equivalenceLevel")).toEqual(EQUIVALENCE);
+    expect(byKey.get("CompetitorPriceObservation.sourceType")).toEqual(SOURCE_TYPES);
+    expect(byKey.get("Request.status")).toContain("cancelled");
+    const names = [...ENUM_CONSTRAINTS, ...EXPR_CONSTRAINTS].map(constraintName);
+    expect(new Set(names).size).toBe(names.length);
+    for (const c of ENUM_CONSTRAINTS) expect(new Set(c.values).size).toBe(c.values.length);
+  });
+  test("violation queries are NULL-safe and quote values", () => {
+    const q = violationQueries().find((v) => v.name === "chk_Proposal_freightMode")!;
+    expect(q.sql).toContain(`NOT ("freightMode" IN ('NONE', 'FLAT', 'PCT'))`);
+    expect(q.sql).toContain("IS NOT NULL");
+    expect(constraintExpr({ table: "T", column: "c", values: ["it's"] })).toBe(`"c" IN ('it''s')`);
   });
 });

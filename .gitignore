@@ -58,3 +58,4 @@ data/benchmark/*
 # Delivery bundles from Claude sessions and the folder used in place of deletes
 .claude-bundles/
 _to_delete/
+scratch/
