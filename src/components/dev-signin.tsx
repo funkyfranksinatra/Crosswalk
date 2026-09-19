@@ -10,16 +10,21 @@ type DevUser = { id: string; name: string; email: string; roles: string[] };
  * Development sign-in — unmistakably labelled. Lists the seeded users and sets the
  * dev cookie. Renders nothing but the signed-in identity when SSO is configured.
  */
-export function DevSignIn({ actor, sso }: { actor: ActorInfo | null; sso: boolean }) {
+export function DevSignIn({ actor, sso }: { actor: ActorInfo | null; sso: "none" | "oidc" | "proxy" }) {
   const router = useRouter();
   const [users, setUsers] = useState<DevUser[]>([]);
   const [open, setOpen] = useState(false);
-  useEffect(() => { if (!sso) fetch("/api/auth/dev").then((r) => (r.ok ? r.json() : [])).then(setUsers).catch(() => setUsers([])); }, [sso]);
+  useEffect(() => { if (sso === "none") fetch("/api/auth/dev").then((r) => (r.ok ? r.json() : [])).then(setUsers).catch(() => setUsers([])); }, [sso]);
   async function pick(userId: string) {
     await fetch("/api/auth/dev", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId }) });
     setOpen(false); router.refresh();
   }
   async function signOut() { await fetch("/api/auth/dev", { method: "DELETE" }); router.refresh(); }
+  async function ssoSignOut() {
+    const r = await fetch("/api/auth/oidc/logout", { method: "POST" }).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+    const to = typeof r?.redirect === "string" ? r.redirect : "/";
+    if (to.startsWith("/")) { router.replace(to); router.refresh(); } else window.location.assign(to);
+  }
   return (
     <div className="rounded-lg border border-white/10 bg-white/5 p-2.5 text-[12px]">
       {actor ? (
@@ -30,7 +35,7 @@ export function DevSignIn({ actor, sso }: { actor: ActorInfo | null; sso: boolea
       ) : (
         <div className="text-white">Not signed in</div>
       )}
-      {!sso && (
+      {sso === "none" && (
         <div className="mt-2">
           <div className="text-[10.5px] uppercase tracking-wide text-alt/90 mb-1">Development sign-in</div>
           {open ? (
@@ -45,7 +50,8 @@ export function DevSignIn({ actor, sso }: { actor: ActorInfo | null; sso: boolea
           )}
         </div>
       )}
-      {sso && <div className="mt-1 text-sidebar-muted">SSO session</div>}
+      {sso === "oidc" && (actor ? <button onClick={ssoSignOut} className="btn-secondary w-full justify-center !py-1 !text-[12px] mt-2">Sign out</button> : <a href="/api/auth/oidc/start" className="btn-secondary w-full justify-center !py-1 !text-[12px] mt-2">Sign in with SSO</a>)}
+      {sso === "proxy" && <div className="mt-1 text-sidebar-muted">SSO session (managed by your sign-in proxy)</div>}
     </div>
   );
 }

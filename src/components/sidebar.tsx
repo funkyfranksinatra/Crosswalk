@@ -23,7 +23,7 @@ const NAV: NavItem[] = [
   { href: "/settings", label: "Settings", icon: IconSliders },
 ];
 
-export function Sidebar({ companyName, llm, actor, sso }: { companyName: string; llm: { available: boolean; model: string }; actor: ActorInfo | null; sso: boolean }) {
+export function Sidebar({ companyName, llm, actor, sso }: { companyName: string; llm: { available: boolean; model: string }; actor: ActorInfo | null; sso: "none" | "oidc" | "proxy" }) {
   const path = usePathname();
   const perms = new Set(actor?.permissions ?? []);
   const items = NAV.filter((n) => !n.perm || perms.has(n.perm) || (actor?.roles ?? []).includes("ADMIN"));

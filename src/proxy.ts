@@ -1,12 +1,13 @@
 /**
  * Request gate (defence in depth). Every /api route except sign-in is refused without a
- * session (dev cookie, or the SSO subject header an authenticating proxy sets). Route
+ * session (dev cookie, OIDC session cookie, or the SSO subject header an authenticating proxy sets). Route
  * handlers still resolve and authorise the actor themselves via `handle()`; this layer
  * exists so a route that forgets to is closed rather than open.
  */
 import { NextResponse, type NextRequest } from "next/server";
 
 const DEV_COOKIE = "crosswalk_dev_user";
+const SESSION_COOKIE = "crosswalk_session";
 /** Unauthenticated by design: liveness for the load balancer, and the scrape endpoint (token-guarded in its handler). */
 const OPEN = ["/api/auth/", "/api/health", "/api/metrics"];
 
@@ -30,7 +31,7 @@ export function proxy(req: NextRequest) {
   headers.set("x-crosswalk-path", pathname.slice(0, 400));
   const next = () => { const res = NextResponse.next({ request: { headers } }); res.headers.set("x-request-id", id); return res; };
   if (OPEN.some((p) => (p.endsWith("/") ? pathname.startsWith(p) : pathname === p))) return next();
-  const hasSession = Boolean(req.cookies.get(DEV_COOKIE)?.value) || Boolean(req.headers.get("x-sso-subject"));
+  const hasSession = Boolean(req.cookies.get(DEV_COOKIE)?.value) || Boolean(req.cookies.get(SESSION_COOKIE)?.value) || Boolean(req.headers.get("x-sso-subject"));
   if (!hasSession) { const res = NextResponse.json({ error: "Sign in required" }, { status: 401 }); res.headers.set("x-request-id", id); return res; }
   return next();
 }

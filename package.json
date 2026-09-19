@@ -38,6 +38,7 @@
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
     "google-auth-library": "^11.0.2",
+    "jose": "^6.2.12",
     "next": "16.3.5",
     "nodemailer": "^10.0.10",
     "openai": "^7.15.0",

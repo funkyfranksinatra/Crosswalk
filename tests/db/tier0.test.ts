@@ -14,6 +14,7 @@ import { prisma } from "@/lib/db";
 import { permissionsFor } from "@/lib/auth/permissions";
 import { AuthError, type Actor } from "@/lib/auth";
 import { getCompany } from "@/lib/settings";
+import { resolveUser, type Identity } from "@/lib/auth/oidc";
 import { scopeFor, accountWhere, requestWhere, proposalWhere, contractWhere, enforceScopeForPath, assertAccountWritable } from "@/lib/auth/scope";
 
 const hasDb = Boolean(process.env.DATABASE_URL);
@@ -125,5 +126,49 @@ describe.skipIf(!hasDb)("Tier 0.2 — ownership / territory scoping", () => {
     const noAccount = await prisma.contract.count({ where: { accountId: null, parentAccountId: null } });
     const seen = await prisma.contract.count({ where: contractWhere(s) });
     expect(seen).toBeGreaterThanOrEqual(noAccount);
+  });
+});
+
+describe.skipIf(!hasDb)("Tier 0.1 — OIDC subject → user resolution", () => {
+  const cfg = { issuer: "https://idp.test", clientId: "c", clientSecret: null, redirectUri: "x", scopes: "openid", roleClaim: "roles", roleMap: {}, defaultRole: null, autoProvision: true, sessionHours: 1 };
+  const id = (over: Partial<Identity>): Identity => ({ subject: `${RUN}-sub`, email: `${RUN}.sso@test.local`, name: "SSO Person", roles: ["SALES_REP"], claims: {}, ...over });
+  afterAll(async () => { await prisma.user.deleteMany({ where: { email: { startsWith: `${RUN}.` } } }); });
+
+  test("first sign-in provisions the user with the claimed roles; later sign-ins match the subject and sync roles", async () => {
+    const first = await resolveUser(cfg, id({}));
+    expect(first.created).toBe(true);
+    const u = await prisma.user.findUniqueOrThrow({ where: { id: first.userId }, include: { roles: true } });
+    expect(u.externalId).toBe(`${RUN}-sub`);
+    expect(u.roles.map((r) => r.role)).toEqual(["SALES_REP"]);
+    // roles changed at the IdP → synced; email changed → still the same user (subject wins)
+    const second = await resolveUser(cfg, id({ email: `${RUN}.renamed@test.local`, roles: ["REGIONAL_MANAGER", "SALES_REP"], name: "SSO Person II" }));
+    expect(second).toEqual({ userId: first.userId, created: false, rolesSynced: true });
+    const u2 = await prisma.user.findUniqueOrThrow({ where: { id: first.userId }, include: { roles: true } });
+    expect(u2.roles.map((r) => r.role).sort()).toEqual(["REGIONAL_MANAGER", "SALES_REP"]);
+    expect(u2.name).toBe("SSO Person II");
+    expect(u2.email).toBe(`${RUN}.sso@test.local`);
+    // no roles claim → DB roles untouched
+    const third = await resolveUser(cfg, id({ roles: null }));
+    expect(third.rolesSynced).toBe(false);
+    expect((await prisma.userRole.count({ where: { userId: first.userId } }))).toBe(2);
+  });
+
+  test("a pre-created user is matched by email (case-insensitive) and gains the subject", async () => {
+    const pre = await prisma.user.create({ data: { email: `${RUN}.pre@test.local`, name: "Pre", roles: { create: [{ role: "FINANCE" }] } } });
+    const r = await resolveUser({ ...cfg, roleClaim: null }, id({ subject: `${RUN}-sub2`, email: `${RUN.toUpperCase()}.PRE@test.local`, roles: null }));
+    expect(r).toEqual({ userId: pre.id, created: false, rolesSynced: false });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: pre.id } })).externalId).toBe(`${RUN}-sub2`);
+  });
+
+  test("deactivated users, unknown users without auto-provision, and users with no role are refused", async () => {
+    const off = await prisma.user.create({ data: { email: `${RUN}.off@test.local`, name: "Off", isActive: false, externalId: `${RUN}-off` } });
+    await expect(resolveUser(cfg, id({ subject: `${RUN}-off`, email: off.email }))).rejects.toMatchObject({ status: 403, message: /deactivated/ });
+    await expect(resolveUser({ ...cfg, autoProvision: false }, id({ subject: `${RUN}-new`, email: `${RUN}.new@test.local` }))).rejects.toMatchObject({ status: 403, message: /not been set up/ });
+    await expect(resolveUser(cfg, id({ subject: `${RUN}-norole`, email: `${RUN}.norole@test.local`, roles: [] }))).rejects.toMatchObject({ status: 403, message: /no Crosswalk role/ });
+    await expect(resolveUser(cfg, id({ subject: `${RUN}-noemail`, email: null }))).rejects.toMatchObject({ status: 403, message: /email/ });
+    // default role fills in when the claim is present but empty
+    const d = await resolveUser({ ...cfg, defaultRole: "SALES_REP" }, id({ subject: `${RUN}-default`, email: `${RUN}.default@test.local`, roles: [] }));
+    expect(d.created).toBe(true);
+    expect((await prisma.userRole.findMany({ where: { userId: d.userId } })).map((r) => r.role)).toEqual(["SALES_REP"]);
   });
 });
