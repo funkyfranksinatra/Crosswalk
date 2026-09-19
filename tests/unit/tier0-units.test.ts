@@ -15,6 +15,8 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { RateLimiter, classify, clientKey, limitsFromEnv } from "@/lib/security/ratelimit";
+import { makeNonce, contentSecurityPolicy, hardeningHeaders, isHttps } from "@/lib/security/headers";
 import { checkSecrets, assertProductionSecrets, flattenSecrets, loadSecrets, resetSecretsForTests, setSecretsFetchForTests } from "@/lib/secrets";
 
 const actor = (roles: string[]): Actor => ({ id: "u1", email: "u@x", name: "U", roles, permissions: permissionsFor(roles), isDev: true });
@@ -258,7 +260,9 @@ describe("0.3 secrets", () => {
     expect(checkSecrets({ ...base, SESSION_SECRET: "replace_me" }, true)).toMatchObject([{ key: "SESSION_SECRET" }]);
     expect(checkSecrets({ ...base, DATABASE_URL: "postgresql://crosswalk:crosswalk@db.example.com/x?sslmode=require" }, true)).toMatchObject([{ key: "DATABASE_URL", problem: /default or placeholder/ }]);
     expect(checkSecrets({ ...base, DATABASE_URL: "postgresql://app:pw@db.example.com/x" }, true)).toMatchObject([{ key: "DATABASE_URL", problem: /sslmode/ }]);
-    expect(checkSecrets({ ...base, DATABASE_URL: "postgresql://app:pw@db:5432/x" }, true)).toEqual([]); // compose service name: local network
+    expect(checkSecrets({ ...base, DATABASE_URL: "postgresql://app:pw@db:5432/x" }, true)).toEqual([]); // compose service name: private network, no TLS needed
+    expect(checkSecrets({ ...base, DATABASE_URL: "postgresql://crosswalk:crosswalk@db:5432/x" }, true)).toMatchObject([{ key: "DATABASE_URL", problem: /default/ }]); // ...but a real password
+    expect(checkSecrets({ ...base, DATABASE_URL: "postgresql://crosswalk:crosswalk@localhost:5432/x" }, true)).toEqual([]); // loopback: only the box itself can reach it
     expect(checkSecrets({ ...base, OPENAI_API_KEY: "changeme" }, true)).toMatchObject([{ key: "OPENAI_API_KEY" }]);
     expect(checkSecrets({ ...base, SESSION_SECRET: "", SSO_ISSUER: "https://x", SSO_CLIENT_ID: "c" }, true)).toMatchObject([{ key: "SESSION_SECRET", problem: /not set/ }]);
     expect(checkSecrets({ ...base, SESSION_SECRET: "" }, true)).toEqual([]); // no SSO, no dev sign-in: nothing signs a session
@@ -319,5 +323,61 @@ describe("0.3 secrets", () => {
     await expect(loadSecrets()).rejects.toThrow(/SECRETS_PROVIDER/);
     resetSecretsForTests(); process.env.SECRETS_PROVIDER = "env";
     expect(await loadSecrets()).toEqual([]);
+  });
+});
+
+describe("0.5 rate limiting and security headers", () => {
+  test("route classes: auth, heavy writes and file exports, everything else api", () => {
+    expect(classify("/api/auth/oidc/start")).toBe("auth");
+    expect(classify("/api/requests", "POST")).toBe("heavy");
+    expect(classify("/api/requests", "GET")).toBe("api");
+    expect(classify("/api/requests/cmabcdefghijklmnopqrst/run", "POST")).toBe("heavy");
+    expect(classify("/api/requests/cmabcdefghijklmnopqrst/export", "GET")).toBe("heavy");
+    expect(classify("/api/requests/cmabcdefghijklmnopqrst", "GET")).toBe("api");
+    expect(classify("/api/pricing/import", "POST")).toBe("heavy");
+    expect(classify("/api/catalog/gudid", "GET")).toBe("api");
+    expect(classify("/api/catalog/gudid", "POST")).toBe("heavy");
+    expect(classify("/api/proposals/cmabcdefghijklmnopqrst/lines", "PATCH")).toBe("api");
+  });
+  test("fixed windows per client and class; 429 after the limit; window resets; sweep bounds memory", () => {
+    let t = 1_000_000;
+    const rl = new RateLimiter({ auth: 2, heavy: 3, api: 5 }, () => t);
+    expect(rl.hit("1.1.1.1", "auth")).toMatchObject({ allowed: true, limit: 2, remaining: 1 });
+    expect(rl.hit("1.1.1.1", "auth")).toMatchObject({ allowed: true, remaining: 0 });
+    expect(rl.hit("1.1.1.1", "auth")).toMatchObject({ allowed: false, remaining: 0, resetAt: t + 60_000 });
+    expect(rl.hit("2.2.2.2", "auth").allowed).toBe(true); // other client
+    expect(rl.hit("1.1.1.1", "api").allowed).toBe(true); // other class
+    t += 60_001;
+    expect(rl.hit("1.1.1.1", "auth")).toMatchObject({ allowed: true, remaining: 1 });
+    t += 60_001; rl.hit("3.3.3.3", "api");
+    expect(rl.size).toBe(1); // everything older swept
+  });
+  test("limits come from the environment, disabled switch, client key honours proxy hops", () => {
+    expect(limitsFromEnv({})).toEqual({ auth: 20, heavy: 60, api: 600 });
+    expect(limitsFromEnv({ RATE_LIMIT_AUTH: "5", RATE_LIMIT_API: "junk" })).toEqual({ auth: 5, heavy: 60, api: 600 });
+    expect(limitsFromEnv({ RATE_LIMIT_DISABLED: "true" })).toBeNull();
+    const h = (xff?: string, real?: string) => { const x = new Headers(); if (xff) x.set("x-forwarded-for", xff); if (real) x.set("x-real-ip", real); return x; };
+    expect(clientKey(h("10.0.0.1, 203.0.113.9"), {})).toBe("203.0.113.9");
+    expect(clientKey(h("203.0.113.9, 10.0.0.2"), { TRUST_PROXY_HOPS: "2" })).toBe("203.0.113.9");
+    expect(clientKey(h(undefined, "198.51.100.1"), {})).toBe("198.51.100.1");
+    expect(clientKey(h(), {})).toBe("unknown");
+  });
+  test("CSP is nonce-based and strict; dev adds unsafe-eval only; hardening headers include HSTS only over https", () => {
+    const n = makeNonce();
+    expect(n).toMatch(/^[A-Za-z0-9+/=]{20,}$/);
+    expect(makeNonce()).not.toBe(n);
+    const csp = contentSecurityPolicy(n);
+    expect(csp).toContain(`script-src 'self' 'nonce-${n}' 'strict-dynamic'`);
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).not.toContain("unsafe-eval");
+    expect(contentSecurityPolicy(n, { dev: true })).toContain("'unsafe-eval'");
+    expect(contentSecurityPolicy(n, { extraConnect: ["https://x"] })).toContain("connect-src 'self' https://x");
+    expect(hardeningHeaders({ https: true })["strict-transport-security"]).toMatch(/max-age=31536000/);
+    expect(hardeningHeaders({ https: false })["strict-transport-security"]).toBeUndefined();
+    expect(hardeningHeaders({ https: false })["x-frame-options"]).toBe("DENY");
+    const hs = new Headers({ "x-forwarded-proto": "https" });
+    expect(isHttps(new URL("http://app/"), hs)).toBe(true);
+    expect(isHttps(new URL("http://app/"), new Headers())).toBe(false);
   });
 });

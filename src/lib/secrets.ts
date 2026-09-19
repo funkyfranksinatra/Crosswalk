@@ -25,6 +25,8 @@
 import fs from "node:fs";
 import { log } from "@/lib/log";
 
+type Env = Record<string, string | undefined>;
+
 export type SecretsProvider = "env" | "aws" | "vault" | "doppler" | "file";
 
 export function secretsProvider(): SecretsProvider {
@@ -153,7 +155,7 @@ export type SecretProblem = { key: string; problem: string };
  * Pure check over an environment map; returns every problem found. `production` decides
  * whether the strict rules apply (a `next dev` box is allowed the insecure defaults).
  */
-export function checkSecrets(env: NodeJS.ProcessEnv, production: boolean): SecretProblem[] {
+export function checkSecrets(env: Env, production: boolean): SecretProblem[] {
   const out: SecretProblem[] = [];
   const val = (k: string) => env[k]?.trim() ?? "";
   const sso = Boolean(val("SSO_ISSUER") && val("SSO_CLIENT_ID"));
@@ -165,8 +167,11 @@ export function checkSecrets(env: NodeJS.ProcessEnv, production: boolean): Secre
   else if (session.length < 16) out.push({ key: "SESSION_SECRET", problem: "shorter than 16 characters" });
   else if (PLACEHOLDERS.test(session)) out.push({ key: "SESSION_SECRET", problem: "is a placeholder" });
   const db = val("DATABASE_URL");
-  if (db && WEAK_DB_CREDS.some((re) => re.test(db))) out.push({ key: "DATABASE_URL", problem: "uses a default or placeholder password" });
-  if (db && !/sslmode=/.test(db) && !/@(localhost|127\.0\.0\.1|db|postgres)([:/]|$)/.test(db)) out.push({ key: "DATABASE_URL", problem: "has no sslmode for a remote database" });
+  const loopback = /@(localhost|127\.0\.0\.1|\[::1\])([:/]|$)/.test(db);
+  const privateNet = loopback || /@(db|postgres|host\.docker\.internal)([:/]|$)/.test(db);
+  // A loopback database is only reachable from the box itself; anything else must have a real password.
+  if (db && !loopback && WEAK_DB_CREDS.some((re) => re.test(db))) out.push({ key: "DATABASE_URL", problem: "uses a default or placeholder password" });
+  if (db && !privateNet && !/sslmode=/.test(db)) out.push({ key: "DATABASE_URL", problem: "has no sslmode for a remote database" });
   for (const k of ["SSO_CLIENT_SECRET", "OPENAI_API_KEY", "METRICS_TOKEN", "AVATAX_LICENSE_KEY", "SAM_API_KEY", "SF_CLIENT_SECRET"]) {
     const v = val(k);
     if (v && PLACEHOLDERS.test(v)) out.push({ key: k, problem: "is a placeholder" });
@@ -179,7 +184,7 @@ export function checkSecrets(env: NodeJS.ProcessEnv, production: boolean): Secre
  * Refuse to run a production build with weak or default secrets. ALLOW_DEV_SIGNIN on its own
  * is a warning (it is the documented demo-box escape hatch); everything else is fatal.
  */
-export function assertProductionSecrets(env: NodeJS.ProcessEnv = process.env): void {
+export function assertProductionSecrets(env: Env = process.env): void {
   const production = env.NODE_ENV === "production";
   const problems = checkSecrets(env, production);
   const fatal = problems.filter((p) => p.key !== "ALLOW_DEV_SIGNIN");
