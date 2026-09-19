@@ -46,6 +46,7 @@ docs/crosswalk-build-notes.md
 
 # one-time bootstrap artefacts
 crosswalk.bundle
+*.bundle
 push-to-github.ps1
 data/fixtures/integrations/pushed-quotes/
 .env.debug
