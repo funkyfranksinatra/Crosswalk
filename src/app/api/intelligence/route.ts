@@ -2,19 +2,24 @@ import { prisma } from "@/lib/db";
 import { handle, body, date, str, num, requireText, optText, positiveMoney, currencyCode } from "@/lib/api";
 import { recordObservation, summaryFor, SOURCE_TYPES } from "@/lib/intelligence";
 import { compactCfn, normalizeCfn } from "@/lib/cfn";
+import { scopeFor, accountWhere, assertAccountVisible } from "@/lib/auth/scope";
 
 export async function GET(req: Request) {
   const u = new URL(req.url);
   const sku = u.searchParams.get("sku");
   const accountId = u.searchParams.get("accountId");
-  return handle("view_pricing", async () => {
+  return handle("view_pricing", async (actor) => {
+    if (accountId) await assertAccountVisible(actor, accountId);
+    const scope = await scopeFor(actor);
+    // Observations recorded at a specific account follow that account's visibility; market-level rows (no account) are shared.
+    const observationScope = scope.mode === "all" ? {} : { OR: [{ accountId: null }, { account: accountWhere(scope) }] };
     if (sku) {
       const acc = accountId ? await prisma.account.findUnique({ where: { id: accountId }, include: { memberships: true } }) : null;
       const summary = await summaryFor(sku, { accountId: acc?.id ?? null, gpoId: acc?.memberships.find((m) => !m.effectiveTo)?.gpoId ?? null, region: acc?.region ?? null, asOf: new Date(), currency: acc?.currency ?? "USD" });
-      const rows = await prisma.competitorPriceObservation.findMany({ where: { competitorSku: compactCfn(normalizeCfn(sku)) }, include: { competitor: true, account: true, gpo: true, document: true }, orderBy: { observedAt: "desc" } });
+      const rows = await prisma.competitorPriceObservation.findMany({ where: { AND: [observationScope, { competitorSku: compactCfn(normalizeCfn(sku)) }] }, include: { competitor: true, account: true, gpo: true, document: true }, orderBy: { observedAt: "desc" } });
       return { summary: { ...summary, observations: summary.observations.map((o) => ({ id: o.id, currentConfidence: o.currentConfidence, relevance: o.relevance, relation: o.relation, ageDays: o.ageDays })) }, rows };
     }
-    const recent = await prisma.competitorPriceObservation.findMany({ include: { competitor: true, account: true }, orderBy: { observedAt: "desc" }, take: 200 });
+    const recent = await prisma.competitorPriceObservation.findMany({ where: observationScope, include: { competitor: true, account: true }, orderBy: { observedAt: "desc" }, take: 200 });
     const bySku = await prisma.competitorPriceObservation.groupBy({ by: ["competitorSku", "competitorId"], _count: { _all: true }, _max: { observedAt: true }, _min: { price: true }, _avg: { price: true }, orderBy: { _count: { competitorSku: "desc" } }, take: 200 });
     const competitors = await prisma.competitor.findMany();
     return { recent, bySku: bySku.map((s) => ({ ...s, competitor: competitors.find((c) => c.id === s.competitorId)?.name ?? "" })), sourceTypes: SOURCE_TYPES };

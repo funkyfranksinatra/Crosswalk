@@ -4,6 +4,7 @@
  */
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
+import { scopeFor, proposalWhere, assertProposalVisible } from "@/lib/auth/scope";
 import { type Actor, requirePermission, hasAuthority, AuthError } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { proposalStatusFrom, canFinalize } from "./rules";
@@ -79,9 +80,13 @@ function reasonFor(line: { discountFromListPct: unknown; floorPrice: unknown; pr
   return parts.join(", ") || `requires ${line.requiredAuthority}`;
 }
 
+/** Minimum length of the written reason an ADMIN must give to approve their own request. */
+export const BREAK_GLASS_MIN_REASON = 20;
+
 export async function decide(actor: Actor, requestId: string, decision: "APPROVED" | "REJECTED" | "CHANGES_REQUESTED", comments?: string) {
   if (!["APPROVED", "REJECTED", "CHANGES_REQUESTED"].includes(decision)) throw new Error("decision must be APPROVED, REJECTED or CHANGES_REQUESTED");
-  const req = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: requestId }, include: { proposalLine: true } });
+  const req = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: requestId }, include: { proposalLine: true, proposal: { select: { reference: true } } } });
+  await assertProposalVisible(actor, req.proposalId); // a scoped approver decides only inside their book of business
   if (req.status !== "PENDING") throw new Error(`Request already ${req.status.toLowerCase()}`);
   const belowFloor = req.proposalLine && money(req.proposalLine.floorPrice) && money(req.proposalLine.proposedPrice)?.lt(money(req.proposalLine.floorPrice)!);
   // Authority may be the actor's own or lent by an active delegation (out-of-office); the request records which.
@@ -91,7 +96,17 @@ export async function decide(actor: Actor, requestId: string, decision: "APPROVE
   if (!actor.permissions.has(perm) && !auth.ok) requirePermission(actor, perm);
   if (!auth.ok) throw new AuthError(`This line needs ${req.requiredRole.replace(/_/g, " ").toLowerCase()} authority`);
   const onBehalfOf = auth.onBehalfOf;
-  if (req.requestedByUserId === actor.id && !actor.roles.includes("ADMIN")) throw new AuthError("You cannot approve your own request");
+  // Nobody decides their own request — except an ADMIN approving it as an audited break-glass
+  // action: a written reason is mandatory, the request is flagged, and the other administrators
+  // and pricing directors are told. Rejecting or sending back one's own request needs none of that.
+  let breakGlass = false;
+  if (req.requestedByUserId === actor.id) {
+    if (!actor.roles.includes("ADMIN")) throw new AuthError("You cannot approve your own request");
+    if (decision === "APPROVED") {
+      if ((comments ?? "").trim().length < BREAK_GLASS_MIN_REASON) throw new AuthError(`Approving your own request is a break-glass action: give a reason of at least ${BREAK_GLASS_MIN_REASON} characters. It is recorded in the audit trail and reported to the other administrators.`, 400);
+      breakGlass = true;
+    }
+  }
   // The approver decides the price they reviewed. If the line moved since the request was made
   // (possible while a sibling's changes-requested left the proposal unlocked), the request is void.
   const snap = req.snapshotJson ? (JSON.parse(req.snapshotJson) as { proposedPrice?: string | null }) : null;
@@ -102,14 +117,15 @@ export async function decide(actor: Actor, requestId: string, decision: "APPROVE
   }
 
   // Claim the request atomically — two approvers deciding at once must yield one decision.
-  const claimed = await prisma.approvalRequest.updateMany({ where: { id: requestId, status: "PENDING" }, data: { status: decision, decidedByUserId: actor.id, onBehalfOfUserId: onBehalfOf, decidedAt: new Date(), decisionComments: comments ?? null } });
+  const claimed = await prisma.approvalRequest.updateMany({ where: { id: requestId, status: "PENDING" }, data: { status: decision, decidedByUserId: actor.id, onBehalfOfUserId: onBehalfOf, decidedAt: new Date(), decisionComments: comments ?? null, breakGlass } });
   if (claimed.count !== 1) throw new Error("Request was decided by someone else a moment ago");
   if (req.proposalLineId) await prisma.proposalLine.update({ where: { id: req.proposalLineId }, data: { approvalState: decision === "APPROVED" ? "APPROVED" : decision === "REJECTED" ? "REJECTED" : "REQUIRED" } });
   const all = await prisma.approvalRequest.findMany({ where: { proposalId: req.proposalId, status: { notIn: ["WITHDRAWN", "EXPIRED"] } } });
   const status = proposalStatusFrom(all);
   await prisma.proposal.update({ where: { id: req.proposalId }, data: { status, decidedAt: status === "APPROVED" || status === "REJECTED" ? new Date() : null, ...(status === "CHANGES_REQUESTED" ? { lockedAt: null } : {}) } });
-  await audit({ actorUserId: actor.id, entityType: "ApprovalRequest", entityId: requestId, action: decision, reason: comments ?? null, context: { proposalId: req.proposalId, line: req.proposalLineId, requiredRole: req.requiredRole, onBehalfOfUserId: onBehalfOf, snapshot: req.snapshotJson ? JSON.parse(req.snapshotJson) : null } });
-  { const { notifyApprovalDecided } = await import("@/lib/notifications"); await notifyApprovalDecided(requestId).catch(() => undefined); }
+  await audit({ actorUserId: actor.id, entityType: "ApprovalRequest", entityId: requestId, action: decision, reason: comments ?? null, context: { proposalId: req.proposalId, line: req.proposalLineId, requiredRole: req.requiredRole, onBehalfOfUserId: onBehalfOf, breakGlass, snapshot: req.snapshotJson ? JSON.parse(req.snapshotJson) : null } });
+  if (breakGlass) await audit({ actorUserId: actor.id, entityType: "Proposal", entityId: req.proposalId, action: "BREAK_GLASS_APPROVAL", reason: comments ?? null, context: { approvalRequestId: requestId, line: req.proposalLineId, requiredRole: req.requiredRole, reference: req.proposal.reference } });
+  { const { notifyApprovalDecided, notifyBreakGlass } = await import("@/lib/notifications"); await notifyApprovalDecided(requestId).catch(() => undefined); if (breakGlass) await notifyBreakGlass(requestId).catch(() => undefined); }
   if (status === "APPROVED" || status === "REJECTED") { const { requestAnalyticsRefresh } = await import("@/lib/analytics/snapshots"); await requestAnalyticsRefresh(["pricing"]); }
   return { status };
 }
@@ -133,9 +149,10 @@ export async function finalizeCheck(proposalId: string) {
 export async function queueFor(actor: Actor) {
   const roles = actor.roles;
   const eff = await effectiveAuthority(actor);
-  const all = await prisma.approvalRequest.findMany({ where: { status: "PENDING" }, include: { proposal: { include: { account: true } }, proposalLine: true }, orderBy: { requestedAt: "asc" } });
+  // A scoped approver (regional manager) sees only requests on proposals in their book of business.
+  const all = await prisma.approvalRequest.findMany({ where: { status: "PENDING", proposal: proposalWhere(await scopeFor(actor)) }, include: { proposal: { include: { account: true } }, proposalLine: true }, orderBy: { requestedAt: "asc" } });
   const delegators = new Map(eff.delegations.map((d) => [d.fromUserId, d.from.name]));
   return all
     .filter((r) => roles.includes("ADMIN") || hasAuthority(actor, r.requiredRole) || eff.onBehalfOf(r.requiredRole, r.requestedByUserId ? [r.requestedByUserId] : []) !== null)
-    .map((r) => { const via = roles.includes("ADMIN") || hasAuthority(actor, r.requiredRole) ? null : eff.onBehalfOf(r.requiredRole, r.requestedByUserId ? [r.requestedByUserId] : []); return { ...r, onBehalfOf: via ? { userId: via, name: delegators.get(via) ?? null } : null, selfSubmitted: r.requestedByUserId === actor.id }; });
+    .map((r) => { const via = roles.includes("ADMIN") || hasAuthority(actor, r.requiredRole) ? null : eff.onBehalfOf(r.requiredRole, r.requestedByUserId ? [r.requestedByUserId] : []); return { ...r, onBehalfOf: via ? { userId: via, name: delegators.get(via) ?? null } : null, selfSubmitted: r.requestedByUserId === actor.id, breakGlassAllowed: r.requestedByUserId === actor.id && roles.includes("ADMIN") }; });
 }

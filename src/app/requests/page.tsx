@@ -3,12 +3,13 @@ import { prisma } from "@/lib/db";
 import { PageHeader, Card, StatusPill, relTime, Empty, money } from "@/components/ui";
 import { summarizeLines } from "@/lib/requests";
 import { getActor, can } from "@/lib/auth";
+import { scopeFor, requestWhere } from "@/lib/auth/scope";
 
 export default async function RequestsPage() {
   const actor = await getActor();
   if (!can(actor, "run_cross_reference")) return <Empty title="Cross-reference requests need the run_cross_reference permission" />;
   // Only the selected candidate is needed for the summary — not every candidate of every line of every request.
-  const requests = await prisma.request.findMany({ where: { NOT: { reference: { startsWith: "BENCH-" } } }, orderBy: { createdAt: "desc" }, take: 200, include: { pricebook: true, lines: { select: { quantity: true, estCompetitorPrice: true, resolutionStatus: true, matchStatus: true, reviewed: true, selectedCandidateId: true, candidates: { where: { isSelected: true }, select: { id: true, matchType: true, unitPrice: true } } } } } });
+  const requests = await prisma.request.findMany({ where: { AND: [requestWhere(await scopeFor(actor!)), { NOT: { reference: { startsWith: "BENCH-" } } }] }, orderBy: { createdAt: "desc" }, take: 200, include: { pricebook: true, lines: { select: { quantity: true, estCompetitorPrice: true, resolutionStatus: true, matchStatus: true, reviewed: true, selectedCandidateId: true, candidates: { where: { isSelected: true }, select: { id: true, matchType: true, unitPrice: true } } } } } });
   return (
     <>
       <PageHeader eyebrow="Requests" title="Cross-reference requests" description="One request per intake spreadsheet. Re-run any time after the catalog, pricing, or model configuration changes." actions={<Link href="/requests/new" className="btn-primary">New request</Link>} />

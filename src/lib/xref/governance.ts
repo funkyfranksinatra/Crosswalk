@@ -8,7 +8,8 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { compactCfn, normalizeCfn, isPlaceholderSku } from "@/lib/cfn";
 
-export const EQUIVALENCE = ["EXACT", "FUNCTIONAL", "CLOSEST_ALTERNATIVE", "PREMIUM_ALTERNATIVE", "PARTIAL_SUBSTITUTE", "NONE"] as const;
+import { EQUIVALENCE } from "./equivalence";
+export { EQUIVALENCE };
 export type Equivalence = (typeof EQUIVALENCE)[number];
 
 /** Match type (what the cross-reference engine says) → equivalence level (what may be represented to a customer). */

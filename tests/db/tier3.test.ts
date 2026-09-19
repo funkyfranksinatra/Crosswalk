@@ -170,7 +170,7 @@ describe.skipIf(!hasDb)("Tier 3", () => {
   // ---- 3.8 analytics snapshots -------------------------------------------------------------
   describe("3.8 analytics snapshots", () => {
     test("reports are served from the latest snapshot, computed live when missing, stale after the window", async () => {
-      await prisma.analyticsSnapshot.deleteMany({ where: { report: "accuracy" } });
+      await prisma.analyticsSnapshot.deleteMany({ where: { report: { in: ["accuracy", "conversion"] } } }); // a worker's cron may have left fresh ones
       const live = await readReport("accuracy");
       expect(live.source).toBe("live"); expect(live.stale).toBe(false);
       const snap = await readReport("accuracy");

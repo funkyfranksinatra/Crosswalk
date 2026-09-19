@@ -104,9 +104,9 @@ export async function proposalConversion(proposalId: string, asOf = new Date()) 
 }
 
 /** Renewal pipeline: contracts expiring within `days`, with performance flags. */
-export async function renewalPipeline(days = 180) {
+export async function renewalPipeline(days = 180, scope: Record<string, unknown> = {}) {
   const now = new Date();
   const until = new Date(now.getTime() + days * 86_400_000);
-  const rows = await prisma.contract.findMany({ where: { status: "ACTIVE", effectiveTo: { not: null, lte: until } }, include: { account: true, gpo: true }, orderBy: { effectiveTo: "asc" } });
+  const rows = await prisma.contract.findMany({ where: { AND: [scope, { status: "ACTIVE", effectiveTo: { not: null, lte: until } }] }, include: { account: true, gpo: true }, orderBy: { effectiveTo: "asc" } });
   return rows.map((c) => ({ id: c.id, contractNumber: c.contractNumber, name: c.name, type: c.type, account: c.account?.name ?? c.gpo?.name ?? null, effectiveTo: c.effectiveTo!.toISOString(), daysLeft: Math.ceil((c.effectiveTo!.getTime() - now.getTime()) / 86_400_000), flags: c.performanceJson ? (JSON.parse(c.performanceJson) as ContractPerformance).flags : [], renewal: c.renewalJson ? JSON.parse(c.renewalJson) : null }));
 }

@@ -12,7 +12,7 @@ import { log } from "@/lib/log";
 import { getBoss, jobsEnabled } from "./boss";
 import { QUEUES, CRON, type QueueName, type JobData } from "./queues";
 
-type G = typeof globalThis & { __crosswalkWorkers?: Promise<void> | null };
+type G = typeof globalThis & { __crosswalkWorkers?: Promise<void> | null; __crosswalkQueuesRegistered?: boolean };
 const g = globalThis as G;
 
 type Meta = { id: string; retryCount: number; retryLimit: number };
@@ -68,10 +68,14 @@ const handlers: { [N in QueueName]: Handler<N> } = {
     const { ingestPublicAwards } = await import("@/lib/intelligence/bids");
     return ingestPublicAwards(data.source, { trigger: data.trigger, actorUserId: data.actorUserId ?? null, jobId: meta.id, lookbackDays: data.lookbackDays });
   },
+  "retention.sweep": async (data) => {
+    const { runRetention, retentionConfig } = await import("@/lib/retention");
+    return runRetention(retentionConfig(), { actorUserId: data.actorUserId ?? null }); // never forced: RETENTION_ENABLED decides
+  },
 };
 
 /** Concurrency per queue in one process (a run is CPU + network heavy; deliveries are cheap). */
-const CONCURRENCY: Record<QueueName, number> = { "request.run": 1, "gudid.import": 1, "gudid.refresh": 1, "integration.sync": 1, "feed.ingest": 1, "notify.deliver": 4, "alerts.evaluate": 1, "embed.refresh": 1, "analytics.refresh": 1, "bids.ingest": 1 };
+const CONCURRENCY: Record<QueueName, number> = { "request.run": 1, "gudid.import": 1, "gudid.refresh": 1, "integration.sync": 1, "feed.ingest": 1, "notify.deliver": 4, "alerts.evaluate": 1, "embed.refresh": 1, "analytics.refresh": 1, "bids.ingest": 1, "retention.sweep": 1 };
 
 async function onFinalFailure(queue: QueueName, data: unknown, error: string) {
   try {
@@ -113,12 +117,18 @@ async function registerSchedules(boss: PgBoss) {
   await boss.schedule("gudid.refresh", CRON["gudid.refresh"], { limit: Number(process.env.GUDID_REFRESH_BATCH ?? 200) }, { tz: "UTC", singletonKey: "refresh:sweep" });
   // A bad or "off" cron for one of these must not stop feeds scheduling and orphan recovery below.
   // Schedule keys allow only [A-Za-z0-9_-]; the job's singletonKey may carry ":" like the manual ones.
-  const sched = async (queue: "embed.refresh" | "analytics.refresh", cron: string, data: object, key: string, singletonKey: string) => {
+  const sched = async (queue: "embed.refresh" | "analytics.refresh" | "retention.sweep", cron: string, data: object, key: string, singletonKey: string) => {
     if (cron === "off") { await boss.unschedule(queue, key).catch(() => undefined); return; }
     try { await boss.schedule(queue, cron, data, { tz: "UTC", key, singletonKey }); } catch (e) { log.error("jobs.schedule_failed", { queue, cron, error: e instanceof Error ? e.message : String(e) }); }
   };
   await sched("embed.refresh", CRON["embed.refresh"], { limit: Number(process.env.EMBED_REFRESH_BATCH ?? 5000) }, "embed-sweep", "embed:sweep");
   await sched("analytics.refresh", CRON["analytics.refresh"], { trigger: "schedule" }, "analytics-cron", "analytics:cron");
+  // Retention is scheduled only while it is switched on; switching it off unschedules it at the next start.
+  const { retentionConfig } = await import("@/lib/retention");
+  // A malformed RETENTION_* value must not stop the job system: log it and leave the sweep unscheduled.
+  let retentionOn = false;
+  try { retentionOn = retentionConfig().enabled; } catch (e) { log.error("jobs.schedule_failed", { queue: "retention.sweep", error: e instanceof Error ? e.message : String(e) }); }
+  await sched("retention.sweep", retentionOn ? CRON["retention.sweep"] : "off", { trigger: "schedule" }, "retention-cron", "retention:cron");
   const { bidSourcesConfigured, BID_SOURCES } = await import("@/lib/intelligence/bids");
   const configured = new Set(await bidSourcesConfigured());
   for (const source of BID_SOURCES) {
@@ -178,7 +188,8 @@ export function startWorkers(): Promise<void> {
   if (!g.__crosswalkWorkers) {
     g.__crosswalkWorkers = (async () => {
       const boss = await getBoss();
-      for (const name of Object.keys(QUEUES) as QueueName[]) await register(boss, name);
+      // A retry after a failed start must not add a second poller per queue (pg-boss allows it).
+      if (!g.__crosswalkQueuesRegistered) { for (const name of Object.keys(QUEUES) as QueueName[]) await register(boss, name); g.__crosswalkQueuesRegistered = true; }
       await registerSchedules(boss);
       await recoverOrphans().catch((e) => log.error("jobs.recover_error", { error: e instanceof Error ? e.message : String(e) }));
       log.info("jobs.workers_started", { queues: Object.keys(QUEUES), mode: process.env.JOBS_WORKER ?? "inline" });

@@ -4,12 +4,13 @@ import { PageHeader, Card, Empty, money } from "@/components/ui";
 import { Pill, ProposalStatus } from "@/components/commercial";
 import { num } from "@/lib/money";
 import { getActor, can } from "@/lib/auth";
+import { scopeFor, accountWhere } from "@/lib/auth/scope";
 
 export default async function AccountPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actor = await getActor();
   if (!can(actor, "view_pricing")) return <Empty title="Accounts are visible to commercial roles">Your role has no pricing visibility.</Empty>;
-  const a = await prisma.account.findUnique({ where: { id }, include: { parent: true, children: true, memberships: { include: { gpo: true }, orderBy: { effectiveFrom: "desc" } }, contracts: { orderBy: { effectiveFrom: "desc" } }, opportunities: true, proposals: { orderBy: { createdAt: "desc" } }, requests: { orderBy: { createdAt: "desc" }, take: 10 }, purchases: { orderBy: { invoiceDate: "desc" }, take: 25 }, observations: { orderBy: { observedAt: "desc" }, take: 25, include: { competitor: true } } } });
+  const a = await prisma.account.findFirst({ where: { id, ...accountWhere(await scopeFor(actor!)) }, include: { parent: true, children: true, memberships: { include: { gpo: true }, orderBy: { effectiveFrom: "desc" } }, contracts: { orderBy: { effectiveFrom: "desc" } }, opportunities: true, proposals: { orderBy: { createdAt: "desc" } }, requests: { orderBy: { createdAt: "desc" }, take: 10 }, purchases: { orderBy: { invoiceDate: "desc" }, take: 25 }, observations: { orderBy: { observedAt: "desc" }, take: 25, include: { competitor: true } } } });
   if (!a) return <Empty title="Account not found" />;
   const gpoContracts = a.memberships.length ? await prisma.contract.findMany({ where: { type: "GPO", gpoId: { in: a.memberships.map((m) => m.gpoId) } } }) : [];
   return (

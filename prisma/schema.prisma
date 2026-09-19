@@ -845,6 +845,7 @@ model ApprovalRequest {
   onBehalfOfUserId  String? // set when a delegate decided with someone else's authority (ApprovalDelegation)
   decidedAt         DateTime?
   decisionComments  String?
+  breakGlass        Boolean       @default(false) // an ADMIN approved their own request (reason required, other admins notified)
   snapshotJson      String? // price, recommendation, floor, margin, policy version at request time
   policyId          String?
 
@@ -1072,7 +1073,7 @@ model Notification {
   id            String    @id @default(cuid())
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// RUN_COMPLETE | RUN_FAILED | APPROVAL_REQUESTED | APPROVAL_DECIDED | PROPOSAL_APPROVED | CROSS_PROPOSED | FEED_FAILED | ALERT | JOB_FAILED
+  /// RUN_COMPLETE | RUN_FAILED | APPROVAL_REQUESTED | APPROVAL_DECIDED | PROPOSAL_APPROVED | CROSS_PROPOSED | FEED_FAILED | ALERT | JOB_FAILED | BREAK_GLASS
   kind          String
   title         String
   body          String?

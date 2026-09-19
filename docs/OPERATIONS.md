@@ -152,6 +152,47 @@ behalf. Admins can set one for anyone; revoking is immediate.
 **Branding.** Settings → Branding: logo (PNG/JPEG under 300 KB), legal name, address,
 colours, titles and terms for the quote and contract-offer PDFs.
 
+## Tier 0 additions
+
+**Sign-in.** With `SSO_ISSUER` + `SSO_CLIENT_ID` the sign-in screen offers "Sign in with
+SSO" (`/api/auth/oidc/start`); a failed callback shows the reason on a plain page and
+`oidc.callback.failed` is logged with it. Sessions last `SESSION_TTL_HOURS` (12); sign-out
+clears the session and, when the provider has an end-session endpoint, sends the browser
+there. A user whose token maps to no role is refused with "no Crosswalk role" — fix the
+group membership or `SSO_ROLE_MAP`. `docs/DEPLOYMENT.md` § Identity has the provider setup.
+
+**"Account not found" for a rep who should see it.** Scoping: reps and regional managers see
+accounts they own (`Account.ownerUserId`), in their territory (`User.territory` matches
+`Account.territory`, case-insensitive, comma-separated allowed), unassigned accounts, and
+children of a visible IDN. Set the owner or territory on the account (or the user).
+
+**Start-up refused ("Refusing to start: …").** The production configuration check
+(`src/lib/secrets.ts`) found a development or placeholder secret, an example database
+password, or a remote database without `sslmode`. `npm run secrets:check` (or the image's
+`check` role) prints the same list; fix the environment, never the check.
+
+**429 Too many requests.** Per-client, per-minute limits by route class (`RATE_LIMIT_AUTH`
+20, `RATE_LIMIT_HEAVY` 60, `RATE_LIMIT_API` 600) plus a per-instance ceiling of
+`RATE_LIMIT_GLOBAL_FACTOR` (20) × each; the response carries `Retry-After`. Behind a load
+balancer, the proxy must send `X-Forwarded-For` and `TRUST_PROXY_HOPS` must point at the
+real client entry, or every user shares one bucket.
+
+**Something on a page is blocked by the CSP.** Only scripts carrying the per-request nonce
+run; a browser extension or an injected script shows as a CSP violation in the console.
+`CSP_REPORT_ONLY=true` switches to report-only while investigating.
+
+**A migration fails with "violates check constraint".** A row holds a value outside the
+application's own lists (`src/lib/db/constraints.ts`). `npm run db:preflight` names the
+constraint and the count; correct the rows, then migrate again.
+
+**Retention.** Nothing is deleted until `RETENTION_ENABLED=true`; `npm run retention --
+--dry-run` shows what the windows would remove; every sweep is a `RETENTION_SWEEP` audit
+event. Customer request data needs an explicit `RETENTION_REQUESTS_DAYS`. `docs/BACKUPS.md`.
+
+**A break-glass approval.** An ADMIN approved their own request: the proposal's approvals
+tab shows a break-glass pill, the audit trail has `BREAK_GLASS_APPROVAL` with the reason,
+and the other ADMINs and PRICING_DIRECTORs were notified. Review these monthly.
+
 ## Runbook
 
 **A run is stuck at "Queued".** No worker is picking jobs up: check `JOBS_WORKER` on the

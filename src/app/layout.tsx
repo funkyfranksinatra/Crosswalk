@@ -3,7 +3,8 @@ import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
 import { getSettings } from "@/lib/settings";
 import { llmConfig } from "@/lib/llm/client";
-import { getActor, ssoConfigured } from "@/lib/auth";
+import { getActor } from "@/lib/auth";
+import { ssoMode } from "@/lib/auth/oidc";
 import { SignInScreen } from "@/components/sign-in";
 
 export const metadata: Metadata = {
@@ -20,9 +21,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex">
-        <Sidebar companyName={settings.companyName} llm={{ available: llm.available, model: llm.model }} sso={ssoConfigured()} actor={actor ? { id: actor.id, name: actor.name, email: actor.email, roles: actor.roles, permissions: [...actor.permissions], isDev: actor.isDev } : null} />
+        <Sidebar companyName={settings.companyName} llm={{ available: llm.available, model: llm.model }} sso={ssoMode()} actor={actor ? { id: actor.id, name: actor.name, email: actor.email, roles: actor.roles, permissions: [...actor.permissions], isDev: actor.isDev } : null} />
         <main className="flex-1 min-w-0 min-h-screen">
-          <div className="mx-auto max-w-[1440px] px-8 py-7">{actor ? children : <SignInScreen sso={ssoConfigured()} />}</div>
+          <div className="mx-auto max-w-[1440px] px-8 py-7">{actor ? children : <SignInScreen sso={ssoMode()} />}</div>
         </main>
       </body>
     </html>

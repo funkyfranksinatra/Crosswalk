@@ -33,7 +33,10 @@
     "eval:model": "tsx scripts/model-eval.ts",
     "eval:gate": "tsx scripts/model-eval.ts --gate",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "secrets:check": "tsx scripts/with-secrets.ts --check",
+    "db:preflight": "tsx scripts/db-preflight.ts",
+    "retention": "tsx scripts/retention.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -44,6 +47,7 @@
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
     "google-auth-library": "^11.0.2",
+    "jose": "^6.2.12",
     "next": "16.3.5",
     "nodemailer": "^10.0.10",
     "openai": "^7.15.0",

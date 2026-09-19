@@ -7,7 +7,7 @@ type Item = { id: string; kind: string; title: string; body: string | null; link
 type Pref = { kind: string; inApp: boolean; email: boolean; teams: boolean };
 type PrefData = { kinds: string[]; channels: { email: boolean; teams: boolean }; preferences: Pref[] };
 
-const LABEL: Record<string, string> = { RUN_COMPLETE: "Run complete", RUN_FAILED: "Run failed", APPROVAL_REQUESTED: "Approval requested", APPROVAL_DECIDED: "Approval decided", PROPOSAL_APPROVED: "Proposal approved", CROSS_PROPOSED: "Cross proposed", FEED_FAILED: "Feed failed", ALERT: "System alert", JOB_FAILED: "Job failed" };
+const LABEL: Record<string, string> = { RUN_COMPLETE: "Run complete", RUN_FAILED: "Run failed", APPROVAL_REQUESTED: "Approval requested", APPROVAL_DECIDED: "Approval decided", PROPOSAL_APPROVED: "Proposal approved", CROSS_PROPOSED: "Cross proposed", FEED_FAILED: "Feed failed", ALERT: "System alert", JOB_FAILED: "Job failed", BREAK_GLASS: "Break-glass approval" };
 const tone = (k: string) => (k === "ALERT" || k.endsWith("_FAILED") ? "none" : k === "PROPOSAL_APPROVED" || k === "RUN_COMPLETE" ? "exact" : k === "APPROVAL_REQUESTED" ? "alt" : "info");
 
 function toPath(link: string | null) {

@@ -1,12 +1,13 @@
 /**
  * Who is acting, and what may they do.
  *
- * `AuthProvider` resolves the current user from the request. Two implementations:
- *  - DevAuthProvider — reads the `crosswalk_dev_user` cookie set by the sidebar's
- *    *Development sign-in*. Only active when no SSO provider is configured; every
- *    page shows a banner while it is in use.
- *  - SsoAuthProvider — placeholder that documents what an Entra/Okta (OIDC) adapter
- *    must implement (subject → User by externalId/email). Throws NotConfigured.
+ * `getActor()` resolves the current user from the request. Three modes:
+ *  - no SSO configured — the `crosswalk_dev_user` cookie set by the sidebar's *Development
+ *    sign-in* (seeded users; refused in a production build unless ALLOW_DEV_SIGNIN=true).
+ *  - SSO_MODE=oidc (default when SSO_ISSUER + SSO_CLIENT_ID are set) — the built-in OIDC
+ *    client in ./oidc.ts signs users in and issues the `crosswalk_session` cookie read here.
+ *  - SSO_MODE=proxy — an authenticating reverse proxy in front of the app sets
+ *    `x-sso-subject`; the subject is matched to User.externalId or email.
  *
  * Services call `requirePermission(actor, "…")`; API routes call `getActor()` first.
  * Authorization is always server-side.
@@ -15,6 +16,7 @@ import { cookies, headers } from "next/headers";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { permissionsFor, satisfiesAuthority, type Permission } from "./permissions";
+import { readSession, ssoMode, SESSION_COOKIE } from "./oidc";
 
 export type Actor = {
   id: string;
@@ -84,13 +86,17 @@ export function setActorForTests(a: Actor | null) {
 /** Resolve the acting user for the current request (server components + route handlers). */
 export async function getActor(): Promise<Actor | null> {
   if (testActor && process.env.VITEST && process.env.NODE_ENV !== "production") return testActor;
-  if (ssoConfigured()) {
-    // SSO adapter contract: validate the session (cookie / bearer), map subject → User.externalId.
-    // Not implemented in this build; see docs/INTEGRATIONS.md "SSO".
+  const mode = ssoMode();
+  if (mode === "oidc") {
+    const c = await cookies();
+    return loadActor(readSession(c.get(SESSION_COOKIE)?.value), false);
+  }
+  if (mode === "proxy") {
+    // An authenticating reverse proxy terminates OIDC and asserts the subject per request.
     const h = await headers();
-    const sub = h.get("x-sso-subject"); // set by an authenticating reverse proxy in front of the app
+    const sub = h.get("x-sso-subject");
     if (!sub) return null;
-    const u = await prisma.user.findFirst({ where: { OR: [{ externalId: sub }, { email: sub }] } });
+    const u = await prisma.user.findFirst({ where: { OR: [{ externalId: sub }, { email: { equals: sub, mode: "insensitive" } }] } });
     return loadActor(u?.id ?? null, false);
   }
   const c = await cookies();

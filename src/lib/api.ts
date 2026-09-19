@@ -10,6 +10,21 @@ import { money } from "@/lib/money";
 import { headers } from "next/headers";
 import { log, withRequestContext, setContextActor } from "@/lib/log";
 import { httpRequests, httpDuration } from "@/lib/observability/metrics";
+import { enforceScopeForPath } from "@/lib/auth/scope";
+
+/**
+ * The request path the proxy recorded (null outside a request or when the proxy did not run).
+ * The proxy runs for every /api request; its absence on one is logged, because scoping keys
+ * off this header and a front proxy that strips it would open the detail routes.
+ */
+async function requestPath(): Promise<string | null> {
+  try {
+    const h = await headers();
+    const p = h.get("x-crosswalk-path");
+    if (!p && !process.env.VITEST) log.warn("api.no_path_header", { route: h.get("x-crosswalk-route") ?? null });
+    return p;
+  } catch { return null; }
+}
 
 /** The request id the proxy assigned (or null outside a request). */
 export async function requestId(): Promise<string | null> {
@@ -36,6 +51,9 @@ export async function handle<T>(perm: Permission | null, fn: (actor: Actor) => P
       if (!actor) { status = 401; return NextResponse.json({ error: "Sign in required" }, { status }); }
       setContextActor(actor.id);
       if (perm && !actor.permissions.has(perm)) { status = 403; return NextResponse.json({ error: `Missing permission: ${perm}` }, { status }); }
+      // Ownership scoping (Tier 0.2): a detail route on an account / request / proposal / contract the
+      // actor may not see is a 404 here, before the handler runs — every route, present and future.
+      await enforceScopeForPath(actor, await requestPath());
       const out = await fn(actor);
       return NextResponse.json(plain(out ?? { ok: true }));
     } catch (e) {
@@ -80,6 +98,7 @@ export async function authorize(perm: Permission | null): Promise<{ actor: Actor
   const actor = await getActor();
   if (!actor) return { actor: null, deny: NextResponse.json({ error: "Sign in required" }, { status: 401 }) };
   if (perm && !actor.permissions.has(perm)) return { actor: null, deny: NextResponse.json({ error: `Missing permission: ${perm}` }, { status: 403 }) };
+  try { await enforceScopeForPath(actor, await requestPath()); } catch (e) { if (e instanceof AuthError) return { actor: null, deny: NextResponse.json({ error: e.message }, { status: e.status }) }; throw e; }
   return { actor, deny: null };
 }
 

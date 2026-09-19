@@ -4,11 +4,15 @@ import { getCompany } from "@/lib/settings";
 import { llmConfig } from "@/lib/llm/client";
 import { PageHeader, Card, Stat, StatusPill, relTime, Empty, Chip } from "@/components/ui";
 import { summarizeLines } from "@/lib/requests";
+import { getActor } from "@/lib/auth";
+import { scopeFor, requestWhere } from "@/lib/auth/scope";
 
 export default async function Overview() {
   const company = await getCompany();
+  const actor = await getActor();
+  const reqScope = actor ? requestWhere(await scopeFor(actor)) : {};
   const [requests, products, priced, binned, crosses, competitors, unresolved] = await Promise.all([
-    prisma.request.findMany({ where: { NOT: { reference: { startsWith: "BENCH-" } } }, orderBy: { createdAt: "desc" }, take: 8, include: { lines: { select: { quantity: true, estCompetitorPrice: true, resolutionStatus: true, matchStatus: true, reviewed: true, selectedCandidateId: true, candidates: { where: { isSelected: true }, select: { id: true, matchType: true, unitPrice: true } } } } } }),
+    prisma.request.findMany({ where: { AND: [reqScope, { NOT: { reference: { startsWith: "BENCH-" } } }] }, orderBy: { createdAt: "desc" }, take: 8, include: { lines: { select: { quantity: true, estCompetitorPrice: true, resolutionStatus: true, matchStatus: true, reviewed: true, selectedCandidateId: true, candidates: { where: { isSelected: true }, select: { id: true, matchType: true, unitPrice: true } } } } } }),
     prisma.ownProduct.count({ where: { companyId: company.id, isActive: true } }),
     prisma.ownProduct.count({ where: { companyId: company.id, OR: [{ listPrice: { not: null } }, { prices: { some: {} } }] } }),
     prisma.ownProduct.count({ where: { companyId: company.id, gudidSyncedAt: { not: null }, gudidDi: { not: null } } }),
@@ -34,7 +38,7 @@ export default async function Overview() {
       />
 
       <div className="grid grid-cols-4 gap-3 mb-6">
-        <Stat label="Requests" value={await prisma.request.count()} hint="all time" />
+        <Stat label="Requests" value={await prisma.request.count({ where: reqScope })} hint={actor && actor.roles.every((r) => r === "SALES_REP" || r === "REGIONAL_MANAGER") ? "in your book" : "all time"} />
         <Stat label="Competitor products resolved" value={competitors} hint={unresolved ? `${unresolved} still unresolved` : "cached across requests"} tone="accent" />
         <Stat label="Our SKUs" value={products} hint={`${priced} priced`} />
         <Stat label="Known crosses" value={crosses} hint="from curated sheets" />

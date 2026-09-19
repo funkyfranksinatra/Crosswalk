@@ -3,11 +3,12 @@ import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/auth";
 import { PageHeader, Card, Empty, money, relTime } from "@/components/ui";
 import { ProposalStatus } from "@/components/commercial";
+import { scopeFor, proposalWhere } from "@/lib/auth/scope";
 
 export default async function ProposalsPage() {
   const actor = await getActor();
   if (!actor || !actor.permissions.has("view_pricing")) return <Empty title="Sign in to see proposals">Use the development sign-in in the sidebar.</Empty>;
-  const proposals = await prisma.proposal.findMany({ orderBy: { createdAt: "desc" }, include: { account: true, _count: { select: { lines: true, approvals: { where: { status: "PENDING" } } } } }, take: 200 });
+  const proposals = await prisma.proposal.findMany({ where: proposalWhere(await scopeFor(actor)), orderBy: { createdAt: "desc" }, include: { account: true, _count: { select: { lines: true, approvals: { where: { status: "PENDING" } } } } }, take: 200 });
   return (
     <>
       <PageHeader eyebrow="Proposals" title="Commercial proposals" description="Versioned quotes built from a cross-reference request: waterfall pricing, competitor intelligence, recommendations, approvals and outcomes." />
