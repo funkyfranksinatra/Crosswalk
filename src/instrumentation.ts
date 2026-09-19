@@ -29,7 +29,10 @@ export async function register() {
     }
   } catch (e) {
     console.error(`[crosswalk] refusing to start: ${e instanceof Error ? e.message : String(e)}`);
-    setImmediate(() => process.exit(1));
+    // Reached through globalThis so the Edge compile of this file (never executed: see the
+    // NEXT_RUNTIME guard above) does not flag a Node API.
+    const proc = (globalThis as { process?: { exit(code: number): never } }).process;
+    setTimeout(() => proc?.exit(1), 0);
     throw e;
   }
   // Tenancy is single per deployment; say so (and warn about drift) once per process, queue or not.
