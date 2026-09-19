@@ -37,12 +37,18 @@ npm run dev                   # http://localhost:3000
 
 `DATABASE_ADAPTER` stays `pg` on a normal machine. A **production build** (`npm run
 build && npm start`) refuses the development sign-in unless `ALLOW_DEV_SIGNIN=true`
-is set (demo boxes only) or SSO is configured, and wants a `SESSION_SECRET`; `npm
-run dev` needs neither. Set it to `neon-ws` only in
-an HTTPS-only environment (cloud sandboxes) — see `.env.example`. With no SSO
-configured the sidebar shows a labelled **development sign-in** with the
-seeded users (`alex.rep`, `maria.manager`, `sam.contracting`, `dana.director`,
-`committee`, `admin`, …); pick one to see what that role sees.
+is set (demo boxes only) or SSO is configured, wants a real `SESSION_SECRET`, and
+refuses placeholder or default secrets outright (`npm run secrets:check`); `npm
+run dev` needs none of that. Set the adapter to `neon-ws` only in an HTTPS-only
+environment (cloud sandboxes) — see `.env.example`. With no SSO configured the
+sidebar shows a labelled **development sign-in** with the seeded users
+(`alex.rep`, `maria.manager`, `sam.contracting`, `dana.director`, `committee`,
+`admin`, …); pick one to see what that role sees. With `SSO_ISSUER` and
+`SSO_CLIENT_ID` set, sign-in goes through the organisation's identity provider
+(OpenID Connect; `docs/DEPLOYMENT.md` § Identity). Reps and regional managers see
+their own book of business; other roles see everything (`docs/DATA_ACCESS_POLICY.md`).
+
+To run it somewhere shared: `docker build -t crosswalk .` and `docs/DEPLOYMENT.md`.
 
 The seed loads the curated `data/reference/Endomechanical.xlsx` (own SKUs +
 human-verified crosses) and the hernia SKUs/prices from the legacy BAT report.
@@ -178,7 +184,10 @@ src/lib/pipeline/resolve.ts two-pass CFN resolution · run.ts the request pipeli
 src/lib/excel/              intake parser (xlsx/csv/Sheets → grid), pricing + competitor-sizes import/template, exports
 src/lib/sheets/             Google Sheets link reader, Drive write-back (service account), CSV codec
 src/lib/money.ts            the only place money arithmetic happens (decimal.js, banker's rounding)
-src/lib/auth/               roles, permission matrix, actor resolution (dev sign-in / SSO header), redaction
+src/lib/auth/               roles, permission matrix, actor resolution (dev sign-in / OIDC / SSO header), ownership scoping, redaction
+src/lib/security/           rate limiting, CSP and hardening headers (applied in src/proxy.ts)
+src/lib/secrets.ts          secret-manager loader and production configuration checks
+src/lib/retention.ts        data-retention sweep (off by default)
 src/lib/contracts/          price waterfall, pricing context, rebates, bundles, structured clauses
 src/lib/catalog/            standard cost resolution, FX
 src/lib/intelligence/       competitor price observations, confidence decay, summaries, import

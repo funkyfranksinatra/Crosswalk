@@ -1,7 +1,8 @@
 # Crosswalk — feature inventory and roadmap
 
-State of the build at v0.5 (Sept 17, 2026), after the enterprise platform work, the GUDID
-library, the integration-connection work, the agentic debug run and the Tier 1 build.
+State of the build at v0.7 (Sept 19, 2026), after the enterprise platform work, the GUDID
+library, the integration-connection work, the agentic debug run, the Tier 1, Tier 3 and
+Tier 0 builds.
 Part 1 is what exists and is exercised by a test. Part 2 is what does not exist
 yet, ordered by what blocks the next step rather than by size.
 
@@ -193,22 +194,39 @@ Operating guide: `docs/OPERATIONS.md`. Verification: `docs/TIER1_DEBUG_REPORT.md
 
 Verification: `docs/TIER3_DEBUG_REPORT.md`.
 
+### 17. Security and deployment readiness (Tier 0, Sept 19, 2026)
+
+| Feature | Where |
+| --- | --- |
+| Built-in OIDC client — authorization code + PKCE against Entra ID / Okta / any discovery-capable provider; ID token validated against the provider's JWKS (issuer, audience, expiry, nonce); subject → user by `externalId` then email, provisioning on first sign-in, roles synced from a configurable claim through an optional name map; Crosswalk's own signed, expiring session cookie; SSO sign-in / sign-out in the UI; `SSO_MODE=proxy` keeps the `x-sso-subject` contract | `src/lib/auth/oidc.ts`, `src/app/api/auth/oidc/{start,callback,logout}`, `src/components/sign-in.tsx` |
+| Ownership / territory scoping — reps and regional managers see the accounts they own, in their territory, unassigned, children of visible IDNs, and what they created; requests, proposals and contracts follow their account; every other role sees everything; out-of-scope rows are 404; one central hook covers every `/api/{accounts,requests,proposals,contracts}/<id>/…` route, list routes and pages are filtered, writes against a foreign account refused | `src/lib/auth/scope.ts`, `src/lib/api.ts`, `src/proxy.ts` (`x-crosswalk-path`) |
+| Secret loader and production checks — `SECRETS_PROVIDER=env\|aws\|vault\|doppler\|file` fetched once at start-up (web, worker, container migrate step); a production build refuses the development session key, placeholder secrets, example database passwords and remote databases without TLS; `npm run secrets:check`. Neon `crosswalk_owner` rotated; `staging` and `ci` branches | `src/lib/secrets.ts`, `src/instrumentation.ts`, `scripts/with-secrets.ts` |
+| Container image and compose stack — one image for web / worker / migrate / check roles, migrate-on-start through the secret loader, `HEALTHCHECK`, CI builds and boots it against Postgres; `deploy/docker-compose.yml` with pgvector | `Dockerfile`, `deploy/`, `.github/workflows/ci.yml` (`image`), `docs/DEPLOYMENT.md` |
+| Rate limiting and security headers — per-client fixed windows by route class (sign-in 20/min, heavy writes and exports 60/min, API 600/min; `429` with `Retry-After`); nonce-based Content Security Policy on pages (`script-src 'self' 'nonce' 'strict-dynamic'`, no third-party origins, never framed), nosniff / referrer / permissions policies, COOP, HSTS over TLS | `src/lib/security/ratelimit.ts`, `src/lib/security/headers.ts`, `src/proxy.ts` |
+| Database CHECK constraints — 45 enum constraints on state / type columns tied to the code's own lists (`ROLES`, `KINDS`, `EQUIVALENCE`, `SOURCE_TYPES`) and 15 expression constraints (non-negative quantities, prices, costs, tax; policy margins as fractions; freight percent 0..100; date windows in order); migration generated from the definition and pinned by a test; `npm run db:preflight` before migrating | `src/lib/db/constraints.ts`, `prisma/migrations/20260919000100_tier0_check_constraints`, `scripts/db-preflight.ts` |
+| Retention, backups, access policy — nightly retention sweep, off until `RETENTION_ENABLED=true`, customer purchase data only with an explicit window, audit never swept, dry-run and batched, every sweep audited; backup / PITR / restore-drill runbook; data access policy for legal sign-off | `src/lib/retention.ts`, `scripts/retention.ts`, `docs/BACKUPS.md`, `docs/DATA_ACCESS_POLICY.md` |
+| Audited break-glass — an ADMIN may approve their own request only with a written reason; stored flagged, two audit events, every other ADMIN and PRICING_DIRECTOR notified; non-admins still cannot | `src/lib/approvals/service.ts` (`decide`), `src/lib/notifications/index.ts` (`BREAK_GLASS`) |
+
+Verification: `docs/TIER0_DEBUG_REPORT.md`.
+
 ---
 
 ## Part 2 — What still needs building
 
 ### Tier 0 — required before any shared or customer-facing deployment
 
-| # | Work | Why it blocks |
+Built (Part 1 §17). What remains is configuration and sign-off, not code:
+
+| # | Was | Left to the organisation |
 | --- | --- | --- |
-| 0.1 | **SSO (OIDC — Entra ID / Okta)** behind an authenticating proxy, and removal of `ALLOW_DEV_SIGNIN` from every shared instance | Identity is still a development mechanism; the adapter contract exists, the implementation does not |
-| 0.2 | **Ownership / territory scoping** (rep → their accounts and proposals, manager → territory) | Any signed-in user can open any account's deals today; this is horizontal access control, and it is a business decision about what a rep may see |
-| 0.3 | **Credential hygiene** — rotate the Neon `crosswalk_owner` password, per-environment branches, a secret store for `OPENAI_API_KEY` and the Google service account | One shared credential across dev, CI and the laptop |
-| 0.4 | **Hosted deployment** — container image behind the company proxy, health endpoint, structured request logs with request ids | Reps will not run `npm start` |
-| 0.5 | **Rate limiting and a CSP** | No throttle on any route; no content-security policy |
-| 0.6 | **Database CHECK constraints** on status / type / equivalence columns | Enums are enforced in application code only; a direct write or a future code path can seed an invalid state |
-| 0.7 | **Backups, retention and access policy** | Requests hold customer purchase data; encryption at rest and a retention decision need legal sign-off |
-| 0.8 | **ADMIN self-approval decision** | ADMIN can currently approve their own request; either forbid it or make it an audited break-glass |
+| 0.1 | SSO | Register the app with Entra ID / Okta, set `SSO_*`, decide the group → role map (`docs/DEPLOYMENT.md` § Identity) |
+| 0.2 | Ownership scoping | Populate `Account.ownerUserId` / `territory` and `User.territory` from the CRM (the sync carries them when the CRM does) |
+| 0.3 | Credential hygiene | Move `OPENAI_API_KEY`, the Google service account and `SESSION_SECRET` into the chosen secret manager (`SECRETS_PROVIDER`); rotate the Neon password again once CI moves to the `ci` branch |
+| 0.4 | Hosted deployment | Build and run the image behind the company proxy (`docs/DEPLOYMENT.md`) |
+| 0.5 | Rate limiting / CSP | Tune `RATE_LIMIT_*` from real traffic; a shared limiter at the proxy when running several instances |
+| 0.6 | CHECK constraints | `npm run db:preflight` before the first production migration |
+| 0.7 | Backups, retention, policy | Raise Neon history retention to 7 days; schedule the off-platform dump; sign `docs/DATA_ACCESS_POLICY.md`; then `RETENTION_ENABLED=true` with the agreed `RETENTION_REQUESTS_DAYS` |
+| 0.8 | ADMIN self-approval | Review break-glass events monthly (they are `BREAK_GLASS_APPROVAL` audit events and `BREAK_GLASS` notifications) |
 
 ### Tier 1 — pilot quality
 
