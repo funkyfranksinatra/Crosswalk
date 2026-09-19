@@ -121,7 +121,7 @@ placeholder. `npm run secrets:check` (or the image's `check` role) runs the same
    constraints), and a Neon snapshot of `main` (BACKUPS.md).
 2. Deploy the new image with `MIGRATE_ON_START=true` on a single web instance, or run the
    `migrate` role once, then roll the rest.
-3. `GET /api/health` → `ok`; Settings → System shows the version, queue counts, tenancy line.
+3. `GET /api/health` → `ok`; Settings → System shows the tenancy line, retrieval coverage and queue state.
 4. Roll back by deploying the previous image; migrations are additive and the previous code
    runs against the newer schema.
 
