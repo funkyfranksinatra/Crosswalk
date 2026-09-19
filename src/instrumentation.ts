@@ -1,5 +1,6 @@
 /**
  * Runs once when the Next.js server starts (App Router instrumentation hook).
+ * Loads secrets from the configured provider and checks production config (src/lib/secrets.ts).
  * Starts the in-process job workers unless this web server is configured to leave
  * background work to a dedicated worker (`JOBS_WORKER=external`, then `npm run worker`).
  * A failed start (database not reachable yet) is retried with backoff; a SIGTERM stops
@@ -8,6 +9,11 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   if (process.env.NEXT_PHASE === "phase-production-build") return;
+  // Secrets first (a secret manager may hold DATABASE_URL), then refuse weak production config.
+  // Neither is caught: a server that cannot read its secrets must not come up.
+  const { loadSecrets, assertProductionSecrets } = await import("@/lib/secrets");
+  await loadSecrets();
+  assertProductionSecrets();
   // Tenancy is single per deployment; say so (and warn about drift) once per process, queue or not.
   import("@/lib/tenancy").then(({ checkTenancy }) => checkTenancy()).catch(() => undefined);
   const mode = process.env.JOBS_WORKER ?? "inline";

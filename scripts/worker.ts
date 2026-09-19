@@ -6,10 +6,19 @@
  *   npm run worker
  */
 import "dotenv/config";
-import { startWorkers } from "../src/lib/jobs/workers";
-import { stopBoss } from "../src/lib/jobs/boss";
+import { loadSecrets, assertProductionSecrets } from "../src/lib/secrets";
 import { log } from "../src/lib/log";
 
 process.env.JOBS_WORKER = "inline";
-startWorkers().then(() => log.info("worker.ready", { pid: process.pid })).catch((e) => { log.error("worker.start_failed", { error: e instanceof Error ? e.message : String(e) }); process.exit(1); });
-for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, async () => { log.info("worker.stopping", { signal: sig }); await stopBoss(); process.exit(0); });
+
+async function main() {
+  await loadSecrets();
+  assertProductionSecrets();
+  // Imported after secrets are in place: the Prisma client reads DATABASE_URL at load.
+  const { startWorkers } = await import("../src/lib/jobs/workers");
+  const { stopBoss } = await import("../src/lib/jobs/boss");
+  await startWorkers();
+  log.info("worker.ready", { pid: process.pid });
+  for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, async () => { log.info("worker.stopping", { signal: sig }); await stopBoss(); process.exit(0); });
+}
+main().catch((e) => { log.error("worker.start_failed", { error: e instanceof Error ? e.message : String(e) }); process.exit(1); });

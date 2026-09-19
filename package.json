@@ -27,7 +27,8 @@
     "eval:model": "tsx scripts/model-eval.ts",
     "eval:gate": "tsx scripts/model-eval.ts --gate",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "secrets:check": "tsx scripts/with-secrets.ts --check"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

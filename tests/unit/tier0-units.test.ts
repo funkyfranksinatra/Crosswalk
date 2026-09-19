@@ -12,6 +12,10 @@ import { parseRoleMap, mapRoles, claimAt, sealCookie, openCookie, issueSession, 
 import { AuthError, type Actor } from "@/lib/auth";
 import { permissionsFor } from "@/lib/auth/permissions";
 import { createHash } from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { checkSecrets, assertProductionSecrets, flattenSecrets, loadSecrets, resetSecretsForTests, setSecretsFetchForTests } from "@/lib/secrets";
 
 const actor = (roles: string[]): Actor => ({ id: "u1", email: "u@x", name: "U", roles, permissions: permissionsFor(roles), isDev: true });
 
@@ -238,5 +242,82 @@ describe("0.1 OIDC flow against an in-memory provider", () => {
     setOidcFetchForTests(async () => new Response("down", { status: 503 }));
     await expect(beginSignIn(cfg, "/")).rejects.toBeInstanceOf(AuthError);
     setOidcFetchForTests(idp.fetch);
+  });
+});
+
+describe("0.3 secrets", () => {
+  const env = { ...process.env };
+  afterEach(() => { process.env = { ...env }; resetSecretsForTests(); setSecretsFetchForTests(null); });
+
+  test("production checks refuse the dev session key, short or placeholder secrets and example database passwords", () => {
+    const base = { NODE_ENV: "production", SESSION_SECRET: "a-perfectly-fine-long-random-secret", DATABASE_URL: "postgresql://app:Str0ngPassw0rd@db.example.com/crosswalk?sslmode=verify-full" };
+    expect(checkSecrets(base, true)).toEqual([]);
+    expect(checkSecrets({ ...base, SESSION_SECRET: "crosswalk-dev-insecure-session-key" }, true)).toMatchObject([{ key: "SESSION_SECRET", problem: /development key/ }]);
+    expect(checkSecrets({ ...base, SESSION_SECRET: "short" }, true)).toMatchObject([{ key: "SESSION_SECRET", problem: /16/ }]);
+    expect(checkSecrets({ ...base, SESSION_SECRET: "changeme-changeme-changeme" }, true)).toEqual([]); // long and not a bare placeholder
+    expect(checkSecrets({ ...base, SESSION_SECRET: "replace_me" }, true)).toMatchObject([{ key: "SESSION_SECRET" }]);
+    expect(checkSecrets({ ...base, DATABASE_URL: "postgresql://crosswalk:crosswalk@db.example.com/x?sslmode=require" }, true)).toMatchObject([{ key: "DATABASE_URL", problem: /default or placeholder/ }]);
+    expect(checkSecrets({ ...base, DATABASE_URL: "postgresql://app:pw@db.example.com/x" }, true)).toMatchObject([{ key: "DATABASE_URL", problem: /sslmode/ }]);
+    expect(checkSecrets({ ...base, DATABASE_URL: "postgresql://app:pw@db:5432/x" }, true)).toEqual([]); // compose service name: local network
+    expect(checkSecrets({ ...base, OPENAI_API_KEY: "changeme" }, true)).toMatchObject([{ key: "OPENAI_API_KEY" }]);
+    expect(checkSecrets({ ...base, SESSION_SECRET: "", SSO_ISSUER: "https://x", SSO_CLIENT_ID: "c" }, true)).toMatchObject([{ key: "SESSION_SECRET", problem: /not set/ }]);
+    expect(checkSecrets({ ...base, SESSION_SECRET: "" }, true)).toEqual([]); // no SSO, no dev sign-in: nothing signs a session
+    expect(checkSecrets({ ...base, ALLOW_DEV_SIGNIN: "true" }, true)).toMatchObject([{ key: "ALLOW_DEV_SIGNIN" }]);
+    // development is exempt from all of it
+    expect(checkSecrets({ SESSION_SECRET: "crosswalk-dev-insecure-session-key", DATABASE_URL: "postgresql://crosswalk:crosswalk@localhost/x" }, false)).toEqual([]);
+  });
+
+  test("assertProductionSecrets throws on fatal problems, warns for the demo escape hatch, and is silent in development", () => {
+    expect(() => assertProductionSecrets({ NODE_ENV: "production", SESSION_SECRET: "crosswalk-dev-insecure-session-key" })).toThrow(/Refusing to start.*SESSION_SECRET/);
+    expect(() => assertProductionSecrets({ NODE_ENV: "production", ALLOW_DEV_SIGNIN: "true", SESSION_SECRET: "a-perfectly-fine-long-random-secret" })).not.toThrow();
+    expect(() => assertProductionSecrets({ NODE_ENV: "development", SESSION_SECRET: "short" })).not.toThrow();
+  });
+
+  test("flattening keeps strings/numbers/booleans and one level of nesting", () => {
+    expect(flattenSecrets({ A: "1", B: 2, C: true, D: { E: "x", F: { G: "deep" } }, H: ["no"], I: null })).toEqual({ A: "1", B: "2", C: "true", D_E: "x" });
+    expect(flattenSecrets("nope")).toEqual({});
+  });
+
+  test("file provider reads JSON or KEY=value, fills only unset keys unless SECRETS_OVERRIDE", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cw-secrets-"));
+    const f = path.join(dir, "s.env");
+    fs.writeFileSync(f, '# comment\nexport T0_ALPHA="from-file"\nT0_BETA=\'b\'\nT0_GAMMA=plain value\nlowercase=ignored\n');
+    process.env.SECRETS_PROVIDER = "file"; process.env.SECRETS_FILE = f; process.env.T0_ALPHA = "from-env"; delete process.env.T0_BETA; delete process.env.T0_GAMMA;
+    expect((await loadSecrets()).sort()).toEqual(["T0_BETA", "T0_GAMMA"]);
+    expect(process.env.T0_ALPHA).toBe("from-env");
+    expect(process.env.T0_BETA).toBe("b");
+    expect(process.env.T0_GAMMA).toBe("plain value");
+    resetSecretsForTests(); process.env.SECRETS_OVERRIDE = "true";
+    expect(await loadSecrets()).toContain("T0_ALPHA");
+    expect(process.env.T0_ALPHA).toBe("from-file");
+    fs.writeFileSync(f, JSON.stringify({ T0_JSON: "j", nested: { T0_N: 1 } }));
+    resetSecretsForTests(); delete process.env.SECRETS_OVERRIDE; delete process.env.T0_JSON;
+    expect(await loadSecrets()).toContain("T0_JSON");
+    fs.rmSync(dir, { recursive: true });
+  });
+
+  test("vault (KV v2) and doppler providers go through fetch with the right headers; failures throw", async () => {
+    const calls: { url: string; headers: Record<string, string> }[] = [];
+    setSecretsFetchForTests(async (input, init) => {
+      const url = String(input instanceof Request ? input.url : input);
+      calls.push({ url, headers: (init?.headers as Record<string, string>) ?? {} });
+      if (url.includes("/v1/secret/data/cw")) return new Response(JSON.stringify({ data: { data: { T0_VAULT: "v" }, metadata: { version: 3 } } }), { status: 200 });
+      if (url.includes("doppler.com")) return new Response(JSON.stringify({ T0_DOPPLER: "d" }), { status: 200 });
+      return new Response("nope", { status: 403 });
+    });
+    process.env.SECRETS_PROVIDER = "vault"; process.env.VAULT_ADDR = "https://vault.test/"; process.env.VAULT_TOKEN = "tok"; process.env.VAULT_SECRET_PATH = "/secret/data/cw"; process.env.VAULT_NAMESPACE = "ns"; delete process.env.T0_VAULT;
+    expect(await loadSecrets()).toEqual(["T0_VAULT"]);
+    expect(calls[0]).toMatchObject({ url: "https://vault.test/v1/secret/data/cw", headers: { "x-vault-token": "tok", "x-vault-namespace": "ns" } });
+    resetSecretsForTests(); process.env.SECRETS_PROVIDER = "doppler"; process.env.DOPPLER_TOKEN = "dp"; delete process.env.T0_DOPPLER;
+    expect(await loadSecrets()).toEqual(["T0_DOPPLER"]);
+    expect(calls[1].headers.authorization).toBe("Bearer dp");
+    resetSecretsForTests(); process.env.VAULT_SECRET_PATH = "secret/data/other"; process.env.SECRETS_PROVIDER = "vault";
+    await expect(loadSecrets()).rejects.toThrow(/Vault returned 403/);
+    resetSecretsForTests(); process.env.SECRETS_PROVIDER = "aws"; delete process.env.AWS_SECRET_ID;
+    await expect(loadSecrets()).rejects.toThrow(/AWS_SECRET_ID/);
+    resetSecretsForTests(); process.env.SECRETS_PROVIDER = "bogus";
+    await expect(loadSecrets()).rejects.toThrow(/SECRETS_PROVIDER/);
+    resetSecretsForTests(); process.env.SECRETS_PROVIDER = "env";
+    expect(await loadSecrets()).toEqual([]);
   });
 });
