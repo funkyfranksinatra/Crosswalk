@@ -17,7 +17,7 @@ directly (see below) and the image itself is built and booted by CI on push.
    configuration; concurrency / jobs / failure modes / UI–API contract / deployment plumbing.
    Every finding was verified against the source (several live, against a running build)
    before being accepted; several review claims were rejected after checking.
-2. `tests/unit/tier0-units.test.ts` (34 cases) and `tests/db/tier0.test.ts` (20 cases)
+2. `tests/unit/tier0-units.test.ts` (32 cases) and `tests/db/tier0.test.ts` (20 cases)
    extended to pin each fix.
 3. Live checks on the production build: scope bypass attempts as a seeded rep, audit-trail
    scoping, security headers by scheme, account-type validation; a complete OIDC sign-in
@@ -192,7 +192,7 @@ audited; dev sign-in 404 while SSO is on. Start-up refusal on a bad role map exi
 the reason. Runtime file set: preflight clean, migrations applied, web ready, worker ready,
 `check` role exit 1 on a short secret.
 
-Suites after the fixes: Vitest 147 (Tier 0 unit 34, Tier 0 DB 20), `test:enterprise` 18,
+Suites after the fixes: Vitest 147 (Tier 0 unit 32, Tier 0 DB 20), `test:enterprise` 18,
 `test:adversarial` 24, `check` 19, `check:enterprise` 21, `tsc` and `next build` clean.
 Neon: `crosswalk_owner` rotated, `staging` and `ci` branches created, preflight clean on
 `main`.
