@@ -29,7 +29,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "secrets:check": "tsx scripts/with-secrets.ts --check",
-    "db:preflight": "tsx scripts/db-preflight.ts"
+    "db:preflight": "tsx scripts/db-preflight.ts",
+    "retention": "tsx scripts/retention.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

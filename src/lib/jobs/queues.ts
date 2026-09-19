@@ -12,6 +12,7 @@
  *   embed.refresh     (Tier 3) embed catalog / competitor products whose text changed (cron + after imports)
  *   analytics.refresh (Tier 3) recompute the materialised analytics reports (cron + after commercial events)
  *   bids.ingest       (Tier 3) pull public awards from SAM.gov / USAspending (cron + on demand)
+ *   retention.sweep   (Tier 0) nightly data-retention sweep — scheduled only when RETENTION_ENABLED=true
  *
  * `expireInSeconds` is the crash detector: a job still "active" after that long is
  * assumed dead (server killed mid-run) and retried. Handlers therefore have to be
@@ -39,6 +40,7 @@ export const QUEUES = {
   "embed.refresh": { policy: "exclusive", retryLimit: 2, retryDelay: 120, retryBackoff: true, heartbeatSeconds: 60, expireInSeconds: 6 * 3600, deleteAfterSeconds: 2 * 86400 },
   "analytics.refresh": { policy: "exclusive", retryLimit: 1, retryDelay: 60, expireInSeconds: 1800, deleteAfterSeconds: 2 * 86400 },
   "bids.ingest": { policy: "exclusive", retryLimit: 2, retryDelay: 300, retryBackoff: true, heartbeatSeconds: 60, expireInSeconds: 6 * 3600, deleteAfterSeconds: 7 * 86400 },
+  "retention.sweep": { policy: "exclusive", retryLimit: 0, heartbeatSeconds: 60, expireInSeconds: 3600, deleteAfterSeconds: 30 * 86400 },
 } as const;
 
 export type QueueName = keyof typeof QUEUES;
@@ -55,6 +57,7 @@ export type JobData = {
   "embed.refresh": { table?: "OwnProduct" | "CompetitorProduct"; ids?: string[]; limit?: number };
   "analytics.refresh": { reports?: string[]; trigger?: "schedule" | "event" | "manual" };
   "bids.ingest": { source: "sam" | "usaspending"; trigger: "schedule" | "manual"; actorUserId?: string | null; lookbackDays?: number };
+  "retention.sweep": { trigger?: "schedule" | "manual"; actorUserId?: string | null };
 };
 
 /** Schedules (cron, UTC). Overridable per feed from the environment (see feeds/schedule.ts). */
@@ -64,4 +67,5 @@ export const CRON = {
   "embed.refresh": process.env.EMBED_REFRESH_CRON ?? "15 4 * * *",
   "analytics.refresh": process.env.ANALYTICS_CRON ?? "0 * * * *",
   "bids.ingest": process.env.BIDS_CRON ?? "0 5 * * *",
+  "retention.sweep": process.env.RETENTION_CRON ?? "45 2 * * *",
 } as const;

@@ -16,6 +16,7 @@ import { AuthError, type Actor } from "@/lib/auth";
 import { getCompany } from "@/lib/settings";
 import { resolveUser, type Identity } from "@/lib/auth/oidc";
 import { decide } from "@/lib/approvals/service";
+import { runRetention, retentionConfig } from "@/lib/retention";
 import { scopeFor, accountWhere, requestWhere, proposalWhere, contractWhere, enforceScopeForPath, assertAccountWritable } from "@/lib/auth/scope";
 
 const hasDb = Boolean(process.env.DATABASE_URL);
@@ -240,5 +241,75 @@ describe.skipIf(!hasDb)("Tier 0.8 — audited break-glass self-approval", () => 
     const { req } = await pendingRequest(admin.row.id);
     await decide(director.actor, req.id, "APPROVED", "ok");
     expect(await prisma.approvalRequest.findUniqueOrThrow({ where: { id: req.id } })).toMatchObject({ status: "APPROVED", breakGlass: false });
+  });
+});
+
+describe.skipIf(!hasDb)("Tier 0.7 — retention sweep", () => {
+  const old = new Date(Date.now() - 400 * 86_400_000);
+  const recent = new Date(Date.now() - 2 * 86_400_000);
+  const ids: { req: string[]; llm: string[]; snap: string[] } = { req: [], llm: [], snap: [] };
+  let keptRequest = "", proposalRequest = "", oldRequest = "", failedRecent = "", runningOld = "";
+  let accountId = "";
+
+  beforeAll(async () => {
+    const companyId = (await getCompany()).id;
+    accountId = (await prisma.account.create({ data: { name: `${RUN} ret`, accountNumber: `${RUN}-ret` } })).id;
+    const mk = async (tag: string, status: string, createdAt: Date) => { const r = await prisma.request.create({ data: { companyId, reference: `${RUN}-RET-${tag}`, status, createdAt, lines: { create: [{ lineNo: 1, rawCode: "X", cfnNorm: "X", quantity: 1 }] } } }); ids.req.push(r.id); return r; };
+    oldRequest = (await mk("old", "complete", old)).id;
+    keptRequest = (await mk("recent", "complete", recent)).id;
+    failedRecent = (await mk("failedrecent", "failed", recent)).id;
+    runningOld = (await mk("running", "running", old)).id;
+    const withProposal = await mk("withproposal", "complete", old);
+    proposalRequest = withProposal.id;
+    await prisma.proposal.create({ data: { reference: `${RUN}-RET-P`, accountId, requestId: withProposal.id } });
+    const line = await prisma.requestLine.findFirstOrThrow({ where: { requestId: oldRequest } });
+    await prisma.matchDecision.create({ data: { requestLineId: line.id, topRecommendedSku: `${RUN}-Y`, chosenSku: `${RUN}-Y`, acceptedTop: true } });
+    for (const at of [old, recent]) ids.llm.push((await prisma.llmCall.create({ data: { purpose: `${RUN}`, model: "m", ok: true, durationMs: 1, createdAt: at } })).id);
+    for (const at of [old, new Date(old.getTime() + 1000)]) ids.snap.push((await prisma.analyticsSnapshot.create({ data: { report: `${RUN}-report`, json: "{}", computedAt: at } })).id);
+  });
+  afterAll(async () => {
+    await prisma.matchDecision.deleteMany({ where: { chosenSku: `${RUN}-Y` } });
+    await prisma.proposal.deleteMany({ where: { reference: { startsWith: `${RUN}-RET` } } });
+    await prisma.request.deleteMany({ where: { reference: { startsWith: `${RUN}-RET` } } });
+    await prisma.llmCall.deleteMany({ where: { purpose: RUN } });
+    await prisma.analyticsSnapshot.deleteMany({ where: { report: `${RUN}-report` } });
+    await prisma.account.deleteMany({ where: { accountNumber: `${RUN}-ret` } });
+    await prisma.auditEvent.deleteMany({ where: { entityType: "System", entityId: "retention", at: { gt: new Date(Date.now() - 600_000) } } });
+  });
+
+  test("config: off by default, request window never implied, defaults only once enabled", () => {
+    expect(retentionConfig({}).enabled).toBe(false);
+    const on = retentionConfig({ RETENTION_ENABLED: "true" });
+    expect(on.days.requests).toBeNull();
+    expect(on.days.llmCalls).toBe(90);
+    expect(retentionConfig({ RETENTION_ENABLED: "true", RETENTION_REQUESTS_DAYS: "365", RETENTION_LLM_CALLS_DAYS: "off" }).days).toMatchObject({ requests: 365, llmCalls: null });
+    expect(() => retentionConfig({ RETENTION_REQUESTS_DAYS: "soon" })).toThrow(/whole number/);
+    expect(retentionConfig({ RETENTION_BATCH: "10" }).batch).toBe(10);
+  });
+
+  test("disabled: nothing is touched, even with windows set", async () => {
+    const out = await runRetention({ ...retentionConfig({ RETENTION_REQUESTS_DAYS: "30" }), enabled: false });
+    expect(out.counts).toEqual({});
+    expect(await prisma.request.count({ where: { id: { in: ids.req } } })).toBe(5);
+  });
+
+  test("dry run counts without deleting; a real sweep deletes only finished, unreferenced, old requests and keeps learning data", async () => {
+    const cfg = { ...retentionConfig({ RETENTION_ENABLED: "true", RETENTION_REQUESTS_DAYS: "365", RETENTION_LLM_CALLS_DAYS: "90", RETENTION_SNAPSHOTS_DAYS: "30" }), dryRun: true };
+    const dry = await runRetention(cfg);
+    expect(dry.dryRun).toBe(true);
+    expect(dry.counts.requests).toBeGreaterThanOrEqual(1);
+    expect(await prisma.request.count({ where: { id: { in: ids.req } } })).toBe(5);
+    const real = await runRetention({ ...cfg, dryRun: false });
+    expect(real.dryRun).toBe(false);
+    const left = (await prisma.request.findMany({ where: { id: { in: ids.req } }, select: { id: true } })).map((r) => r.id).sort();
+    expect(left).toEqual([keptRequest, proposalRequest, failedRecent, runningOld].sort()); // only the old, finished, proposal-less one went
+    expect(left).not.toContain(oldRequest);
+    const md = await prisma.matchDecision.findFirstOrThrow({ where: { chosenSku: `${RUN}-Y` } });
+    expect(md.requestLineId).toBeNull(); // learning data kept, unlinked
+    expect((await prisma.llmCall.findMany({ where: { purpose: RUN } })).map((r) => r.id)).toEqual([ids.llm[1]]); // recent telemetry kept
+    const snaps = await prisma.analyticsSnapshot.findMany({ where: { report: `${RUN}-report` } });
+    expect(snaps.map((s) => s.id)).toEqual([ids.snap[1]]); // newest per report survives whatever its age
+    const audits = await prisma.auditEvent.findMany({ where: { entityType: "System", entityId: "retention" }, orderBy: { at: "desc" }, take: 2 });
+    expect(audits.map((a) => a.action).sort()).toEqual(["RETENTION_DRY_RUN", "RETENTION_SWEEP"]);
   });
 });

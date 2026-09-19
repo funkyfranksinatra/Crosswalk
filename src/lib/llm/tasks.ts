@@ -85,7 +85,8 @@ export async function cfnHints(cfn: string, context: { accountName?: string | nu
   if (!llmConfig().available) return null;
   const user = [
     `Unresolved competitor catalog number: ${cfn}`,
-    context.accountName ? `Customer: ${context.accountName}` : null,
+    // The account name helps disambiguate hospital item-number prefixes; a deployment may keep it out of prompts (DATA_ACCESS_POLICY.md §4).
+    context.accountName && process.env.LLM_SEND_ACCOUNT_NAME !== "false" ? `Customer: ${context.accountName}` : null,
     context.siblingCfns?.length ? `Other codes on the same purchase list (they hint at the manufacturer and hospital item-number prefixes): ${context.siblingCfns.slice(0, 40).join(", ")}` : null,
     "Hospitals often prepend a distributor or item-number prefix (e.g. '3583' + real CFN). Reprocessors relabel codes. Suggest the most plausible original catalog-number spellings, manufacturer, and brand so we can retry the FDA GUDID search.",
   ].filter(Boolean).join("\n");
