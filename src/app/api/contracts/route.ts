@@ -3,9 +3,10 @@ import { handle, body, date, str, requireText, optText, oneOf, currencyCode, non
 import { audit } from "@/lib/audit";
 import { RenewalSchema, PriceProtectionSchema, EscalationSchema } from "@/lib/contracts/clauses";
 import { toDb } from "@/lib/money";
+import { scopeFor, contractWhere } from "@/lib/auth/scope";
 
 export async function GET() {
-  return handle("view_pricing", async () => prisma.contract.findMany({ orderBy: [{ status: "asc" }, { effectiveTo: "asc" }], include: { account: true, gpo: true, _count: { select: { entries: true, commitments: true, rebates: true, bundles: true } } } }));
+  return handle("view_pricing", async (actor) => prisma.contract.findMany({ where: contractWhere(await scopeFor(actor)), orderBy: [{ status: "asc" }, { effectiveTo: "asc" }], include: { account: true, gpo: true, _count: { select: { entries: true, commitments: true, rebates: true, bundles: true } } } }));
 }
 export async function POST(req: Request) {
   return handle("manage_contracts", async (actor) => {

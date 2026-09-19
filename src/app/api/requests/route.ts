@@ -6,11 +6,12 @@ import { getCompany } from "@/lib/settings";
 import { nextReference } from "@/lib/requests";
 import { enqueueRun } from "@/lib/pipeline/run";
 import { authorize } from "@/lib/api";
+import { scopeFor, requestWhere, assertAccountWritable } from "@/lib/auth/scope";
 
 export async function GET() {
-  const { deny } = await authorize("run_cross_reference");
+  const { actor, deny } = await authorize("run_cross_reference");
   if (deny) return deny;
-  const requests = await prisma.request.findMany({ where: { NOT: { reference: { startsWith: "BENCH-" } } }, orderBy: { createdAt: "desc" }, include: { _count: { select: { lines: true } }, pricebook: true } });
+  const requests = await prisma.request.findMany({ where: { AND: [requestWhere(await scopeFor(actor)), { NOT: { reference: { startsWith: "BENCH-" } } }] }, orderBy: { createdAt: "desc" }, include: { _count: { select: { lines: true } }, pricebook: true } });
   return NextResponse.json(requests);
 }
 
@@ -39,6 +40,10 @@ export async function POST(req: Request) {
   const text = (k: string, max: number) => { const v = String(form.get(k) ?? "").trim(); return v.length > max ? v.slice(0, max) : v || null; };
   for (const [k, max] of [["accountNumber", 40], ["accountName", 200], ["accountType", 40], ["reportType", 120]] as const) if (String(form.get(k) ?? "").length > max) return NextResponse.json({ error: `${k} is too long (max ${max})` }, { status: 400 });
   if (intake.lines.length > 5000) return NextResponse.json({ error: `The intake has ${intake.lines.length} lines; the limit is 5,000 per request` }, { status: 400 });
+  // Ownership scoping: an account number that names an existing account must be one the actor may see.
+  const accNo = text("accountNumber", 40);
+  const known = accNo ? await prisma.account.findUnique({ where: { accountNumber: accNo }, select: { id: true } }) : null;
+  if (known) { try { await assertAccountWritable(actor, known.id); } catch { return NextResponse.json({ error: "That account is not in your book of business" }, { status: 403 }); } }
   const request = await prisma.request.create({
     data: {
       companyId: company.id,
@@ -46,6 +51,7 @@ export async function POST(req: Request) {
       accountNumber: text("accountNumber", 40),
       accountName: text("accountName", 200),
       accountType: text("accountType", 40) ?? "Sold-To",
+      accountId: known?.id ?? null,
       reportType: text("reportType", 120) ?? "Competitive Cross Reference with Pricebook",
       pricebookId,
       sourceFileName: intake.source.kind === "google-sheet" ? `${intake.source.name} (Google Sheet)` : intake.source.name,

@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/db";
 import { handle, body, str, requireText, optText, oneOf, currencyCode } from "@/lib/api";
 import { audit } from "@/lib/audit";
+import { scopeFor, accountWhere } from "@/lib/auth/scope";
 export async function GET(req: Request) {
   const q = new URL(req.url).searchParams.get("q") ?? "";
-  return handle("view_pricing", async () => prisma.account.findMany({ where: q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { accountNumber: { contains: q } }] } : {}, orderBy: { name: "asc" }, include: { parent: true, memberships: { include: { gpo: true } }, _count: { select: { contracts: true, proposals: true } } }, take: 200 }));
+  return handle("view_pricing", async (actor) => prisma.account.findMany({ where: { AND: [accountWhere(await scopeFor(actor)), q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { accountNumber: { contains: q } }] } : {}] }, orderBy: { name: "asc" }, include: { parent: true, memberships: { include: { gpo: true } }, _count: { select: { contracts: true, proposals: true } } }, take: 200 }));
 }
 export async function POST(req: Request) {
   return handle("manage_contracts", async (actor) => {
