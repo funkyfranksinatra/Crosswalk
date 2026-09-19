@@ -15,6 +15,7 @@ import { ROLES } from "@/lib/auth/permissions";
 import { KINDS } from "@/lib/notifications/kinds";
 import { EQUIVALENCE } from "@/lib/xref/equivalence";
 import { SOURCE_TYPES } from "@/lib/intelligence/summarize";
+import { ACCOUNT_TYPES } from "@/lib/accounts/types";
 
 export type EnumConstraint = { table: string; column: string; values: readonly string[] };
 export type ExprConstraint = { table: string; name: string; expr: string; description: string };
@@ -32,7 +33,7 @@ export const ENUM_CONSTRAINTS: EnumConstraint[] = [
   { table: "Request", column: "status", values: ["draft", "queued", "running", "complete", "failed", "cancelled"] },
   { table: "RequestLine", column: "resolutionStatus", values: ["pending", "resolved", "not-found", "error"] },
   { table: "RequestLine", column: "matchStatus", values: ["pending", "matched", "no-match", "error"] },
-  { table: "Account", column: "type", values: ["SOLD_TO", "SHIP_TO", "IDN", "HEALTH_SYSTEM", "GROUP"] },
+  { table: "Account", column: "type", values: ACCOUNT_TYPES },
   { table: "Contract", column: "type", values: ["LIST", "GPO", "IDN", "LOCAL", "NATIONAL"] },
   { table: "Contract", column: "status", values: ["DRAFT", "ACTIVE", "EXPIRED", "TERMINATED", "SUPERSEDED"] },
   { table: "RebateSchedule", column: "type", values: ["VOLUME", "GROWTH", "COMPLIANCE", "FAMILY", "BUNDLE"] },
@@ -91,13 +92,20 @@ export function constraintExpr(c: EnumConstraint | ExprConstraint): string {
   return "column" in c ? `"${c.column}" IN (${c.values.map((v) => `'${v.replace(/'/g, "''")}'`).join(", ")})` : c.expr;
 }
 
-/** The migration SQL: idempotent (drops then adds), one statement per constraint. */
+/**
+ * The migration SQL: idempotent (drops then adds). Constraints are added NOT VALID and then
+ * VALIDATEd: the add takes its exclusive lock for an instant, and the validation scan only
+ * takes SHARE UPDATE EXCLUSIVE, so a running instance keeps writing while a long history is
+ * checked. Existing rows are still checked — a violating row fails the migration, which is
+ * what `npm run db:preflight` exists to catch first.
+ */
 export function migrationSql(): string {
   const lines = ["-- Tier 0.6: CHECK constraints on state, type and money columns.", "-- Generated from src/lib/db/constraints.ts by scripts/gen-constraints.ts — edit that file, not this one.", ""];
   for (const c of [...ENUM_CONSTRAINTS, ...EXPR_CONSTRAINTS]) {
     const name = constraintName(c);
     lines.push(`ALTER TABLE "${c.table}" DROP CONSTRAINT IF EXISTS "${name}";`);
-    lines.push(`ALTER TABLE "${c.table}" ADD CONSTRAINT "${name}" CHECK (${constraintExpr(c)});`);
+    lines.push(`ALTER TABLE "${c.table}" ADD CONSTRAINT "${name}" CHECK (${constraintExpr(c)}) NOT VALID;`);
+    lines.push(`ALTER TABLE "${c.table}" VALIDATE CONSTRAINT "${name}";`);
   }
   return lines.join("\n") + "\n";
 }

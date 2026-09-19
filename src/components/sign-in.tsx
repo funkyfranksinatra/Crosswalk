@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Empty } from "@/components/ui";
 
 /**
@@ -12,7 +11,7 @@ export function SignInScreen({ sso }: { sso: "none" | "oidc" | "proxy" }) {
       <Empty title="Sign in to use Crosswalk">
         <div className="space-y-3">
           <div>Crosswalk uses your organisation&apos;s single sign-on. Customer pricing, contracts, cost and margin are only shown to signed-in roles.</div>
-          <Link href="/api/auth/oidc/start" prefetch={false} className="btn-primary inline-flex">Sign in with SSO</Link>
+          <a href="/api/auth/oidc/start" className="btn-primary inline-flex">Sign in with SSO</a>
         </div>
       </Empty>
     );

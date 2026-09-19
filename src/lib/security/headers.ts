@@ -14,6 +14,7 @@
  *               data URLs
  *   connect-src 'self'                              the browser only ever talks to this app
  *   frame-ancestors 'none'                          never framed (clickjacking)
+ *   upgrade-insecure-requests                       only when the request arrived over TLS
  * CSP_REPORT_ONLY=true switches to Content-Security-Policy-Report-Only for a soft rollout.
  */
 
@@ -25,7 +26,7 @@ export function makeNonce(): string {
   return btoa(s);
 }
 
-export function contentSecurityPolicy(nonce: string, opts: { dev?: boolean; extraConnect?: string[] } = {}): string {
+export function contentSecurityPolicy(nonce: string, opts: { dev?: boolean; https?: boolean; extraConnect?: string[] } = {}): string {
   const connect = ["'self'", ...(opts.extraConnect ?? [])].join(" ");
   return [
     "default-src 'self'",
@@ -38,7 +39,8 @@ export function contentSecurityPolicy(nonce: string, opts: { dev?: boolean; extr
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    ...(opts.dev ? [] : ["upgrade-insecure-requests"]),
+    // Only once the app is actually served over TLS: on plain HTTP it would break every asset load.
+    ...(opts.https ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 }
 

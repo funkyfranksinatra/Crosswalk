@@ -12,9 +12,18 @@ import { log, withRequestContext, setContextActor } from "@/lib/log";
 import { httpRequests, httpDuration } from "@/lib/observability/metrics";
 import { enforceScopeForPath } from "@/lib/auth/scope";
 
-/** The request path the proxy recorded (null outside a request or when the proxy did not run). */
+/**
+ * The request path the proxy recorded (null outside a request or when the proxy did not run).
+ * The proxy runs for every /api request; its absence on one is logged, because scoping keys
+ * off this header and a front proxy that strips it would open the detail routes.
+ */
 async function requestPath(): Promise<string | null> {
-  try { return (await headers()).get("x-crosswalk-path"); } catch { return null; }
+  try {
+    const h = await headers();
+    const p = h.get("x-crosswalk-path");
+    if (!p && !process.env.VITEST) log.warn("api.no_path_header", { route: h.get("x-crosswalk-route") ?? null });
+    return p;
+  } catch { return null; }
 }
 
 /** The request id the proxy assigned (or null outside a request). */

@@ -50,8 +50,10 @@ Two layers, both server-side, both on every request:
   (`src/lib/auth/scope.ts`, enforced centrally for every `/api/{accounts,requests,proposals,
   contracts}/<id>/…` route in `src/lib/api.ts`).
 
-Roles come from the SSO claim named by `SSO_ROLE_CLAIM` (mapped through `SSO_ROLE_MAP`) and
-are re-synced at every sign-in; when the claim is absent, roles set in Crosswalk stand.
+Roles come from the SSO claim named by `SSO_ROLE_CLAIM` (mapped through `SSO_ROLE_MAP`; with a
+map set, only mapped values count) and are re-synced at every sign-in; when the claim is
+absent, roles set in Crosswalk stand. Approvers who are scoped (regional managers) see and
+decide only requests on proposals in their book of business.
 **Decision needed:** which provider groups map to which roles, and whether `ADMIN` is granted
 through the provider at all (recommended: no — assign it in Crosswalk, to a named few).
 

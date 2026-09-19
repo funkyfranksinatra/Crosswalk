@@ -12,7 +12,7 @@ import { log } from "@/lib/log";
 import { getBoss, jobsEnabled } from "./boss";
 import { QUEUES, CRON, type QueueName, type JobData } from "./queues";
 
-type G = typeof globalThis & { __crosswalkWorkers?: Promise<void> | null };
+type G = typeof globalThis & { __crosswalkWorkers?: Promise<void> | null; __crosswalkQueuesRegistered?: boolean };
 const g = globalThis as G;
 
 type Meta = { id: string; retryCount: number; retryLimit: number };
@@ -125,7 +125,10 @@ async function registerSchedules(boss: PgBoss) {
   await sched("analytics.refresh", CRON["analytics.refresh"], { trigger: "schedule" }, "analytics-cron", "analytics:cron");
   // Retention is scheduled only while it is switched on; switching it off unschedules it at the next start.
   const { retentionConfig } = await import("@/lib/retention");
-  await sched("retention.sweep", retentionConfig().enabled ? CRON["retention.sweep"] : "off", { trigger: "schedule" }, "retention-cron", "retention:cron");
+  // A malformed RETENTION_* value must not stop the job system: log it and leave the sweep unscheduled.
+  let retentionOn = false;
+  try { retentionOn = retentionConfig().enabled; } catch (e) { log.error("jobs.schedule_failed", { queue: "retention.sweep", error: e instanceof Error ? e.message : String(e) }); }
+  await sched("retention.sweep", retentionOn ? CRON["retention.sweep"] : "off", { trigger: "schedule" }, "retention-cron", "retention:cron");
   const { bidSourcesConfigured, BID_SOURCES } = await import("@/lib/intelligence/bids");
   const configured = new Set(await bidSourcesConfigured());
   for (const source of BID_SOURCES) {
@@ -185,7 +188,8 @@ export function startWorkers(): Promise<void> {
   if (!g.__crosswalkWorkers) {
     g.__crosswalkWorkers = (async () => {
       const boss = await getBoss();
-      for (const name of Object.keys(QUEUES) as QueueName[]) await register(boss, name);
+      // A retry after a failed start must not add a second poller per queue (pg-boss allows it).
+      if (!g.__crosswalkQueuesRegistered) { for (const name of Object.keys(QUEUES) as QueueName[]) await register(boss, name); g.__crosswalkQueuesRegistered = true; }
       await registerSchedules(boss);
       await recoverOrphans().catch((e) => log.error("jobs.recover_error", { error: e instanceof Error ? e.message : String(e) }));
       log.info("jobs.workers_started", { queues: Object.keys(QUEUES), mode: process.env.JOBS_WORKER ?? "inline" });

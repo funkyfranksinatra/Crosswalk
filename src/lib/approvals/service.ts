@@ -4,6 +4,7 @@
  */
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
+import { scopeFor, proposalWhere, assertProposalVisible } from "@/lib/auth/scope";
 import { type Actor, requirePermission, hasAuthority, AuthError } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { proposalStatusFrom, canFinalize } from "./rules";
@@ -85,6 +86,7 @@ export const BREAK_GLASS_MIN_REASON = 20;
 export async function decide(actor: Actor, requestId: string, decision: "APPROVED" | "REJECTED" | "CHANGES_REQUESTED", comments?: string) {
   if (!["APPROVED", "REJECTED", "CHANGES_REQUESTED"].includes(decision)) throw new Error("decision must be APPROVED, REJECTED or CHANGES_REQUESTED");
   const req = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: requestId }, include: { proposalLine: true, proposal: { select: { reference: true } } } });
+  await assertProposalVisible(actor, req.proposalId); // a scoped approver decides only inside their book of business
   if (req.status !== "PENDING") throw new Error(`Request already ${req.status.toLowerCase()}`);
   const belowFloor = req.proposalLine && money(req.proposalLine.floorPrice) && money(req.proposalLine.proposedPrice)?.lt(money(req.proposalLine.floorPrice)!);
   // Authority may be the actor's own or lent by an active delegation (out-of-office); the request records which.
@@ -147,7 +149,8 @@ export async function finalizeCheck(proposalId: string) {
 export async function queueFor(actor: Actor) {
   const roles = actor.roles;
   const eff = await effectiveAuthority(actor);
-  const all = await prisma.approvalRequest.findMany({ where: { status: "PENDING" }, include: { proposal: { include: { account: true } }, proposalLine: true }, orderBy: { requestedAt: "asc" } });
+  // A scoped approver (regional manager) sees only requests on proposals in their book of business.
+  const all = await prisma.approvalRequest.findMany({ where: { status: "PENDING", proposal: proposalWhere(await scopeFor(actor)) }, include: { proposal: { include: { account: true } }, proposalLine: true }, orderBy: { requestedAt: "asc" } });
   const delegators = new Map(eff.delegations.map((d) => [d.fromUserId, d.from.name]));
   return all
     .filter((r) => roles.includes("ADMIN") || hasAuthority(actor, r.requiredRole) || eff.onBehalfOf(r.requiredRole, r.requestedByUserId ? [r.requestedByUserId] : []) !== null)

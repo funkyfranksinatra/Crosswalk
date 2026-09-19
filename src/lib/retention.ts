@@ -19,8 +19,9 @@
  *
  * RETENTION_DRY_RUN=true reports what would go without deleting. Every sweep — dry or not —
  * writes one RETENTION_SWEEP audit event with the counts. Deletes are batched (RETENTION_BATCH,
- * default 5000 rows per class per run) so a first sweep over a long history never holds a
- * long lock; the next night takes the next batch.
+ * default 5000 rows per class per run; requests at most 200, in chunks of 25, because each
+ * cascades) so a first sweep over a long history never holds a long lock; the next night
+ * takes the next batch.
  */
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
@@ -80,18 +81,22 @@ export async function runRetention(cfg: RetentionConfig = retentionConfig(), opt
   if (!cfg.enabled && !opts.force) { log.info("retention.skipped", { reason: "RETENTION_ENABLED is not true" }); return { dryRun: true, counts, more }; }
   const take = cfg.batch;
 
-  // Customer data: finished requests nobody built a proposal from.
+  // Customer data: finished requests nobody built a proposal from. A request cascades to its
+  // lines and candidates (hundreds of rows each), so these go in small chunks with no long
+  // transaction — the unlink and the delete need not be atomic (MatchDecision has no FK).
   if (cfg.days.requests !== null) {
-    const rows = await prisma.request.findMany({ where: { status: { in: ["complete", "failed", "cancelled"] }, createdAt: { lt: cutoff(cfg.days.requests, now) }, proposals: { none: {} } }, select: { id: true }, take: take + 1, orderBy: { createdAt: "asc" } });
-    more.requests = rows.length > take;
-    const ids = rows.slice(0, take).map((r) => r.id);
+    const reqTake = Math.min(take, 200);
+    const rows = await prisma.request.findMany({ where: { status: { in: ["complete", "failed", "cancelled"] }, createdAt: { lt: cutoff(cfg.days.requests, now) }, proposals: { none: {} } }, select: { id: true }, take: reqTake + 1, orderBy: { createdAt: "asc" } });
+    more.requests = rows.length > reqTake;
+    const ids = rows.slice(0, reqTake).map((r) => r.id);
     counts.requests = ids.length;
     if (ids.length && !cfg.dryRun) {
-      await prisma.$transaction(async (tx) => {
-        const lineIds = (await tx.requestLine.findMany({ where: { requestId: { in: ids } }, select: { id: true } })).map((l) => l.id);
-        if (lineIds.length) await tx.matchDecision.updateMany({ where: { requestLineId: { in: lineIds } }, data: { requestLineId: null } });
-        await tx.request.deleteMany({ where: { id: { in: ids } } }); // lines and candidates cascade
-      });
+      for (let i = 0; i < ids.length; i += 25) {
+        const chunk = ids.slice(i, i + 25);
+        const lineIds = (await prisma.requestLine.findMany({ where: { requestId: { in: chunk } }, select: { id: true } })).map((l) => l.id);
+        if (lineIds.length) await prisma.matchDecision.updateMany({ where: { requestLineId: { in: lineIds } }, data: { requestLineId: null } });
+        await prisma.request.deleteMany({ where: { id: { in: chunk } } }); // lines and candidates cascade
+      }
     }
   }
 

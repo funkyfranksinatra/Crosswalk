@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { handle, body, date, str } from "@/lib/api";
+import { handle, body, date, str, oneOf } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { toDb } from "@/lib/money";
 import { TiersSchema } from "@/lib/contracts/rebates";
@@ -16,7 +16,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (b.kind === "commitment") { const ps = date(d.periodStart), pe = date(d.periodEnd); if (ps && pe && pe <= ps) throw new Error("periodEnd must be after periodStart"); if (!d.committedUnits && !d.committedValue) throw new Error("a commitment needs committedUnits or committedValue"); }
     let row: unknown;
     if (b.kind === "commitment") row = await prisma.contractCommitment.create({ data: { contractId: id, productFamily: str(d.productFamily), productId: str(d.productId), committedUnits: toDb(d.committedUnits as never), committedValue: toDb(d.committedValue as never), periodStart: date(d.periodStart) ?? new Date(), periodEnd: date(d.periodEnd) ?? new Date(Date.now() + 365 * 86_400_000) } });
-    else if (b.kind === "rebate") row = await prisma.rebateSchedule.create({ data: { contractId: id, type: String(d.type ?? "VOLUME"), basis: String(d.basis ?? "VALUE"), productFamily: str(d.productFamily), tiersJson: JSON.stringify(TiersSchema.parse(d.tiers ?? [])), periodMonths: Number(d.periodMonths ?? 12), notes: str(d.notes) } });
+    else if (b.kind === "rebate") row = await prisma.rebateSchedule.create({ data: { contractId: id, type: oneOf(d.type, ["VOLUME", "GROWTH", "COMPLIANCE", "FAMILY", "BUNDLE"] as const, "type", "VOLUME"), basis: oneOf(d.basis, ["UNITS", "VALUE", "COMPLIANCE_PCT", "GROWTH_PCT"] as const, "basis", "VALUE"), productFamily: str(d.productFamily), tiersJson: JSON.stringify(TiersSchema.parse(d.tiers ?? [])), periodMonths: Number(d.periodMonths ?? 12), notes: str(d.notes) } });
     else if (b.kind === "bundle") row = await prisma.bundleTerm.create({ data: { contractId: id, name: String(d.name ?? "Bundle"), description: str(d.description), conditionJson: JSON.stringify(ConditionSchema.parse(d.condition ?? {})), benefitJson: JSON.stringify(BenefitSchema.parse(d.benefit ?? {})) } });
     else if (b.kind === "scope") row = await prisma.contractScope.create({ data: { contractId: id, productFamily: str(d.productFamily), productId: str(d.productId) } });
     else throw new Error("unknown term kind");

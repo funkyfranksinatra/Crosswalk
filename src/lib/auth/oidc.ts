@@ -62,7 +62,7 @@ export function oidcConfig(): OidcConfig {
   const issuer = (process.env.SSO_ISSUER ?? "").replace(/\/$/, "");
   const clientId = process.env.SSO_CLIENT_ID ?? "";
   if (!issuer || !clientId) throw new AuthError("SSO is not configured", 500);
-  const base = (process.env.APP_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const base = appOrigin();
   const defaultRole = (process.env.SSO_DEFAULT_ROLE ?? "").trim() || null;
   if (defaultRole && !ROLES.includes(defaultRole as (typeof ROLES)[number])) throw new AuthError(`SSO_DEFAULT_ROLE is not a role: ${defaultRole}`, 500);
   const hours = Number(process.env.SESSION_TTL_HOURS ?? DEFAULT_SESSION_HOURS);
@@ -81,8 +81,10 @@ export function oidcConfig(): OidcConfig {
 
 /**
  * `SSO_ROLE_MAP` is either JSON (`{"Crosswalk.Rep":"SALES_REP"}`) or `idp-name=ROLE,other=ROLE`.
- * Keys are matched case-insensitively; values must be Crosswalk roles. An unmapped claim value
- * that is itself a Crosswalk role name (Entra app roles are often defined that way) maps to itself.
+ * Keys are matched case-insensitively; values must be Crosswalk roles. With NO map configured, a
+ * claim value that is exactly a Crosswalk role name (Entra app roles are usually defined that
+ * way) maps to itself; once a map exists it is the whole vocabulary, so a directory group that
+ * happens to be called "finance" grants nothing.
  */
 export function parseRoleMap(raw: string | undefined): Record<string, string> {
   const out: Record<string, string> = {};
@@ -106,10 +108,11 @@ export function parseRoleMap(raw: string | undefined): Record<string, string> {
 /** Claim values → Crosswalk roles (deduplicated, in ROLES order). Unknown values are ignored. */
 export function mapRoles(values: unknown, roleMap: Record<string, string>): string[] {
   const list = Array.isArray(values) ? values : typeof values === "string" ? values.split(/[\s,]+/) : [];
+  const implicit = Object.keys(roleMap).length === 0;
   const set = new Set<string>();
   for (const v of list) {
     if (typeof v !== "string" || !v) continue;
-    const mapped = roleMap[v.toLowerCase()] ?? (ROLES.includes(v.toUpperCase() as (typeof ROLES)[number]) ? v.toUpperCase() : null);
+    const mapped = roleMap[v.toLowerCase()] ?? (implicit && ROLES.includes(v as (typeof ROLES)[number]) ? v : null);
     if (mapped) set.add(mapped);
   }
   return ROLES.filter((r) => set.has(r));
@@ -166,11 +169,28 @@ export function readSession(value: string | undefined | null, now = Date.now()):
   return p.uid;
 }
 
-/** Only a same-origin path may be the post-login destination (no open redirect). */
+/**
+ * Only a same-origin page path may be the post-login destination (no open redirect). Control
+ * characters are refused outright (the URL parser strips tabs and newlines, so "/\t/evil" would
+ * otherwise become "//evil"), and the result is what the parser resolves it to, re-checked
+ * against a fixed origin.
+ */
 export function safeNext(next: string | null | undefined): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\") || /[\r\n]/.test(next)) return "/";
-  if (next.startsWith("/api/")) return "/";
-  return next.slice(0, 500);
+  if (!next || !next.startsWith("/") || /[\u0000-\u001f\u007f\\]/.test(next)) return "/";
+  let u: URL;
+  try { u = new URL(next, "https://crosswalk.invalid"); } catch { return "/"; }
+  if (u.origin !== "https://crosswalk.invalid" || u.username || u.password) return "/";
+  if (u.pathname.startsWith("//") || u.pathname.startsWith("/api/")) return "/"; // "//host" would be protocol-relative when redirected
+  return (u.pathname + u.search).slice(0, 500);
+}
+
+/** The public origin sign-in redirects are built on (never the request's, which a TLS-terminating proxy rewrites). */
+export function appOrigin(): string {
+  return (process.env.APP_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+}
+/** Cookies are `Secure` when the app is served over TLS — by its public URL, not NODE_ENV. */
+export function cookiesSecure(): boolean {
+  return appOrigin().startsWith("https://");
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -253,6 +273,7 @@ export async function completeSignIn(cfg: OidcConfig, params: { code: string | n
   if (payload.nonce !== stored.nonce) throw new AuthError("ID token nonce mismatch", 401);
   if (typeof payload.sub !== "string" || !payload.sub) throw new AuthError("ID token has no subject", 401);
   const claims = payload as Record<string, unknown>;
+  if (claims.email_verified === false) throw new AuthError("The identity provider reports your email address as unverified", 403);
   const email = [claims.email, claims.preferred_username, claims.upn].find((v) => typeof v === "string" && /@/.test(v)) as string | undefined;
   const name = [claims.name, [claims.given_name, claims.family_name].filter(Boolean).join(" ")].find((v) => typeof v === "string" && v.trim()) as string | undefined;
   const rawRoles = cfg.roleClaim ? claimAt(claims, cfg.roleClaim) : undefined;
@@ -261,14 +282,21 @@ export async function completeSignIn(cfg: OidcConfig, params: { code: string | n
 }
 
 /**
- * Subject → User. Match on externalId first (stable across email changes), then email (first
- * sign-in of a pre-created user: the subject is recorded). Otherwise provision when allowed.
- * Roles from the claim are authoritative when present; a token with the claim but no
- * recognised role leaves the user with SSO_DEFAULT_ROLE or, failing that, no access.
+ * Subject → User. Match on externalId first (stable across email changes), then email — but
+ * only for a user not yet linked to any subject (first sign-in of a pre-created user records
+ * it). An account already linked to a different subject is never re-bound by email: that is
+ * how a colliding address at the provider would take over someone's roles. Otherwise
+ * provision when allowed. Roles from the claim are authoritative when present; a token with
+ * the claim but no recognised role leaves the user with SSO_DEFAULT_ROLE or, failing that,
+ * no access.
  */
 export async function resolveUser(cfg: OidcConfig, id: Identity): Promise<{ userId: string; created: boolean; rolesSynced: boolean }> {
   let u = await prisma.user.findFirst({ where: { externalId: id.subject }, include: { roles: true } });
-  if (!u && id.email) u = await prisma.user.findFirst({ where: { email: { equals: id.email, mode: "insensitive" } }, include: { roles: true } });
+  if (!u && id.email) {
+    const byEmail = await prisma.user.findFirst({ where: { email: { equals: id.email, mode: "insensitive" } }, include: { roles: true } });
+    if (byEmail && byEmail.externalId && byEmail.externalId !== id.subject) throw new AuthError("This email address belongs to a Crosswalk account linked to a different identity. Ask an administrator.", 403);
+    u = byEmail;
+  }
   const claimRoles = id.roles;
   const desiredRoles = claimRoles === null ? null : claimRoles.length ? claimRoles : cfg.defaultRole ? [cfg.defaultRole] : [];
   if (!u) {
@@ -304,7 +332,7 @@ export async function logoutUrl(cfg: OidcConfig): Promise<string | null> {
     if (!doc.end_session_endpoint) return null;
     const u = new URL(doc.end_session_endpoint);
     u.searchParams.set("client_id", cfg.clientId);
-    u.searchParams.set("post_logout_redirect_uri", (process.env.APP_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "") + "/");
+    u.searchParams.set("post_logout_redirect_uri", appOrigin() + "/");
     return u.toString();
   } catch { return null; }
 }

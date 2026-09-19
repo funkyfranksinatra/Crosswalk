@@ -31,7 +31,7 @@ export function Inbox() {
     const r = await fetch("/api/notifications/preferences", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, ...patch }) });
     if (r.ok) { const p = await fetch("/api/notifications/preferences", { cache: "no-store" }); setPrefs(await p.json()); }
   }
-  const prefFor = (kind: string): Pref => prefs?.preferences.find((p) => p.kind === kind) ?? prefs?.preferences.find((p) => p.kind === "*") ?? { kind, inApp: true, email: true, teams: ["ALERT", "FEED_FAILED", "JOB_FAILED", "BREAK_GLASS"].includes(kind) };
+  const prefFor = (kind: string): Pref => prefs?.preferences.find((p) => p.kind === kind) ?? prefs?.preferences.find((p) => p.kind === "*") ?? { kind, inApp: true, email: true, teams: ["ALERT", "FEED_FAILED", "JOB_FAILED"].includes(kind) };
   return (
     <div className="grid grid-cols-[1fr_360px] gap-4 items-start">
       <Card title="Inbox" actions={<div className="flex items-center gap-2"><label className="flex items-center gap-1.5 text-[12.5px]"><input type="checkbox" checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)} /> Unread only</label><button className="btn-ghost !py-1 !text-[12px]" onClick={markAll}>Mark all read</button></div>} padded={false}>

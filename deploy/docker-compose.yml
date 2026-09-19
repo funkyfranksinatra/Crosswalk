@@ -5,8 +5,11 @@
 #   docker compose -f deploy/docker-compose.yml up -d --build
 #
 # DATABASE_URL is composed here from POSTGRES_PASSWORD and overrides the one in .env, so the
-# same .env can point a laptop at Neon and this stack at its own database. Drop the `db`
-# service and set DATABASE_URL to Neon to run only the app containers.
+# same .env can point a laptop at Neon and this stack at its own database; everything else
+# (APP_BASE_URL, SSO_*, SESSION_SECRET, TRUST_PROXY_HOPS…) comes from .env. Drop the `db`
+# service and set DATABASE_URL to Neon to run only the app containers. Put a TLS-terminating
+# reverse proxy in front for anything beyond localhost: sessions are Secure cookies when
+# APP_BASE_URL is https, and the rate limiter needs X-Forwarded-For from that proxy.
 name: crosswalk
 services:
   db:
@@ -38,8 +41,6 @@ services:
     environment:
       DATABASE_URL: postgresql://crosswalk:${POSTGRES_PASSWORD}@db:5432/crosswalk
       JOBS_WORKER: external
-      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
-      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
     ports:
       - "${WEB_PORT:-3000}:3000"
     depends_on:

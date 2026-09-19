@@ -159,10 +159,12 @@ export function checkSecrets(env: Env, production: boolean): SecretProblem[] {
   const out: SecretProblem[] = [];
   const val = (k: string) => env[k]?.trim() ?? "";
   const sso = Boolean(val("SSO_ISSUER") && val("SSO_CLIENT_ID"));
+  const ssoMode = sso ? (val("SSO_MODE").toLowerCase() === "proxy" ? "proxy" : "oidc") : "none";
   if (!production) return out;
+  if (sso && !val("SSO_MODE")) out.push({ key: "SSO_MODE", problem: "not set — SSO_ISSUER now means the built-in OIDC client; set SSO_MODE=oidc, or SSO_MODE=proxy to keep the x-sso-subject header contract" });
   const session = val("SESSION_SECRET");
   if (!session) {
-    if (sso || val("ALLOW_DEV_SIGNIN") === "true") out.push({ key: "SESSION_SECRET", problem: "not set — sessions cannot be signed" });
+    if (ssoMode === "oidc" || val("ALLOW_DEV_SIGNIN") === "true") out.push({ key: "SESSION_SECRET", problem: "not set — sessions cannot be signed" });
   } else if (session === DEV_SESSION_KEY) out.push({ key: "SESSION_SECRET", problem: "is the development key" });
   else if (session.length < 16) out.push({ key: "SESSION_SECRET", problem: "shorter than 16 characters" });
   else if (PLACEHOLDERS.test(session)) out.push({ key: "SESSION_SECRET", problem: "is a placeholder" });
@@ -181,14 +183,16 @@ export function checkSecrets(env: Env, production: boolean): SecretProblem[] {
 }
 
 /**
- * Refuse to run a production build with weak or default secrets. ALLOW_DEV_SIGNIN on its own
- * is a warning (it is the documented demo-box escape hatch); everything else is fatal.
+ * Refuse to run a production build with weak or default secrets. ALLOW_DEV_SIGNIN (the
+ * documented demo-box escape hatch) and an unset SSO_MODE (an upgrade note) are warnings;
+ * everything else is fatal.
  */
 export function assertProductionSecrets(env: Env = process.env): void {
   const production = env.NODE_ENV === "production";
   const problems = checkSecrets(env, production);
-  const fatal = problems.filter((p) => p.key !== "ALLOW_DEV_SIGNIN");
-  for (const p of problems.filter((p) => p.key === "ALLOW_DEV_SIGNIN")) log.warn("secrets.warning", { key: p.key, problem: p.problem });
+  const WARN_ONLY = new Set(["ALLOW_DEV_SIGNIN", "SSO_MODE"]);
+  const fatal = problems.filter((p) => !WARN_ONLY.has(p.key));
+  for (const p of problems.filter((p) => WARN_ONLY.has(p.key))) log.warn("secrets.warning", { key: p.key, problem: p.problem });
   if (!fatal.length) return;
   for (const p of fatal) log.error("secrets.refused", { key: p.key, problem: p.problem });
   throw new Error(`Refusing to start: ${fatal.map((p) => `${p.key} ${p.problem}`).join("; ")}. See docs/DEPLOYMENT.md#secrets.`);

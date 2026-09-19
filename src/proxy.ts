@@ -42,7 +42,7 @@ export function proxy(req: NextRequest) {
   if (!pathname.startsWith("/api/")) {
     // Pages: a fresh nonce per request; Next reads it from the CSP request header for its own scripts.
     const nonce = makeNonce();
-    const csp = contentSecurityPolicy(nonce, { dev: process.env.NODE_ENV === "development" });
+    const csp = contentSecurityPolicy(nonce, { dev: process.env.NODE_ENV === "development", https: isHttps(req.nextUrl, req.headers) });
     const headers = new Headers(req.headers);
     headers.set("x-nonce", nonce);
     headers.set("content-security-policy", csp);
@@ -51,9 +51,12 @@ export function proxy(req: NextRequest) {
 
   const id = requestId(req);
   const withId = (res: NextResponse) => { res.headers.set("x-request-id", id); return harden(res, req); };
+  // Next decodes route params before a handler sees them; scoping must see the same decoded path.
+  let decodedPath: string;
+  try { decodedPath = decodeURIComponent(pathname); } catch { return withId(NextResponse.json({ error: "Malformed path" }, { status: 400 })); }
 
   if (limiter) {
-    const d = limiter.hit(clientKey(req.headers), classify(pathname, req.method));
+    const d = limiter.hit(clientKey(req.headers), classify(decodedPath, req.method));
     if (!d.allowed) {
       const res = NextResponse.json({ error: "Too many requests", retryAfterSeconds: Math.ceil((d.resetAt - Date.now()) / 1000) }, { status: 429 });
       res.headers.set("retry-after", String(Math.max(1, Math.ceil((d.resetAt - Date.now()) / 1000))));
@@ -66,11 +69,11 @@ export function proxy(req: NextRequest) {
   const headers = new Headers(req.headers);
   headers.set("x-request-id", id);
   // The route with ids collapsed, for bounded-cardinality metrics and log lines (src/lib/api.ts).
-  headers.set("x-crosswalk-route", `${req.method} ${pathname.replace(/\/[a-z0-9]{20,}(?=\/|$)/gi, "/:id")}`.slice(0, 120));
+  headers.set("x-crosswalk-route", `${req.method} ${decodedPath.replace(/\/[a-z0-9]{20,}(?=\/|$)/gi, "/:id")}`.slice(0, 120));
   // The real path, for ownership scoping in src/lib/api.ts (a client cannot set it: overwritten here).
-  headers.set("x-crosswalk-path", pathname.slice(0, 400));
+  headers.set("x-crosswalk-path", decodedPath.slice(0, 400));
   const next = () => withId(NextResponse.next({ request: { headers } }));
-  if (OPEN.some((p) => (p.endsWith("/") ? pathname.startsWith(p) : pathname === p))) return next();
+  if (OPEN.some((p) => (p.endsWith("/") ? decodedPath.startsWith(p) : decodedPath === p))) return next();
   const hasSession = Boolean(req.cookies.get(DEV_COOKIE)?.value) || Boolean(req.cookies.get(SESSION_COOKIE)?.value) || Boolean(req.headers.get("x-sso-subject"));
   if (!hasSession) return withId(NextResponse.json({ error: "Sign in required" }, { status: 401 }));
   return next();

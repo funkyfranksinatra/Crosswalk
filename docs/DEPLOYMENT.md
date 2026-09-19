@@ -21,6 +21,9 @@ browser ──TLS──► reverse proxy / load balancer ──► web (next sta
   jobs to one or more **worker** containers, which is what the compose stack does.
 - Every instance is stateless: sessions are signed cookies, uploads go to the database, the
   rate limiter is per instance (put a shared one at the proxy when you run several).
+- **TLS is required for anything beyond localhost.** `APP_BASE_URL` decides: with an `https://`
+  URL the session and sign-in cookies are `Secure` and pages carry HSTS; served over plain
+  HTTP on a LAN address, sign-in cannot complete. Terminate TLS at the proxy.
 - The database must have the `vector` extension available (Neon has it; the
   `pgvector/pgvector:pg17` image has it). The migration creates it.
 
@@ -37,7 +40,11 @@ docker run --env-file .env crosswalk npx tsx scripts/retention.ts --dry-run   # 
 
 The entrypoint (`deploy/entrypoint.sh`) is `web | worker | migrate | check | <command>`.
 `MIGRATE_ON_START=false` skips the migration on `web` (run `migrate` as a release step
-instead; do that when you run more than one web instance so only one migrates).
+instead; do that when you run more than one web instance so only one migrates). Before
+migrating, the entrypoint runs the CHECK-constraint preflight and stops with the offending
+rows listed if any would fail (`PREFLIGHT_ON_START=false` to skip). A start-up that cannot
+load its secrets or finds weak configuration exits with the reason as the last log line, so
+the restart policy applies and `docker logs` shows why.
 `HEALTHCHECK` polls `/api/health` (database + queue). CI builds the image and boots it on
 every push (`.github/workflows/ci.yml`, job `image`).
 
@@ -66,7 +73,7 @@ The full list with comments is `.env.example`. What a deployment must decide:
 | `OPENAI_API_KEY` | Matching model; without it runs are heuristic. `OPENFDA_API_KEY` raises the GUDID rate limit. |
 | `JOBS_WORKER` | `inline` (default) or `external` with worker containers. |
 | `SECRETS_PROVIDER` | `env` (default), `aws`, `vault`, `doppler`, `file` — see Secrets. |
-| `TRUST_PROXY_HOPS` | Which `X-Forwarded-For` entry is the client (default 1: set by the nearest proxy). |
+| `TRUST_PROXY_HOPS` | Which `X-Forwarded-For` entry is the client (default 1: appended by the nearest proxy). The proxy must set the header or every user shares one rate-limit bucket. |
 | `RATE_LIMIT_*`, `CSP_REPORT_ONLY` | Request security (defaults are sensible; see `.env.example`). |
 | `RETENTION_*` | Off until `RETENTION_ENABLED=true`; see BACKUPS.md. |
 | `NODE_ENV=production` | Set by the image. A production build refuses weak configuration (below). |
@@ -89,10 +96,17 @@ Register Crosswalk with the provider as a web application with redirect URI
 - **Keycloak**: `SSO_ROLE_CLAIM=realm_access.roles`.
 
 Users are created on first sign-in (`SSO_AUTO_PROVISION=true`, the default) with the roles
-the token carries; the claim is authoritative on every sign-in. A pre-created user is matched
-by email and gains the provider subject. `ADMIN` is best assigned in Crosswalk to a named few
-rather than through the provider. To keep an authenticating reverse proxy that already
-terminates OIDC, set `SSO_MODE=proxy` and have it send `x-sso-subject`.
+the token carries; the claim is authoritative on every sign-in. A pre-created user (no subject
+yet) is matched by email and gains the provider subject; a user already linked to a different
+subject is never re-bound by email, and a token with `email_verified: false` is refused. With
+`SSO_ROLE_MAP` set, only mapped values grant roles; with no map, a claim value that is exactly
+a Crosswalk role name maps to itself. `ADMIN` is best assigned in Crosswalk to a named few
+rather than through the provider.
+
+**Upgrading from the header contract:** before Tier 0, `SSO_ISSUER` + `SSO_CLIENT_ID` meant
+"trust `x-sso-subject` from the proxy". The same variables now select the built-in client,
+so set `SSO_MODE=proxy` to keep an authenticating reverse proxy in front (a production start
+warns while `SSO_MODE` is unset).
 
 ## Secrets
 
@@ -131,8 +145,9 @@ service container to Neon. Each has its own password; rotate with the console or
 
 ## Behind the proxy
 
-- Terminate TLS at the proxy and forward `X-Forwarded-Proto: https` (HSTS and `secure`
-  cookies key off it) and `X-Forwarded-For`.
+- Terminate TLS at the proxy and forward `X-Forwarded-Proto: https` (HSTS and the CSP's
+  upgrade rule key off it; cookies key off `APP_BASE_URL`) and `X-Forwarded-For` (the rate
+  limiter's client identity; `TRUST_PROXY_HOPS` says which entry).
 - Pass `/api/health` through unauthenticated for the load balancer; `/api/metrics` is
   token-guarded (`METRICS_TOKEN`).
 - Body size: uploads are capped in the app (20 MB bid files); set the proxy's limit at or

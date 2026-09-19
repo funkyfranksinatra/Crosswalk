@@ -25,9 +25,13 @@ export const SCOPED_ROLES = new Set(["SALES_REP", "REGIONAL_MANAGER"]);
 
 export type Scope = { mode: "all" } | { mode: "scoped"; userId: string; territories: string[] };
 
-/** Territories are on the User row (`territory`, comma-separated allowed) — not on the actor by default. */
+/**
+ * Territories are on the User row (`territory`, comma-separated allowed) — not on the actor by
+ * default. A user with no roles at all is scoped to nothing rather than to everything.
+ */
 export async function scopeFor(actor: Actor): Promise<Scope> {
-  if (!actor.roles.some((r) => SCOPED_ROLES.has(r)) || actor.roles.some((r) => !SCOPED_ROLES.has(r))) return { mode: "all" };
+  if (actor.roles.length && actor.roles.every((r) => !SCOPED_ROLES.has(r))) return { mode: "all" };
+  if (actor.roles.some((r) => !SCOPED_ROLES.has(r))) return { mode: "all" }; // any unscoped role widens the view
   const u = await prisma.user.findUnique({ where: { id: actor.id }, select: { territory: true } });
   const territories = (u?.territory ?? "").split(/[,;]/).map((t) => t.trim()).filter(Boolean);
   return { mode: "scoped", userId: actor.id, territories };
@@ -95,15 +99,23 @@ export async function assertAccountWritable(actor: Actor, accountId: string | nu
 }
 
 /**
- * The central hook (src/lib/api.ts): `/api/<entity>/<id>/…` is checked against the actor's scope
- * whatever the route does. Ids are cuids (20+ chars); anything shorter is a sub-resource name.
+ * The central hook (src/lib/api.ts): `/api/<entity>/<segment>/…` is checked against the actor's
+ * scope whatever the route does. The path is decoded first (Next decodes route params, so an
+ * encoded id would otherwise reach the handler unchecked). A segment that is a short plain word
+ * is a collection sub-route (`/api/accounts/sync`); anything else is treated as an id and must be
+ * visible — a malformed or unknown id is a 404, never a pass.
  */
-const PATH_ENTITY = /^\/api\/(accounts|requests|proposals|contracts)\/([a-z0-9]{20,})(?:\/|$)/i;
+const PATH_ENTITY = /^\/api\/(accounts|requests|proposals|contracts)\/([^/]+)(?:\/|$)/i;
+const SUBROUTE_WORD = /^[a-z][a-z-]{0,15}$/;
 export async function enforceScopeForPath(actor: Actor, pathname: string | null): Promise<void> {
   if (!pathname) return;
-  const m = pathname.match(PATH_ENTITY);
+  let decoded = pathname;
+  try { decoded = decodeURIComponent(pathname); } catch { throw notFound(); }
+  const m = decoded.match(PATH_ENTITY);
   if (!m) return;
   const id = m[2];
+  if (SUBROUTE_WORD.test(id)) return;
+  if (!/^[a-z0-9]{20,40}$/i.test(id)) throw notFound();
   switch (m[1].toLowerCase()) {
     case "accounts": return assertAccountVisible(actor, id);
     case "requests": return assertRequestVisible(actor, id);

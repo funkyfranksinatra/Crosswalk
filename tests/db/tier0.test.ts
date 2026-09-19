@@ -15,7 +15,7 @@ import { permissionsFor } from "@/lib/auth/permissions";
 import { AuthError, type Actor } from "@/lib/auth";
 import { getCompany } from "@/lib/settings";
 import { resolveUser, type Identity } from "@/lib/auth/oidc";
-import { decide } from "@/lib/approvals/service";
+import { decide, queueFor } from "@/lib/approvals/service";
 import { runRetention, retentionConfig } from "@/lib/retention";
 import { scopeFor, accountWhere, requestWhere, proposalWhere, contractWhere, enforceScopeForPath, assertAccountWritable } from "@/lib/auth/scope";
 
@@ -112,6 +112,13 @@ describe.skipIf(!hasDb)("Tier 0.2 — ownership / territory scoping", () => {
     await expect(enforceScopeForPath(rep.actor, null)).resolves.toBeUndefined();
     // a missing row and an out-of-scope row are indistinguishable
     await expect(enforceScopeForPath(rep.actor, "/api/accounts/clzzzzzzzzzzzzzzzzzzzzzz")).rejects.toBeInstanceOf(AuthError);
+    // an id smuggled past the pattern (percent-encoded, odd length, junk) is checked or refused — never skipped
+    const enc = acc.foreign.slice(0, -1) + "%" + acc.foreign.charCodeAt(acc.foreign.length - 1).toString(16);
+    await expect(enforceScopeForPath(rep.actor, `/api/accounts/${enc}`)).rejects.toMatchObject({ status: 404 });
+    await expect(enforceScopeForPath(analyst.actor, `/api/accounts/${enc}`)).resolves.toBeUndefined();
+    await expect(enforceScopeForPath(rep.actor, "/api/accounts/x%ZZ")).rejects.toMatchObject({ status: 404 }); // undecodable
+    await expect(enforceScopeForPath(rep.actor, "/api/accounts/not-a-cuid-but-long-enough-to-look-like-one")).rejects.toMatchObject({ status: 404 });
+    await expect(enforceScopeForPath(rep.actor, "/api/accounts/abc123")).rejects.toMatchObject({ status: 404 }); // short but not a plain word
   });
 
   test("a rep cannot file a request or proposal against an account outside their book", async () => {
@@ -162,6 +169,14 @@ describe.skipIf(!hasDb)("Tier 0.1 — OIDC subject → user resolution", () => {
     expect((await prisma.user.findUniqueOrThrow({ where: { id: pre.id } })).externalId).toBe(`${RUN}-sub2`);
   });
 
+  test("an account already linked to another identity is never re-bound by email", async () => {
+    const linked = await prisma.user.create({ data: { email: `${RUN}.linked@test.local`, name: "Linked", externalId: `${RUN}-original-sub`, roles: { create: [{ role: "ADMIN" }] } } });
+    await expect(resolveUser(cfg, id({ subject: `${RUN}-impostor`, email: linked.email.toUpperCase(), roles: ["SALES_REP"] }))).rejects.toMatchObject({ status: 403, message: /different identity/ });
+    const after = await prisma.user.findUniqueOrThrow({ where: { id: linked.id }, include: { roles: true } });
+    expect(after.externalId).toBe(`${RUN}-original-sub`);
+    expect(after.roles.map((r) => r.role)).toEqual(["ADMIN"]);
+  });
+
   test("deactivated users, unknown users without auto-provision, and users with no role are refused", async () => {
     const off = await prisma.user.create({ data: { email: `${RUN}.off@test.local`, name: "Off", isActive: false, externalId: `${RUN}-off` } });
     await expect(resolveUser(cfg, id({ subject: `${RUN}-off`, email: off.email }))).rejects.toMatchObject({ status: 403, message: /deactivated/ });
@@ -198,7 +213,7 @@ describe.skipIf(!hasDb)("Tier 0.8 — audited break-glass self-approval", () => 
   afterAll(async () => {
     await prisma.notification.deleteMany({ where: { userId: { in: [admin.row.id, admin2.row.id, director.row.id] } } });
     await prisma.proposal.deleteMany({ where: { id: { in: made } } });
-    await prisma.account.deleteMany({ where: { accountNumber: `${RUN}-bg` } });
+    await prisma.account.deleteMany({ where: { accountNumber: { in: [`${RUN}-bg`, `${RUN}-bg-foreign`] } } });
     await prisma.user.deleteMany({ where: { email: { startsWith: `${RUN}.bg-` } } });
   });
 
@@ -237,6 +252,20 @@ describe.skipIf(!hasDb)("Tier 0.8 — audited break-glass self-approval", () => 
     expect(await prisma.notification.count({ where: { kind: "BREAK_GLASS", entityId: req.id } })).toBe(0);
   });
 
+  test("a scoped approver neither sees nor decides requests outside their book of business", async () => {
+    const mgr = await mkUser("bg-mgr", ["REGIONAL_MANAGER"], "Nowhere");
+    const foreignAccount = await prisma.account.create({ data: { name: `${RUN} bg-foreign`, accountNumber: `${RUN}-bg-foreign`, territory: "Elsewhere", ownerUserId: admin.row.id } });
+    const p = await prisma.proposal.create({ data: { reference: `${RUN}-P-foreign`, accountId: foreignAccount.id, status: "SUBMITTED", ownerUserId: admin.row.id, createdByUserId: admin.row.id, lines: { create: [{ lineNo: 1, competitorCode: "X2", quantity: 1, proposedPrice: 90, listPrice: 100, approvalState: "PENDING", included: true }] } }, include: { lines: true } });
+    made.push(p.id);
+    const req = await prisma.approvalRequest.create({ data: { proposalId: p.id, proposalLineId: p.lines[0].id, requiredRole: "REGIONAL_MANAGER", reason: "10% off", requestedByUserId: admin.row.id, snapshotJson: JSON.stringify({ proposedPrice: "90" }) } });
+    expect((await queueFor(mgr.actor)).map((r) => r.id)).not.toContain(req.id);
+    await expect(decide(mgr.actor, req.id, "APPROVED", "ok")).rejects.toMatchObject({ status: 404 });
+    // the same manager with the account in their territory
+    await prisma.user.update({ where: { id: mgr.row.id }, data: { territory: "Elsewhere" } });
+    expect((await queueFor(mgr.actor)).map((r) => r.id)).toContain(req.id);
+    await decide(mgr.actor, req.id, "APPROVED", "ok");
+  });
+
   test("a normal approval by someone else is never flagged", async () => {
     const { req } = await pendingRequest(admin.row.id);
     await decide(director.actor, req.id, "APPROVED", "ok");
@@ -244,7 +273,10 @@ describe.skipIf(!hasDb)("Tier 0.8 — audited break-glass self-approval", () => 
   });
 });
 
-describe.skipIf(!hasDb)("Tier 0.7 — retention sweep", () => {
+// The real sweep deletes by age across the whole database, so it only ever runs against a
+// loopback Postgres — never the shared Neon branch a developer's .env may point at.
+const loopbackDb = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(process.env.DATABASE_URL ?? "");
+describe.skipIf(!hasDb || !loopbackDb)("Tier 0.7 — retention sweep", () => {
   const old = new Date(Date.now() - 400 * 86_400_000);
   const recent = new Date(Date.now() - 2 * 86_400_000);
   const ids: { req: string[]; llm: string[]; snap: string[] } = { req: [], llm: [], snap: [] };

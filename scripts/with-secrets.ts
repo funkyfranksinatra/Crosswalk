@@ -21,6 +21,8 @@ async function main() {
   if (check) assertProductionSecrets();
   if (!cmd.length) return;
   const child = spawn(cmd[0], cmd.slice(1), { stdio: "inherit", env: process.env, shell: process.platform === "win32" });
+  // A stop during `prisma migrate deploy` must reach prisma, not orphan it mid-migration.
+  for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(sig, () => { child.kill(sig); });
   child.on("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
 }
 main().catch((e) => { console.error(e instanceof Error ? e.message : String(e)); process.exit(1); });

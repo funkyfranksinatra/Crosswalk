@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ssoMode, oidcConfig, completeSignIn, resolveUser, issueSession, openCookie, OIDC_STATE_COOKIE, SESSION_COOKIE, type StartState } from "@/lib/auth/oidc";
+import { ssoMode, oidcConfig, completeSignIn, resolveUser, issueSession, openCookie, appOrigin, cookiesSecure, OIDC_STATE_COOKIE, SESSION_COOKIE, type StartState } from "@/lib/auth/oidc";
 import { AuthError } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { log } from "@/lib/log";
+import { signInFailedPage } from "@/lib/auth/oidc-page";
 
 /**
  * The provider sends the browser back here with `code` + `state`. On success the session
@@ -13,15 +14,18 @@ import { log } from "@/lib/log";
 export async function GET(req: NextRequest) {
   if (ssoMode() !== "oidc") return NextResponse.json({ error: "SSO sign-in is not enabled" }, { status: 404 });
   const q = req.nextUrl.searchParams;
-  const stored = openCookie<StartState>(req.cookies.get(OIDC_STATE_COOKIE)?.value);
+  const rawState = req.cookies.get(OIDC_STATE_COOKIE)?.value;
+  const stored = openCookie<StartState>(rawState);
   const clear = (res: NextResponse) => { res.cookies.set(OIDC_STATE_COOKIE, "", { maxAge: 0, path: "/api/auth/oidc" }); return res; };
   try {
+    if (!rawState) throw new AuthError(`The sign-in state cookie did not come back. The app is served at ${appOrigin()}; if you reached it another way, or over plain HTTP while APP_BASE_URL is https, the browser drops the cookie. Start again from ${appOrigin()}.`, 401);
     const cfg = oidcConfig();
     const { identity, next } = await completeSignIn(cfg, { code: q.get("code"), state: q.get("state"), error: q.get("error"), errorDescription: q.get("error_description") }, stored);
     const { userId, created, rolesSynced } = await resolveUser(cfg, identity);
     const session = issueSession(userId, identity.subject, cfg.sessionHours);
-    const res = clear(NextResponse.redirect(new URL(next, req.nextUrl.origin), { status: 302 }));
-    res.cookies.set(SESSION_COOKIE, session.value, { httpOnly: true, sameSite: "lax", path: "/", secure: process.env.NODE_ENV === "production", expires: session.expires });
+    // Redirect on the public origin, never the request's (a TLS-terminating proxy makes that http).
+    const res = clear(NextResponse.redirect(new URL(next, appOrigin() + "/"), { status: 302 }));
+    res.cookies.set(SESSION_COOKIE, session.value, { httpOnly: true, sameSite: "lax", path: "/", secure: cookiesSecure(), expires: session.expires });
     await audit({ actorUserId: userId, entityType: "User", entityId: userId, action: "SSO_SIGN_IN", context: { issuer: cfg.issuer, created, rolesSynced, roles: identity.roles } });
     log.info("oidc.signin", { userId, created, rolesSynced });
     return res;
@@ -29,9 +33,6 @@ export async function GET(req: NextRequest) {
     const status = e instanceof AuthError ? e.status : 500;
     const message = e instanceof AuthError ? e.message : "Sign-in failed";
     log.warn("oidc.callback.failed", { status, error: (e as Error).message });
-    const html = `<!doctype html><meta charset="utf-8"><title>Sign-in failed</title><body style="font:15px system-ui;max-width:32rem;margin:4rem auto;color:#222"><h1 style="font-size:20px">Sign-in failed</h1><p>${escapeHtml(message)}</p><p><a href="/api/auth/oidc/start">Try again</a></p></body>`;
-    return clear(new NextResponse(html, { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } }));
+    return clear(signInFailedPage(message, status));
   }
 }
-
-function escapeHtml(s: string): string { return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!); }

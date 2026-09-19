@@ -27,7 +27,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const to = date(e.effectiveTo) ?? c.effectiveTo;
       if (to && to <= from) throw new Error(`effectiveTo before effectiveFrom for ${e.sku}`);
       const prior = await prisma.priceEntry.findMany({ where: { contractId: id, productId: product.id, status: "ACTIVE", minQty: toDb(e.minQty as never) ?? null, maxQty: toDb(e.maxQty as never) ?? null } });
-      if (prior.length) { await prisma.priceEntry.updateMany({ where: { id: { in: prior.map((p) => p.id) } }, data: { status: "SUPERSEDED", effectiveTo: from } }); superseded += prior.length; }
+      if (prior.length) {
+        // An entry that started before the new one ends when it starts; one dated at or after it is just superseded.
+        const ending = prior.filter((p) => p.effectiveFrom < from).map((p) => p.id), replaced = prior.filter((p) => p.effectiveFrom >= from).map((p) => p.id);
+        if (ending.length) await prisma.priceEntry.updateMany({ where: { id: { in: ending } }, data: { status: "SUPERSEDED", effectiveTo: from } });
+        if (replaced.length) await prisma.priceEntry.updateMany({ where: { id: { in: replaced } }, data: { status: "SUPERSEDED" } });
+        superseded += prior.length;
+      }
       await prisma.priceEntry.create({ data: { contractId: id, accountId: c.accountId, gpoId: c.gpoId, productId: product.id, productFamily: product.category, price: toDb(price)!, currency, effectiveFrom: from, effectiveTo: to, tier: str(e.tier) ?? c.tier, minQty: toDb(minQty), maxQty: toDb(maxQty), volumeTierName: str(e.volumeTierName), source: "manual", status: "ACTIVE", approvalState: "APPROVED" } });
       created++;
     }

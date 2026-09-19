@@ -13,6 +13,10 @@ role="${1:-web}"
 [ $# -gt 0 ] && shift
 
 migrate() {
+  if [ "${PREFLIGHT_ON_START:-true}" = "true" ]; then
+    echo "[entrypoint] db preflight (CHECK constraints)"
+    npx tsx scripts/db-preflight.ts || { echo "[entrypoint] preflight found rows that would fail the constraints; fix them or set PREFLIGHT_ON_START=false"; exit 1; }
+  fi
   echo "[entrypoint] prisma migrate deploy"
   npx tsx scripts/with-secrets.ts --check -- npx prisma migrate deploy
 }

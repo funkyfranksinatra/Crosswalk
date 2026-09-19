@@ -19,6 +19,7 @@ import { RateLimiter, classify, clientKey, limitsFromEnv } from "@/lib/security/
 import { makeNonce, contentSecurityPolicy, hardeningHeaders, isHttps } from "@/lib/security/headers";
 import { ENUM_CONSTRAINTS, EXPR_CONSTRAINTS, constraintName, constraintExpr, migrationSql, violationQueries } from "@/lib/db/constraints";
 import { ROLES } from "@/lib/auth/permissions";
+import { ACCOUNT_TYPES } from "@/lib/accounts/types";
 import { KINDS } from "@/lib/notifications/kinds";
 import { EQUIVALENCE } from "@/lib/xref/equivalence";
 import { SOURCE_TYPES } from "@/lib/intelligence/summarize";
@@ -30,7 +31,7 @@ describe("0.2 scope fragments", () => {
   test("non-scoped roles and mixed roles are unscoped without touching the database", async () => {
     expect(await scopeFor(actor(["PRICING_ANALYST"]))).toEqual({ mode: "all" });
     expect(await scopeFor(actor(["SALES_REP", "ADMIN"]))).toEqual({ mode: "all" });
-    expect(await scopeFor(actor([]))).toEqual({ mode: "all" });
+    expect((await scopeFor(actor(["SALES_REP", "PRICING_ANALYST"]))).mode).toBe("all");
   });
   test("scoped fragments cover owner, territory, unassigned and parent; no territory → no territory clause", () => {
     const s = { mode: "scoped" as const, userId: "u1", territories: ["NE"] };
@@ -55,10 +56,12 @@ describe("0.1 role mapping and claims", () => {
     expect(() => parseRoleMap("x=NOT_A_ROLE")).toThrow(/unknown role/);
     expect(() => parseRoleMap("novalue")).toThrow(/without '='/);
   });
-  test("claim values map through the table, or to themselves when they are role names; unknowns dropped", () => {
+  test("claim values map through the table; with no table, exact role names map to themselves; unknowns dropped", () => {
     const map = parseRoleMap("CW-Admins=ADMIN");
-    expect(mapRoles(["cw-admins", "SALES_REP", "Everyone", "sales_rep"], map)).toEqual(["SALES_REP", "ADMIN"]);
-    expect(mapRoles("FINANCE EXECUTIVE", map)).toEqual(["FINANCE", "EXECUTIVE"]);
+    expect(mapRoles(["cw-admins", "SALES_REP", "Everyone", "sales_rep"], map)).toEqual(["ADMIN"]); // a map is the whole vocabulary
+    expect(mapRoles(["finance", "Executive", "ADMIN"], map)).toEqual([]); // directory groups that happen to sound like roles grant nothing
+    expect(mapRoles(["SALES_REP", "sales_rep", "FINANCE EXECUTIVE".split(" ")[0]], {})).toEqual(["SALES_REP", "FINANCE"]); // implicit: exact case only
+    expect(mapRoles("FINANCE EXECUTIVE", {})).toEqual(["FINANCE", "EXECUTIVE"]);
     expect(mapRoles(undefined, map)).toEqual([]);
     expect(mapRoles(42, map)).toEqual([]);
   });
@@ -88,7 +91,9 @@ describe("0.1 signed cookies and sessions", () => {
   });
   test("post-login destination is a same-origin page path", () => {
     expect(safeNext("/proposals/abc?x=1")).toBe("/proposals/abc?x=1");
-    for (const bad of [null, "", "https://evil", "//evil", "/\\evil", "/api/auth/dev", "/a\r\nb", "javascript:alert(1)"]) expect(safeNext(bad)).toBe("/");
+    expect(safeNext("/accounts/x#frag")).toBe("/accounts/x"); // fragments never reach the server anyway
+    for (const bad of [null, "", "https://evil", "//evil", "/\\evil", "/api/auth/dev", "/a\r\nb", "javascript:alert(1)", "/\t/evil.com", "/\u0000x", "/%09/evil.com".replace("%09", "\t"), "/..//evil.com"]) expect(safeNext(bad), bad ?? "null").toBe("/");
+    expect(safeNext("/a/../b")).toBe("/b"); // resolved, still same-origin
   });
   test("PKCE challenge is S256 of the verifier", () => {
     const { verifier, challenge } = pkcePair();
@@ -230,8 +235,8 @@ describe("0.1 OIDC flow against an in-memory provider", () => {
     idp.next = { claims: { roles: ["Everyone"] } };
     expect((await completeSignIn(cfg, { code: "c", state: state.state }, state)).identity.roles).toEqual([]);
     ({ state } = await happyStart());
-    idp.next = { claims: { realm_access: { roles: ["pricing_director"] } } };
-    expect((await completeSignIn({ ...cfg, roleClaim: "realm_access.roles" }, { code: "c", state: state.state }, state)).identity.roles).toEqual(["PRICING_DIRECTOR"]);
+    idp.next = { claims: { realm_access: { roles: ["PRICING_DIRECTOR", "pricing_director"] } } };
+    expect((await completeSignIn({ ...cfg, roleClaim: "realm_access.roles", roleMap: {} }, { code: "c", state: state.state }, state)).identity.roles).toEqual(["PRICING_DIRECTOR"]);
   });
 
   test("email falls back to preferred_username / upn and is lower-cased; a token without a subject is refused", async () => {
@@ -241,6 +246,12 @@ describe("0.1 OIDC flow against an in-memory provider", () => {
     ({ state } = await happyStart());
     idp.next = { claims: { email: undefined, preferred_username: "not-an-email" } };
     expect((await completeSignIn(cfg, { code: "c", state: state.state }, state)).identity.email).toBeNull();
+  });
+
+  test("an unverified email is refused", async () => {
+    const { state } = await happyStart();
+    idp.next = { claims: { email_verified: false } };
+    await expect(completeSignIn(cfg, { code: "c", state: state.state }, state)).rejects.toMatchObject({ status: 403, message: /unverified/ });
   });
 
   test("a bad discovery document is a 502, never a crash", async () => {
@@ -269,7 +280,9 @@ describe("0.3 secrets", () => {
     expect(checkSecrets({ ...base, DATABASE_URL: "postgresql://crosswalk:crosswalk@db:5432/x" }, true)).toMatchObject([{ key: "DATABASE_URL", problem: /default/ }]); // ...but a real password
     expect(checkSecrets({ ...base, DATABASE_URL: "postgresql://crosswalk:crosswalk@localhost:5432/x" }, true)).toEqual([]); // loopback: only the box itself can reach it
     expect(checkSecrets({ ...base, OPENAI_API_KEY: "changeme" }, true)).toMatchObject([{ key: "OPENAI_API_KEY" }]);
-    expect(checkSecrets({ ...base, SESSION_SECRET: "", SSO_ISSUER: "https://x", SSO_CLIENT_ID: "c" }, true)).toMatchObject([{ key: "SESSION_SECRET", problem: /not set/ }]);
+    expect(checkSecrets({ ...base, SESSION_SECRET: "", SSO_ISSUER: "https://x", SSO_CLIENT_ID: "c", SSO_MODE: "oidc" }, true)).toMatchObject([{ key: "SESSION_SECRET", problem: /not set/ }]);
+    expect(checkSecrets({ ...base, SESSION_SECRET: "", SSO_ISSUER: "https://x", SSO_CLIENT_ID: "c", SSO_MODE: "proxy" }, true)).toEqual([]); // the proxy signs nothing here
+    expect(checkSecrets({ ...base, SSO_ISSUER: "https://x", SSO_CLIENT_ID: "c" }, true)).toMatchObject([{ key: "SSO_MODE", problem: /not set/ }]); // upgrade note
     expect(checkSecrets({ ...base, SESSION_SECRET: "" }, true)).toEqual([]); // no SSO, no dev sign-in: nothing signs a session
     expect(checkSecrets({ ...base, ALLOW_DEV_SIGNIN: "true" }, true)).toMatchObject([{ key: "ALLOW_DEV_SIGNIN" }]);
     // development is exempt from all of it
@@ -279,6 +292,7 @@ describe("0.3 secrets", () => {
   test("assertProductionSecrets throws on fatal problems, warns for the demo escape hatch, and is silent in development", () => {
     expect(() => assertProductionSecrets({ NODE_ENV: "production", SESSION_SECRET: "crosswalk-dev-insecure-session-key" })).toThrow(/Refusing to start.*SESSION_SECRET/);
     expect(() => assertProductionSecrets({ NODE_ENV: "production", ALLOW_DEV_SIGNIN: "true", SESSION_SECRET: "a-perfectly-fine-long-random-secret" })).not.toThrow();
+    expect(() => assertProductionSecrets({ NODE_ENV: "production", SSO_ISSUER: "https://x", SSO_CLIENT_ID: "c", SESSION_SECRET: "a-perfectly-fine-long-random-secret" })).not.toThrow(); // SSO_MODE unset is a warning
     expect(() => assertProductionSecrets({ NODE_ENV: "development", SESSION_SECRET: "short" })).not.toThrow();
   });
 
@@ -355,7 +369,15 @@ describe("0.5 rate limiting and security headers", () => {
     t += 60_001;
     expect(rl.hit("1.1.1.1", "auth")).toMatchObject({ allowed: true, remaining: 1 });
     t += 60_001; rl.hit("3.3.3.3", "api");
-    expect(rl.size).toBe(1); // everything older swept
+    expect(rl.size).toBe(2); // everything older swept (one client bucket + the class-wide one)
+  });
+  test("the instance-wide ceiling bounds a flood of invented client addresses", () => {
+    let t = 5_000_000;
+    const rl = new RateLimiter({ auth: 2, heavy: 3, api: 5 }, () => t, 3); // ceiling = 3 × client limit
+    const results = Array.from({ length: 8 }, (_, i) => rl.hit(`spoof-${i}`, "auth").allowed);
+    expect(results).toEqual([true, true, true, true, true, true, false, false]); // 2 × 3 = 6 sign-ins per minute per instance, whatever the address
+    t += 60_001;
+    expect(rl.hit("spoof-99", "auth").allowed).toBe(true);
   });
   test("limits come from the environment, disabled switch, client key honours proxy hops", () => {
     expect(limitsFromEnv({})).toEqual({ auth: 20, heavy: 60, api: 600 });
@@ -371,8 +393,10 @@ describe("0.5 rate limiting and security headers", () => {
     const n = makeNonce();
     expect(n).toMatch(/^[A-Za-z0-9+/=]{20,}$/);
     expect(makeNonce()).not.toBe(n);
-    const csp = contentSecurityPolicy(n);
+    const csp = contentSecurityPolicy(n, { https: true });
     expect(csp).toContain(`script-src 'self' 'nonce-${n}' 'strict-dynamic'`);
+    expect(csp).toContain("upgrade-insecure-requests");
+    expect(contentSecurityPolicy(n)).not.toContain("upgrade-insecure-requests"); // plain HTTP: never upgrade, it would break every asset
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("object-src 'none'");
     expect(csp).not.toContain("unsafe-eval");
@@ -391,6 +415,7 @@ describe("0.6 CHECK constraints", () => {
   test("the committed migration is exactly what the definitions generate (regenerate with scripts/gen-constraints.ts)", () => {
     const committed = fs.readFileSync(path.resolve(__dirname, "../../prisma/migrations/20260919000100_tier0_check_constraints/migration.sql"), "utf8");
     expect(committed).toBe(migrationSql());
+    expect(committed).toMatch(/NOT VALID;\nALTER TABLE "UserRole" VALIDATE CONSTRAINT "chk_UserRole_role";/); // add without a long exclusive lock
   });
   test("enum constraints track the application's own lists and never overlap", () => {
     const byKey = new Map(ENUM_CONSTRAINTS.map((c) => [`${c.table}.${c.column}`, c.values]));
@@ -399,6 +424,7 @@ describe("0.6 CHECK constraints", () => {
     expect(byKey.get("KnownCross.equivalenceLevel")).toEqual(EQUIVALENCE);
     expect(byKey.get("CompetitorPriceObservation.sourceType")).toEqual(SOURCE_TYPES);
     expect(byKey.get("Request.status")).toContain("cancelled");
+    expect(byKey.get("Account.type")).toEqual(ACCOUNT_TYPES); // the API's vocabulary, not the schema comment's
     const names = [...ENUM_CONSTRAINTS, ...EXPR_CONSTRAINTS].map(constraintName);
     expect(new Set(names).size).toBe(names.length);
     for (const c of ENUM_CONSTRAINTS) expect(new Set(c.values).size).toBe(c.values.length);

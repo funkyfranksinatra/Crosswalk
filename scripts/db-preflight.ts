@@ -6,10 +6,12 @@
  *   npm run db:preflight
  */
 import "dotenv/config";
-import { prisma } from "../src/lib/db";
+import { loadSecrets } from "../src/lib/secrets";
 import { violationQueries } from "../src/lib/db/constraints";
 
 async function main() {
+  await loadSecrets(); // DATABASE_URL may live in the secret manager; the client reads it at load
+  const { prisma } = await import("../src/lib/db");
   let bad = 0;
   for (const q of violationQueries()) {
     let n = 0;
@@ -24,6 +26,7 @@ async function main() {
     if (n > 0) { bad += n; console.log(`  FAIL  ${q.name}: ${n} row(s) — ${q.description}`); }
   }
   console.log(bad ? `\n${bad} row(s) would violate the constraints; fix them before migrating.` : "No rows violate the CHECK constraints.");
+  await prisma.$disconnect();
   process.exit(bad ? 1 : 0);
 }
-main().catch((e) => { console.error(e instanceof Error ? e.message : String(e)); process.exit(2); }).finally(() => prisma.$disconnect());
+main().catch((e) => { console.error(e instanceof Error ? e.message : String(e)); process.exit(2); });

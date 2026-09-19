@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     let accountId = b.accountId;
     if (!accountId) {
       const r = await prisma.request.findUniqueOrThrow({ where: { id: b.requestId } });
-      if (r.accountId) accountId = r.accountId;
+      if (r.accountId) { await assertAccountWritable(actor, r.accountId); accountId = r.accountId; }
       else if (r.accountNumber) { const acc = await prisma.account.upsert({ where: { accountNumber: r.accountNumber }, create: { accountNumber: r.accountNumber, name: r.accountName ?? r.accountNumber, type: "SOLD_TO" }, update: {} }); await prisma.request.update({ where: { id: r.id }, data: { accountId: acc.id } }); accountId = acc.id; }
       else throw new Error("Choose an account for this proposal");
     }

@@ -25,6 +25,7 @@ RUN npm ci --ignore-scripts && npm cache clean --force
 
 # ---- build ----------------------------------------------------------------------------------
 FROM deps AS build
+ENV NODE_ENV=production
 COPY . .
 # The Prisma client reads DATABASE_URL when a module loads; the build never connects.
 ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"

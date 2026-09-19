@@ -172,9 +172,10 @@ password, or a remote database without `sslmode`. `npm run secrets:check` (or th
 `check` role) prints the same list; fix the environment, never the check.
 
 **429 Too many requests.** Per-client, per-minute limits by route class (`RATE_LIMIT_AUTH`
-20, `RATE_LIMIT_HEAVY` 60, `RATE_LIMIT_API` 600); the response carries `Retry-After`. Behind
-a load balancer, `TRUST_PROXY_HOPS` must point at the real client entry in
-`X-Forwarded-For` or every user shares one bucket.
+20, `RATE_LIMIT_HEAVY` 60, `RATE_LIMIT_API` 600) plus a per-instance ceiling of
+`RATE_LIMIT_GLOBAL_FACTOR` (20) × each; the response carries `Retry-After`. Behind a load
+balancer, the proxy must send `X-Forwarded-For` and `TRUST_PROXY_HOPS` must point at the
+real client entry, or every user shares one bucket.
 
 **Something on a page is blocked by the CSP.** Only scripts carrying the per-request nonce
 run; a browser extension or an injected script shows as a CSP violation in the console.

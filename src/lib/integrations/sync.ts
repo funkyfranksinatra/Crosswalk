@@ -6,6 +6,7 @@
  */
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { normalizeAccountType } from "@/lib/accounts/types";
 import { toDb, money } from "@/lib/money";
 import { normalizeCfn, isPlaceholderSku } from "@/lib/cfn";
 import type { CrmAdapter, ErpAdapter, GpoAdapter, CrmQuotePush } from "./types";
@@ -99,7 +100,7 @@ export async function syncCrmAccounts(actorUserId: string | null): Promise<SyncR
     const res = await withRetry(async () => {
       const parent = a.parentExternalId ? await prisma.externalRef.findUnique({ where: { system_entityType_externalId: { system: crm.system, entityType: "Account", externalId: a.parentExternalId } } }) : null;
       const owner = a.ownerEmail ? await prisma.user.findUnique({ where: { email: a.ownerEmail } }) : null;
-      const data = { name: a.name, accountNumber: a.accountNumber ?? undefined, type: a.type ?? "SOLD_TO", parentAccountId: parent?.entityId ?? null, territory: a.territory ?? null, segment: a.segment ?? null, region: a.region ?? null, country: a.country ?? "US", currency: a.currency ?? "USD", isStrategic: Boolean(a.isStrategic), ownerUserId: owner?.id ?? null, externalCrmId: a.externalId };
+      const data = { name: a.name, accountNumber: a.accountNumber ?? undefined, type: normalizeAccountType(a.type), parentAccountId: parent?.entityId ?? null, territory: a.territory ?? null, segment: a.segment ?? null, region: a.region ?? null, country: a.country ?? "US", currency: a.currency ?? "USD", isStrategic: Boolean(a.isStrategic), ownerUserId: owner?.id ?? null, externalCrmId: a.externalId };
       // Reconcile: ExternalRef → externalCrmId → the account number (accounts created before the
       // CRM was connected — from seeds, requests or a purchase feed — get linked, not duplicated).
       // An account number already bound to a *different* CRM record is a real conflict and fails loudly.
@@ -159,7 +160,7 @@ export async function syncErp(actorUserId: string | null, companyId: string): Pr
     if (ref?.syncHash === h) { costRep.skipped++; continue; }
     const product = await prisma.ownProduct.findFirst({ where: { companyId, sku: c.sku.toUpperCase() } });
     if (!product) { costRep.skipped++; await log(erp.system, "IN", "StandardCost", { externalId: key, status: "SKIPPED", error: "unknown SKU" }); continue; }
-    const data = { productId: product.id, plant: c.plant ?? null, region: c.region ?? null, currency: c.currency, costType: c.costType ?? "STANDARD", cost: toDb(c.cost)!, effectiveFrom: new Date(c.effectiveFrom), effectiveTo: c.effectiveTo ? new Date(c.effectiveTo) : null, source: "erp" };
+    const data = { productId: product.id, plant: c.plant ?? null, region: c.region ?? null, currency: c.currency, costType: ["STANDARD", "LANDED", "TRANSFER"].includes(String(c.costType ?? "").toUpperCase()) ? String(c.costType).toUpperCase() : "STANDARD", cost: toDb(c.cost)!, effectiveFrom: new Date(c.effectiveFrom), effectiveTo: c.effectiveTo ? new Date(c.effectiveTo) : null, source: "erp" };
     const row = ref ? await prisma.standardCost.update({ where: { id: ref.entityId }, data }) : await prisma.standardCost.create({ data });
     await upsertRef(erp.system, "StandardCost", key, row.id, h); ref ? costRep.updated++ : costRep.created++;
     await log(erp.system, "IN", "StandardCost", { entityId: row.id, externalId: key, status: "OK", payloadHash: h });
