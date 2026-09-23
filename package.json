@@ -18,6 +18,7 @@
     "check:enterprise": "tsx scripts/check-enterprise.ts",
     "test:enterprise": "tsx scripts/test-enterprise.ts",
     "test:adversarial": "tsx scripts/test-adversarial.ts",
+    "profile:run": "tsx scripts/profile-run.ts",
     "db:seed:enterprise": "tsx prisma/seed-enterprise.ts",
     "db:migrate:http": "tsx scripts/migrate-http.ts",
     "worker": "tsx scripts/worker.ts",

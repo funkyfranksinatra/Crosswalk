@@ -60,7 +60,7 @@ export async function refreshStaleRecords(opts: { cfnNorm?: string; limit?: numb
     if (!row.gudidDi) continue;
     rep.checked++;
     try {
-      const rec = await lookupByDi(row.gudidDi);
+      const rec = await lookupByDi(row.gudidDi, { fresh: true });
       if (!rec) {
         rep.missing++;
         await prisma.competitorProduct.update({ where: { id: row.id }, data: { gudidCheckedAt: new Date(), resolutionNote: appendNote(row.resolutionNote, "GUDID record no longer found on refresh") } });
@@ -88,7 +88,7 @@ export async function refreshStaleRecords(opts: { cfnNorm?: string; limit?: numb
     for (const p of own) {
       rep.ownChecked++;
       try {
-        const rec = await lookupByDi(p.gudidDi!);
+        const rec = await lookupByDi(p.gudidDi!, { fresh: true });
         if (!rec) { await prisma.ownProduct.update({ where: { id: p.id }, data: { gudidSyncedAt: new Date() } }); continue; }
         const prev = p.gudidJson ? (JSON.parse(p.gudidJson) as OpenFdaRecord) : null;
         if (prev?.public_version_date && prev.public_version_date === rec.public_version_date) { await prisma.ownProduct.update({ where: { id: p.id }, data: { gudidSyncedAt: new Date() } }); continue; }

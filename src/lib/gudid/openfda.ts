@@ -1,3 +1,4 @@
+import { openFdaGet, onFetchReplaced } from "./http";
 /**
  * openFDA Device UDI endpoint — a searchable mirror of AccessGUDID.
  * Docs: https://open.fda.gov/apis/device/udi/
@@ -39,9 +40,35 @@ function q(s: string) {
   return `"${s.replace(/"/g, '\\"')}"`;
 }
 
-async function fetchJson(url: string): Promise<OpenFdaSearch> {
+/**
+ * Short-lived memo of search results (default 5 minutes, bounded). A run asks openFDA for the same
+ * query more than once — pass 1 and pass 2 of resolution try the exact form, sibling lines share
+ * variants — and openFDA's data changes weekly, so an answer a few minutes old is the same answer.
+ * Only completed responses are memoised (a 404 "no matches" included); errors are never cached.
+ * Set OPENFDA_MEMO_SECONDS=0 to disable.
+ */
+const memo = new Map<string, { at: number; value: OpenFdaSearch }>();
+const inFlight = new Map<string, Promise<OpenFdaSearch>>();
+const MEMO_MS = Number(process.env.OPENFDA_MEMO_SECONDS ?? 300) * 1000;
+const MEMO_MAX = 2000;
+export function clearOpenFdaMemo() { memo.clear(); inFlight.clear(); }
+onFetchReplaced(clearOpenFdaMemo); // the test seam swaps fetch → the memo must not outlive it
+
+async function fetchJson(url: string, opts: { fresh?: boolean } = {}): Promise<OpenFdaSearch> {
+  if (MEMO_MS > 0 && !opts.fresh) {
+    const hit = memo.get(url);
+    if (hit && Date.now() - hit.at < MEMO_MS) return hit.value;
+    const pending = inFlight.get(url);
+    if (pending) return pending;
+    const p = fetchJsonLive(url).then((v) => { if (memo.size >= MEMO_MAX) memo.delete(memo.keys().next().value!); memo.set(url, { at: Date.now(), value: v }); return v; }).finally(() => inFlight.delete(url));
+    inFlight.set(url, p);
+    return p;
+  }
+  return fetchJsonLive(url);
+}
+
+async function fetchJsonLive(url: string): Promise<OpenFdaSearch> {
   // Rate limiting, backoff and the api key live in ./http — one path for every openFDA call.
-  const { openFdaGet } = await import("./http");
   const r = await openFdaGet(url);
   if (r.status === 404 || !r.json) return { total: 0, results: [] }; // openFDA uses 404 for "no matches"
   const data = r.json as { meta?: { results?: { total?: number } }; results?: OpenFdaRecord[] };
@@ -66,8 +93,11 @@ export async function searchByBrandAndCompany(brand: string, company?: string, l
   return searchOpenFda(parts.join("+AND+"), limit);
 }
 
-export async function lookupByDi(di: string): Promise<OpenFdaRecord | null> {
-  const r = await searchOpenFda(`identifiers.id:${q(di)}`, 1);
+/** `fresh` bypasses the memo — the cache-expiry refresh exists to notice changes, so it must always ask openFDA. */
+export async function lookupByDi(di: string, opts: { fresh?: boolean } = {}): Promise<OpenFdaRecord | null> {
+  const search = `identifiers.id:${q(di)}`;
+  const encoded = search.replace(/"([^"]*)"/g, (_m, inner: string) => `"${encodeURIComponent(inner)}"`).replace(/ /g, "+");
+  const r = await fetchJson(`${BASE}?search=${encoded}&limit=1`, opts);
   return r.results[0] ?? null;
 }
 

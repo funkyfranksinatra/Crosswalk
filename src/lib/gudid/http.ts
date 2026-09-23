@@ -63,7 +63,10 @@ function getBucket() {
 
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 let fetchImpl: FetchLike = (url, init) => fetch(url, init);
-export function setFetchForTests(f: FetchLike | null) { fetchImpl = f ?? ((url, init) => fetch(url, init)); }
+const replacedListeners = new Set<() => void>();
+/** Called whenever the test seam swaps fetch (caches keyed on responses must reset). */
+export function onFetchReplaced(fn: () => void) { replacedListeners.add(fn); }
+export function setFetchForTests(f: FetchLike | null) { fetchImpl = f ?? ((url, init) => fetch(url, init)); for (const l of replacedListeners) l(); }
 
 function withKey(url: string) {
   const key = process.env.OPENFDA_API_KEY;
