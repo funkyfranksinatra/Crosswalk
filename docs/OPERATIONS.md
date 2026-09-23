@@ -213,6 +213,31 @@ and the other ADMINs and PRICING_DIRECTORs were notified. Review these monthly.
   document items `verify_competitor_pricing`.
 - **Document bytes** — `DOCUMENT_STORAGE_DIR` (default `./.data/documents`), keyed by document id.
 
+## Engine throughput (Sept 23, 2026)
+
+A run's wall time on a remote database is mostly round trips, not matching. Measured on the
+30-line MSK list and a 300-line library list (local Postgres, heuristic mode, identical outputs
+verified candidate-by-candidate):
+
+| | 30 lines | 300 lines |
+| --- | --- | --- |
+| statements before → after | 366 → 138 | 4,872 → 1,998 |
+| wall time (local) | 2.9 s → 1.4 s | 18.9 s → 4.6 s |
+
+What changed (none of it alters a result): per-line progress counters are written at most every
+`PROGRESS_WRITE_MS` (400 ms; stage changes and final counts always write); candidates are persisted
+in chunks of 50 lines with three set-based statements per chunk instead of four per line; the
+curated-description and imported-size lookups in the binning stage are one query per run instead
+of two per code; resolution looks variants up per tier in parallel (tiers ≥ 2 still only when
+tiers 0–1 found no exact hit); openFDA search answers are memoised in-process for
+`OPENFDA_MEMO_SECONDS` (300; `0` disables) so pass 2 and sibling lines do not repeat a query —
+the cache-expiry refresh always asks live. Profile a list yourself with
+`npm run profile:run -- <intake file>` (query counts by statement, slow statements, stage times).
+
+Remaining per-line cost is inherent: one cache lookup, the GUDID library lookup(s), and the
+competitor-product upsert per resolved code. Model runs are bounded by the provider: grading
+groups run two at a time and are cached by input hash, so a repeat run is free.
+
 ## Runbook
 
 **A run is stuck at "Queued".** No worker is picking jobs up: check `JOBS_WORKER` on the

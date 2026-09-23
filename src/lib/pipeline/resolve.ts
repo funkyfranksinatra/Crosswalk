@@ -100,9 +100,11 @@ export async function gatherHits(cfnNorm: string, ctx: ResolutionContext | undef
   const hits: Hit[] = [];
   const seenKeys = new Set<string>();
   const localVariants = new Set<string>();
-  for (const v of variants) {
-    // Stop early once a tier-0 hit exists (no point trying prefixes) unless in context pass
-    if (hits.some((h) => h.variant.tier === 0) && v.tier >= 2) break;
+  // Lookups are independent reads, so each tier's variants are fetched together; results are then
+  // folded in the original variant order, which keeps the first-seen dedupe and the scoring exactly
+  // as a sequential walk produces them. Tiers ≥ 2 (prefix strips, wildcards) are only fetched when
+  // tiers 0–1 produced no tier-0 hit — the same stop rule as before, without the extra calls.
+  const lookup = async (v: Variant) => {
     // GUDID library first (Catalog → GUDID library): a labeler catalog imported in bulk answers
     // without a network round trip. Only when the library has nothing for this variant do we
     // ask openFDA — so a library that holds Ethicon still resolves Bard codes live.
@@ -112,16 +114,23 @@ export async function gatherHits(cfnNorm: string, ctx: ResolutionContext | undef
       : (v.wildcard
         ? await searchOpenFda(`catalog_number:${v.value}+OR+version_or_model_number:${v.value}`, 10)
         : await searchByCfn(v.value, 10)).results;
-    if (local.length) localVariants.add(v.value);
-    for (const rec of results) {
+    return { v, results, fromLibrary: local.length > 0 };
+  };
+  const fold = (r: { v: Variant; results: OpenFdaRecord[]; fromLibrary: boolean }) => {
+    if (r.fromLibrary) localVariants.add(r.v.value);
+    for (const rec of r.results) {
       const key = rec.public_device_record_key ?? `${rec.company_name}|${rec.version_or_model_number}`;
       if (seenKeys.has(key)) continue;
       seenKeys.add(key);
-      const h = scoreHit(rec, v, cfnNorm, ctx);
-      if (localVariants.has(v.value)) h.fromLibrary = true;
+      const h = scoreHit(rec, r.v, cfnNorm, ctx);
+      if (localVariants.has(r.v.value)) h.fromLibrary = true;
       hits.push(h);
     }
-  }
+  };
+  const early = variants.filter((v) => v.tier < 2);
+  const late = variants.filter((v) => v.tier >= 2);
+  for (const r of await Promise.all(early.map(lookup))) fold(r);
+  if (late.length && !hits.some((h) => h.variant.tier === 0)) for (const r of await Promise.all(late.map(lookup))) fold(r);
   return hits.sort((a, b) => b.score - a.score);
 }
 

@@ -130,6 +130,21 @@ export async function specFor(codes: (string | null | undefined)[]): Promise<{ d
   try { return { dims: JSON.parse(spec.dimsJson) as Dimension[], notes: spec.notes }; } catch { return null; }
 }
 
+/**
+ * `specFor` for many code lists in one query: the same answer each list would get on its own
+ * (newest spec among the list's keys), fetched once. Used by the run pipeline's binning stage.
+ */
+export async function specsFor(codeLists: (string | null | undefined)[][]): Promise<(ReturnType<typeof parseSpec>)[]> {
+  const keyLists = codeLists.map((codes) => [...new Set(codes.filter((c): c is string => Boolean(c)).map((c) => compactCfn(normalizeCfn(c))))].filter(Boolean));
+  const all = [...new Set(keyLists.flat())];
+  if (!all.length) return codeLists.map(() => null);
+  const specs = await prisma.competitorSpec.findMany({ where: { cfnNorm: { in: all } }, orderBy: { updatedAt: "desc" } });
+  return keyLists.map((keys) => { const k = new Set(keys); const spec = specs.find((x) => k.has(x.cfnNorm)); return spec ? parseSpec(spec) : null; });
+}
+function parseSpec(spec: { dimsJson: string; notes: string | null }): { dims: Dimension[]; notes: string | null } | null {
+  try { return { dims: JSON.parse(spec.dimsJson) as Dimension[], notes: spec.notes }; } catch { return null; }
+}
+
 export const SIZES_HEADERS = ["Competitor Code", "Manufacturer", "Description", "Width", "Length", "Diameter", "Thickness (mm)", "Unit", "Notes", "Priority", "Lists", "Units", "Est. spend", "Size on file from"] as const;
 
 /**

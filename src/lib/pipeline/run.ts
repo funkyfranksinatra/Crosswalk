@@ -14,7 +14,7 @@
 import { prisma } from "@/lib/db";
 import { log as slog } from "@/lib/log";
 import { runsFinished, lastRunResolution, lastRunMatch } from "@/lib/observability/metrics";
-import { specFor } from "@/lib/excel/sizes";
+import { specsFor } from "@/lib/excel/sizes";
 import { compactCfn, isPlaceholderSku } from "@/lib/cfn";
 import { num, toDb, times } from "@/lib/money";
 import { summarizeRecord, type OpenFdaRecord } from "@/lib/gudid/openfda";
@@ -116,9 +116,21 @@ async function log(requestId: string, message: string) {
   });
 }
 
-/** Progress write; a job whose signal the queue aborted must not keep writing alongside its retry. */
+/**
+ * Progress write; a job whose signal the queue aborted must not keep writing alongside its retry.
+ * Per-line counter updates ("… (17/300)") are throttled to one write per PROGRESS_WRITE_MS per
+ * request — the UI polls, so intermediate counters are never observed anyway — while every stage
+ * change and every loop's final count is written. On a remote database each write is a round trip,
+ * so a 300-line run otherwise spends more time reporting progress than matching.
+ */
+const PROGRESS_WRITE_MS = Number(process.env.PROGRESS_WRITE_MS ?? 400);
+const lastProgressWrite = new Map<string, number>();
 async function setStage(requestId: string, stage: string, progress: number, signal?: AbortSignal) {
   if (signal?.aborted) throw new RunInterrupted();
+  const counter = stage.match(/\((\d+)\/(\d+)\)$/);
+  const now = Date.now();
+  if (counter && counter[1] !== counter[2] && now - (lastProgressWrite.get(requestId) ?? 0) < PROGRESS_WRITE_MS) return;
+  lastProgressWrite.set(requestId, now);
   await prisma.request.update({ where: { id: requestId }, data: { stage, progress: Math.min(100, Math.round(progress)) } });
 }
 
@@ -304,19 +316,27 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
   for (const l of lines) if (l.competitorProduct && l.competitorProduct.resolution !== "not-found") uniqueCps.set(l.competitorProduct.id, l.competitorProduct);
   await setStage(requestId, "Binning competitor products", 42);
   let binned = 0;
+  // Two lookups every code needs — the curated description and any imported size — are fetched once
+  // for the whole list instead of per code (each would be a database round trip).
+  const toBin = [...uniqueCps.values()].filter((cp) => !parseBin(cp.binJson) || (useLlm && cp.binSource !== "llm"));
+  const curatedKeys = (cp: (typeof toBin)[number]) => [cp.cfnNorm, compactCfn(cp.cfnNorm), (cp.cfnMatched ?? "").toUpperCase()];
+  const curatedRows = toBin.length ? await prisma.knownCross.findMany({ where: { competitorCodeNorm: { in: [...new Set(toBin.flatMap(curatedKeys))] }, competitorDescription: { not: null } }, select: { competitorCodeNorm: true, competitorDescription: true }, orderBy: { id: "asc" } }) : [];
+  const curatedByKey = new Map<string, string>();
+  for (const r of curatedRows) if (!curatedByKey.has(r.competitorCodeNorm) && r.competitorDescription) curatedByKey.set(r.competitorCodeNorm, r.competitorDescription);
+  const specsByCp = new Map((await specsFor(toBin.map((cp) => [cp.cfnNorm, cp.cfnMatched]))).map((spec, i) => [toBin[i].id, spec]));
   await mapLimit([...uniqueCps.values()], 3, async (cp, i) => {
     if (i % 10 === 9) await checkCancelled(requestId, runOpts.signal);
     if (!parseBin(cp.binJson) || (useLlm && cp.binSource !== "llm")) {
       const raw = cp.gudidJson ? (JSON.parse(cp.gudidJson) as OpenFdaRecord) : null;
       const s = raw ? summarizeRecord(raw) : null;
       // The curated sheets often describe a competitor code better than its GUDID record (sizes, cannula type…).
-      const curated = await prisma.knownCross.findFirst({ where: { competitorCodeNorm: { in: [cp.cfnNorm, compactCfn(cp.cfnNorm), (cp.cfnMatched ?? "").toUpperCase()] }, competitorDescription: { not: null } }, select: { competitorDescription: true } });
-      const description = [cp.description, curated?.competitorDescription].filter((x): x is string => Boolean(x) && !(cp.description ?? "").includes(x!)).join(" ; ");
+      const curatedDescription = curatedKeys(cp).map((k) => curatedByKey.get(k)).find(Boolean) ?? null;
+      const description = [cp.description, curatedDescription].filter((x): x is string => Boolean(x) && !(cp.description ?? "").includes(x!)).join(" ; ");
       // Codes that are our own SKUs (the customer already buys them from us) get the size our
       // catalog-number convention encodes, exactly like the catalog side does.
       const ownSku = cp.manufacturer === request.company.name ? (cp.cfnMatched ?? cp.cfnNorm).toUpperCase() : null;
       // Sizes the rep imported for this code (Catalog → Competitor sizes) beat GUDID and regex.
-      const spec = await specFor([cp.cfnNorm, cp.cfnMatched]);
+      const spec = specsByCp.get(cp.id) ?? null;
       if (spec) await log(requestId, `  ${cp.cfnNorm}: using imported competitor size (${spec.dims.map((d) => `${d.name} ${d.value} ${d.unit}`).join(", ")})`);
       const { bin, source } = await binProduct({
         subject: cp.cfnNorm,
@@ -549,6 +569,24 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
     prisma.requestLine.updateMany({ where: { requestId, id: { notIn: [...workedIds] } }, data: { selectedCandidateId: null } }),
     prisma.matchCandidate.deleteMany({ where: { line: { requestId, id: { notIn: [...workedIds] } } } }),
   ]);
+  // Lines are persisted in chunks of PERSIST_CHUNK, each chunk one transaction of three statements
+  // (delete the chunk's old candidates, insert the new ones, one set-based line update): a crash
+  // between chunks leaves whole lines either old or new, never a line pointing at a deleted candidate.
+  const PERSIST_CHUNK = 50;
+  type CandidateRow = NonNullable<Parameters<typeof prisma.matchCandidate.createMany>[0]>["data"] extends (infer R)[] | infer R ? R : never;
+  const persistChunk = async (chunk: { line: LineWork["line"]; rows: CandidateRow[] }[]) => {
+    const lineIds = chunk.map((c) => c.line.id);
+    await prisma.$transaction(async (tx) => {
+      await tx.matchCandidate.deleteMany({ where: { lineId: { in: lineIds } } });
+      const created = await tx.matchCandidate.createManyAndReturn({ data: chunk.flatMap((c) => c.rows), select: { id: true, lineId: true, rank: true, matchType: true } });
+      const firstByLine = new Map<string, { id: string; matchType: string }>();
+      for (const c of created) if (c.rank === 1) firstByLine.set(c.lineId, { id: c.id, matchType: c.matchType });
+      const status = lineIds.map((id) => { const f = firstByLine.get(id); return f && f.matchType !== "No Match" ? "matched" : "no-match"; });
+      const selected = lineIds.map((id) => { const f = firstByLine.get(id); return f && f.matchType !== "No Match" ? f.id : null; });
+      await tx.$executeRaw`UPDATE "RequestLine" AS l SET "matchStatus" = v.st, "selectedCandidateId" = v.sel FROM unnest(${lineIds}::text[], ${status}::text[], ${selected}::text[]) AS v(id, st, sel) WHERE l.id = v.id`;
+    }, { timeout: 60_000 });
+  };
+  const persistRows: { line: LineWork["line"]; rows: CandidateRow[] }[] = [];
   for (const w of work) {
     const line = w.line;
     const scored = graded.get(line.id) ?? w.scored;
@@ -571,16 +609,9 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
       extended: toDb(times(s.unitPrice, line.quantity)),
       isSelected: i === 0 && s.matchType !== "No Match",
     }));
-    await prisma.$transaction(async (tx) => {
-      await tx.matchCandidate.deleteMany({ where: { lineId: line.id } });
-      await tx.matchCandidate.createMany({ data: rows });
-      const first = await tx.matchCandidate.findFirst({ where: { lineId: line.id, rank: 1 } });
-      await tx.requestLine.update({
-        where: { id: line.id },
-        data: { matchStatus: first && first.matchType !== "No Match" ? "matched" : "no-match", selectedCandidateId: first && first.matchType !== "No Match" ? first.id : null },
-      });
-    });
+    persistRows.push({ line, rows });
   }
+  for (let i = 0; i < persistRows.length; i += PERSIST_CHUNK) await persistChunk(persistRows.slice(i, i + PERSIST_CHUNK));
 
   const matchedCount = await prisma.requestLine.count({ where: { requestId, matchStatus: "matched" } });
   await log(requestId, `Matched ${matchedCount}/${total} lines`);
