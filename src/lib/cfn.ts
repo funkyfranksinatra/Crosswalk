@@ -83,5 +83,7 @@ export function cfnVariants(cfnNorm: string): { value: string; reason: string }[
 
 /** Cheap check used by the intake parser to skip junk rows. */
 export function looksLikeCfn(s: string): boolean {
-  return /^[A-Z0-9][A-Z0-9\-./_]{1,40}$/.test(s) && /[A-Z0-9]{3,}/.test(s);
+  // Three or more alphanumerics in total — not in one run: hyphenated short segments ("IN-12-4",
+  // a Genicon-style code) are real catalog numbers and used to be dropped at intake.
+  return /^[A-Z0-9][A-Z0-9\-./_]{1,40}$/.test(s) && s.replace(/[^A-Z0-9]/g, "").length >= 3;
 }
