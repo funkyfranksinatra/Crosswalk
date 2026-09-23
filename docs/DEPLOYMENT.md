@@ -67,6 +67,7 @@ The full list with comments is `.env.example`. What a deployment must decide:
 | Variable | Purpose |
 | --- | --- |
 | `DATABASE_URL` | Postgres URL. Neon: the pooler host with `sslmode=verify-full` (the app upgrades `require` to `verify-full` itself). `DATABASE_ADAPTER=pg` (default) over TCP; `neon-ws` where only outbound HTTPS is allowed. |
+| `DIRECT_DATABASE_URL` | Optional. Non-pooled URL for `prisma migrate`; on Neon it is derived automatically (the `-pooler` suffix is dropped). Migrations through a transaction pooler can leak the migrate advisory lock (`P1002`) — if that ever happens, terminate the idle backend holding `pg_locks.objid = 72707369`. |
 | `SESSION_SECRET` | Signs sessions. 16+ random characters; production refuses the development key. |
 | `APP_BASE_URL` | Public URL (`https://crosswalk.example.com`): links in notifications and the OIDC redirect URI. |
 | `SSO_ISSUER`, `SSO_CLIENT_ID`, `SSO_CLIENT_SECRET`, `SSO_ROLE_CLAIM`, `SSO_ROLE_MAP` | Identity — see below. |
