@@ -193,6 +193,26 @@ event. Customer request data needs an explicit `RETENTION_REQUESTS_DAYS`. `docs/
 tab shows a break-glass pill, the audit trail has `BREAK_GLASS_APPROVAL` with the reason,
 and the other ADMINs and PRICING_DIRECTORs were notified. Review these monthly.
 
+## Tier 2 additions (integrations)
+
+- **Schedules** — each enabled integration with a cron expression gets one pg-boss schedule per
+  sync type (`integration.sync`, key `integration-<key>-<type>`, singleton per integration + type).
+  Saving a configuration re-applies its schedule without a restart; worker start re-applies all.
+- **Watching** — Settings → Integrations shows health, last sync, last error and the run history per
+  integration; `/api/integrations/config` (admin) lists all; `/api/integrations/jobs/<id>` returns a
+  run with its row errors. Log events: `integration.sync.start|done|failed`, `integration.http` / `integration.http_error` / `integration.http_failed`,
+  `integration.webhook.*`, `integration.quote_writeback*`, `integration.test*`.
+- **Stuck runs** — a RUNNING job older than 12 h is marked CANCELLED at worker start
+  (`cancelStaleJobs`); pg-boss retries transient (retryable) failures twice with back-off.
+- **Secrets** — sealed under `INTEGRATIONS_ENCRYPTION_KEY`; losing the key means re-entering every
+  integration secret (configuration and mappings survive). Rotate by setting the new key and
+  re-saving each integration's secrets.
+- **Mocks in production** — refused unless `INTEGRATIONS_ALLOW_MOCK=true`; the card says MOCK.
+- **Review queue** — `/api/integrations/review` (open items); nothing there has been applied.
+  Roster items need `manage_contracts`, contract-price items `import_competitor_pricing`,
+  document items `verify_competitor_pricing`.
+- **Document bytes** — `DOCUMENT_STORAGE_DIR` (default `./.data/documents`), keyed by document id.
+
 ## Runbook
 
 **A run is stuck at "Queued".** No worker is picking jobs up: check `JOBS_WORKER` on the

@@ -60,3 +60,6 @@ data/benchmark/*
 .claude-bundles/
 _to_delete/
 scratch/
+
+# uploaded document bytes (DOCUMENT_STORAGE_DIR)
+.data/

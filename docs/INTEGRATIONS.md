@@ -11,6 +11,12 @@
 | Purchase / billing history | **ERP** | `PurchaseRecord` |
 | Crosswalk versions, competitor price observations, pricing policies, proposals, recommendations, approvals, outcomes, audit | **Crosswalk** | everything else |
 
+> **Tier 2 (Sept 2026):** real connectors are configured under Settings → Integrations — see
+> [INTEGRATION_SETUP.md](INTEGRATION_SETUP.md) (per-integration setup) and
+> [INTEGRATION_ARCHITECTURE.md](INTEGRATION_ARCHITECTURE.md) (design). The routes below remain as
+> fallbacks: an enabled integration takes precedence over the legacy environment / file / dev adapters
+> for the same system, and the "Sync now" buttons on Settings route to it.
+
 ## How to connect a system
 
 There are three adapters per system and the app picks one automatically, in this order:

@@ -17,6 +17,8 @@ import { FileCrmAdapter, FileErpAdapter, FileGpoAdapter, FEED_FILES, feedDir, fe
 import { audit } from "@/lib/audit";
 import { publicErrorMessage } from "@/lib/api";
 import { economicsToJson } from "@/lib/proposals/economics";
+import { readConfig, INTEGRATION_KEYS, type IntegrationKey } from "./core/config";
+import { INTEGRATIONS } from "./core/registry";
 
 /** Adapter selection: API adapter when its credentials exist → file feed when INTEGRATION_FEED_DIR is set → labelled dev fixtures. */
 export function crmAdapter(): CrmAdapter { return SalesforceCrmAdapter.configured() ? new SalesforceCrmAdapter() : FileCrmAdapter.configured() ? new FileCrmAdapter() : new DevCrmAdapter(); }
@@ -36,7 +38,21 @@ export type IntegrationSystemStatus = {
   feed: { files: { name: string; present: boolean }[] };
 };
 
-export function integrationStatus(): Record<"crm" | "erp" | "gpo", IntegrationSystemStatus> & { feedDir: string | null } {
+export type Tier2Status = { key: IntegrationKey; label: string; family: string; provider: string | null; enabled: boolean; status: string; lastSyncAt: string | null; lastTestAt: string | null; lastTestOk: boolean | null; lastError: string | null; lastErrorCategory: string | null };
+
+/** Configured (Settings → Integrations) integrations — never secrets. */
+export async function tier2Status(): Promise<Tier2Status[]> {
+  const rows = await prisma.integrationConfig.findMany({ select: { key: true, provider: true, enabled: true, status: true, lastSyncAt: true, lastTestAt: true, lastTestOk: true, lastError: true, lastErrorCategory: true } });
+  const byKey = new Map(rows.map((r) => [r.key, r]));
+  return INTEGRATION_KEYS.map((k) => { const r = byKey.get(k); const d = INTEGRATIONS[k]; return { key: k, label: d.label, family: d.family, provider: r?.provider ?? null, enabled: r?.enabled ?? false, status: r?.status ?? "NOT_CONFIGURED", lastSyncAt: r?.lastSyncAt?.toISOString() ?? null, lastTestAt: r?.lastTestAt?.toISOString() ?? null, lastTestOk: r?.lastTestOk ?? null, lastError: r?.lastError ?? null, lastErrorCategory: r?.lastErrorCategory ?? null }; });
+}
+
+async function enabled(k: IntegrationKey): Promise<boolean> { const c = await readConfig(k).catch(() => null); return Boolean(c?.enabled); }
+
+export async function integrationStatus(): Promise<Record<"crm" | "erp" | "gpo", IntegrationSystemStatus> & { feedDir: string | null; tier2: Tier2Status[] }> {
+  const tier2 = await tier2Status();
+  const t2 = (k: IntegrationKey) => tier2.find((t) => t.key === k)!;
+  const sfOn = t2("salesforce").enabled, sapOn = t2("sap").enabled, gpoOn = tier2.filter((t) => t.family === "gpo" && t.enabled);
   const present = feedFilesPresent();
   const dir = feedDir();
   const feed = (k: keyof typeof FEED_FILES) => ({ files: FEED_FILES[k].map((name) => ({ name, present: Boolean(present[name]) })) });
@@ -45,25 +61,31 @@ export function integrationStatus(): Record<"crm" | "erp" | "gpo", IntegrationSy
   const file = Boolean(dir);
   return {
     feedDir: dir,
+    tier2,
     crm: {
-      adapter: crmAdapter().system, configured: sf || file, implemented: !sf,
-      note: sf ? "Salesforce credentials present — the Salesforce adapter is a skeleton; syncs fail until it is implemented" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no CRM connected",
-      api: { name: "Salesforce", env: envSet(["SF_LOGIN_URL", "SF_CLIENT_ID", "SF_CLIENT_SECRET", "SF_API_VERSION"]), implemented: false },
+      adapter: sfOn ? `salesforce (${t2("salesforce").provider})` : crmAdapter().system, configured: sfOn || sf || file, implemented: sfOn || !sf,
+      note: sfOn ? `Salesforce integration (${t2("salesforce").provider}) — ${t2("salesforce").status}` : sf ? "Legacy SF_* environment variables present — configure Salesforce under Settings → Integrations instead" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no CRM connected",
+      api: { name: "Salesforce", env: envSet(["SF_LOGIN_URL", "SF_CLIENT_ID", "SF_CLIENT_SECRET", "SF_API_VERSION"]), implemented: true },
       feed: feed("crm"),
     },
     erp: {
-      adapter: erpAdapter().system, configured: sap || file, implemented: !sap,
-      note: sap ? "SAP credentials present — the SAP adapter is a skeleton; syncs fail until it is implemented" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no ERP connected",
-      api: { name: "SAP (OData)", env: envSet(["SAP_ODATA_BASE_URL", "SAP_CLIENT", "SAP_USER", "SAP_PASSWORD"]), implemented: false },
+      adapter: sapOn ? `sap (${t2("sap").provider})` : erpAdapter().system, configured: sapOn || sap || file, implemented: sapOn || !sap,
+      note: sapOn ? `SAP integration (${t2("sap").provider}) — ${t2("sap").status}` : sap ? "Legacy SAP_* environment variables present — configure SAP under Settings → Integrations instead" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no ERP connected",
+      api: { name: "SAP (OData)", env: envSet(["SAP_ODATA_BASE_URL", "SAP_CLIENT", "SAP_USER", "SAP_PASSWORD"]), implemented: true },
       feed: feed("erp"),
     },
     gpo: {
-      adapter: gpoAdapter().system, configured: file, implemented: true,
-      note: file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no membership feed connected",
-      api: { name: "GPO roster API", env: [], implemented: false },
+      adapter: gpoOn.length ? gpoOn.map((g) => `${g.key} (${g.provider})`).join(", ") : gpoAdapter().system, configured: gpoOn.length > 0 || file, implemented: true,
+      note: gpoOn.length ? `${gpoOn.length} roster integration(s) — ${gpoOn.map((g) => `${g.label}: ${g.status}`).join("; ")}` : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no membership feed connected",
+      api: { name: "GPO roster API / file", env: [], implemented: true },
       feed: feed("gpo"),
     },
   };
+}
+
+/** A Tier 2 run folded into the legacy report shape (the sync UI and the enterprise tests read it). */
+async function reportFromRun(system: string, entityType: string, run: { status: string; counters: { created: number; updated: number; skipped: number; errored: number }; error?: { message: string } }): Promise<SyncReport> {
+  return { system, entityType, created: run.counters.created, updated: run.counters.updated, skipped: run.counters.skipped, failed: run.counters.errored + (run.status === "FAILED" ? 1 : 0), errors: run.error ? [run.error.message] : [] };
 }
 
 const hash = (o: unknown) => createHash("sha256").update(JSON.stringify(o)).digest("hex");
@@ -88,6 +110,14 @@ export type SyncReport = { system: string; entityType: string; created: number; 
 const report = (system: string, entityType: string): SyncReport => ({ system, entityType, created: 0, updated: 0, skipped: 0, failed: 0, errors: [] });
 
 export async function syncCrmAccounts(actorUserId: string | null): Promise<SyncReport> {
+  if (await enabled("salesforce")) {
+    const { runSync } = await import("./core/runner");
+    const a = await runSync("salesforce", "accounts", "manual", actorUserId);
+    const o = a.status === "FAILED" ? null : await runSync("salesforce", "opportunities", "manual", actorUserId);
+    const rep = await reportFromRun("salesforce", "Account", a);
+    if (o) { rep.created += o.counters.created; rep.updated += o.counters.updated; rep.skipped += o.counters.skipped; rep.failed += o.counters.errored; if (o.error) rep.errors.push(o.error.message); }
+    return rep;
+  }
   const crm = crmAdapter();
   const rep = report(crm.system, "Account");
   const rows = await crm.pullAccounts();
@@ -141,6 +171,17 @@ export async function syncCrmAccounts(actorUserId: string | null): Promise<SyncR
 }
 
 export async function syncErp(actorUserId: string | null, companyId: string): Promise<SyncReport[]> {
+  if (await enabled("sap")) {
+    const { runSync } = await import("./core/runner");
+    const out: SyncReport[] = [];
+    for (const [type, entity] of [["materials", "OwnProduct"], ["costs", "StandardCost"], ["prices", "PriceEntry"], ["billing", "PurchaseRecord"]] as const) {
+      const cfg = await readConfig("sap");
+      const c = cfg?.config ?? {};
+      if (type !== "materials" && !String(c[`${type}Service`] ?? "") && cfg?.provider !== "mock") continue; // optional service not configured
+      out.push(await reportFromRun("sap", entity, await runSync("sap", type, "manual", actorUserId)));
+    }
+    return out;
+  }
   const erp = erpAdapter();
   const skuRep = report(erp.system, "OwnProduct");
   for (const s of await erp.pullSkuMaster()) {
@@ -186,6 +227,13 @@ export async function syncErp(actorUserId: string | null, companyId: string): Pr
 }
 
 export async function syncGpoMemberships(actorUserId: string | null): Promise<SyncReport> {
+  const rosters = (await Promise.all((["gpo:premier", "gpo:vizient", "gpo:healthtrust"] as const).map(async (k) => ((await enabled(k)) ? k : null)))).filter((k): k is "gpo:premier" | "gpo:vizient" | "gpo:healthtrust" => Boolean(k));
+  if (rosters.length) {
+    const { runSync } = await import("./core/runner");
+    const rep = report("gpo-roster", "GpoMembership");
+    for (const k of rosters) { const r = await reportFromRun(k, "GpoMembership", await runSync(k, "memberships", "manual", actorUserId)); rep.created += r.created; rep.updated += r.updated; rep.skipped += r.skipped; rep.failed += r.failed; rep.errors.push(...r.errors.map((e) => `${k}: ${e}`)); }
+    return rep;
+  }
   const g = gpoAdapter();
   const rep = report(g.system, "GpoMembership");
   for (const m of await g.pullMemberships()) {
@@ -209,6 +257,14 @@ export async function syncGpoMemberships(actorUserId: string | null): Promise<Sy
 
 /** Push an approved proposal to CRM as a quote (idempotent by proposal id + payload hash). */
 export async function pushQuote(actorUserId: string | null, proposalId: string) {
+  const sf = await readConfig("salesforce").catch(() => null);
+  if (sf?.enabled) {
+    const { buildCrm } = await import("./core/registry");
+    const { writeBackQuote } = await import("./salesforce/writeback");
+    const crm = await buildCrm(sf);
+    const r = await writeBackQuote(crm, sf.provider === "mock" ? "salesforce-mock" : "salesforce", actorUserId, proposalId, sf.config.pushMargin === true || sf.config.pushMargin === "true");
+    return { externalId: r.externalId, skipped: r.skipped };
+  }
   const crm = crmAdapter();
   const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { account: true, opportunity: true, lines: { orderBy: { lineNo: "asc" } } } });
   if (!["APPROVED", "WON"].includes(p.status)) throw new Error("Only approved proposals are pushed to CRM");

@@ -50,7 +50,8 @@ export type JobData = {
   "request.run": { requestId: string; freshGrades?: boolean; resume?: boolean };
   "gudid.import": { importId: string; resume?: boolean };
   "gudid.refresh": { cfnNorm?: string; limit?: number };
-  "integration.sync": { system: "crm" | "erp" | "gpo"; actorUserId: string | null };
+  /** Legacy `system` runs the env/file/dev path; `key`+`syncType` runs a Settings → Integrations configuration through the Tier 2 runner. */
+  "integration.sync": { system?: "crm" | "erp" | "gpo"; key?: string; syncType?: string; trigger?: "schedule" | "manual" | "startup"; actorUserId: string | null; full?: boolean };
   "feed.ingest": { feed: string; trigger: "schedule" | "manual" | "startup"; actorUserId?: string | null; force?: boolean };
   "notify.deliver": { notificationId: string; channel: "email" | "teams" };
   "alerts.evaluate": Record<string, never>;

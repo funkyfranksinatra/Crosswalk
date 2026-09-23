@@ -2,7 +2,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { migrationSql } from "../src/lib/db/constraints";
-const dir = process.argv[2] ?? path.resolve(__dirname, "../prisma/migrations/20260919000100_tier0_check_constraints");
-fs.mkdirSync(dir, { recursive: true });
-fs.writeFileSync(path.join(dir, "migration.sql"), migrationSql());
-console.log(`wrote ${path.join(dir, "migration.sql")}`);
+const targets: [string, 0 | 2][] = [[path.resolve(__dirname, "../prisma/migrations/20260919000100_tier0_check_constraints"), 0], [path.resolve(__dirname, "../prisma/migrations/20260923000002_tier2_check_constraints"), 2]];
+for (const [dir, tier] of process.argv[2] ? [[process.argv[2], 0] as [string, 0 | 2]] : targets) {
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "migration.sql"), migrationSql(tier));
+  console.log(`wrote ${path.join(dir, "migration.sql")}`);
+}

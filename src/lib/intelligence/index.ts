@@ -34,6 +34,14 @@ export type NewObservation = {
   rawConfidence?: number | null;
   notes?: string | null;
   proposalLineId?: string | null;
+  /** Contract-price provenance (integration imports) */
+  tier?: string | null;
+  contractRef?: string | null;
+  validTo?: Date | null;
+  sourceSystem?: string | null;
+  sourceOwner?: string | null;
+  syncJobId?: string | null;
+  competitorDescription?: string | null;
 };
 
 export async function recordObservation(actorUserId: string | null, o: NewObservation) {
@@ -61,6 +69,13 @@ export async function recordObservation(actorUserId: string | null, o: NewObserv
       rawConfidence: o.rawConfidence ?? defaultRawConfidence(o.sourceType),
       notes: o.notes ?? null,
       proposalLineId: o.proposalLineId ?? null,
+      tier: o.tier ?? null,
+      contractRef: o.contractRef ?? null,
+      validTo: o.validTo ?? null,
+      sourceSystem: o.sourceSystem ?? null,
+      sourceOwner: o.sourceOwner ?? null,
+      syncJobId: o.syncJobId ?? null,
+      competitorDescription: o.competitorDescription ?? null,
     },
   });
   await audit({ actorUserId, entityType: "CompetitorPriceObservation", entityId: row.id, action: "RECORDED", after: { competitor: competitor.name, sku: row.competitorSku, price: row.price.toString(), sourceType: row.sourceType } });

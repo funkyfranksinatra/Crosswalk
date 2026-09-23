@@ -16,9 +16,11 @@ import { KINDS } from "@/lib/notifications/kinds";
 import { EQUIVALENCE } from "@/lib/xref/equivalence";
 import { SOURCE_TYPES } from "@/lib/intelligence/summarize";
 import { ACCOUNT_TYPES } from "@/lib/accounts/types";
+import { HEALTH_STATES } from "@/lib/integrations/core/health";
+import { REVIEW_KINDS } from "@/lib/integrations/core/review";
 
-export type EnumConstraint = { table: string; column: string; values: readonly string[] };
-export type ExprConstraint = { table: string; name: string; expr: string; description: string };
+export type EnumConstraint = { table: string; column: string; values: readonly string[]; /** 2 = integration layer (separate migration); absent = Tier 0 */ tier?: 2 };
+export type ExprConstraint = { table: string; name: string; expr: string; description: string; tier?: 2 };
 
 export const ENUM_CONSTRAINTS: EnumConstraint[] = [
   { table: "UserRole", column: "role", values: ROLES },
@@ -65,6 +67,16 @@ export const ENUM_CONSTRAINTS: EnumConstraint[] = [
   { table: "FeedRun", column: "status", values: ["RUNNING", "OK", "FAILED", "SKIPPED"] },
   { table: "AnalyticsSnapshot", column: "trigger", values: ["schedule", "event", "manual"] },
   { table: "PublicAward", column: "source", values: ["SAM", "USASPENDING", "BIDFILE"] },
+  // Tier 2 (integration layer) — these live in their own migration (20260923000002) so the Tier 0 file stays byte-identical to its generator output.
+  { table: "IntegrationConfig", column: "status", values: HEALTH_STATES, tier: 2 },
+  { table: "IntegrationSyncJob", column: "status", values: ["QUEUED", "RUNNING", "SUCCEEDED", "PARTIAL", "FAILED", "CANCELLED"], tier: 2 },
+  { table: "IntegrationSyncJob", column: "trigger", values: ["schedule", "manual", "webhook", "startup"], tier: 2 },
+  { table: "IntegrationReviewItem", column: "kind", values: REVIEW_KINDS, tier: 2 },
+  { table: "IntegrationReviewItem", column: "status", values: ["OPEN", "RESOLVED", "DISMISSED"], tier: 2 },
+  { table: "DocumentExtraction", column: "status", values: ["PENDING", "EXTRACTED", "REVIEW", "VERIFIED", "REJECTED", "FAILED"], tier: 2 },
+  { table: "ExtractedField", column: "scope", values: ["HEADER", "LINE"], tier: 2 },
+  { table: "ExtractedField", column: "verificationStatus", values: ["UNVERIFIED", "VERIFIED", "CORRECTED", "REJECTED"], tier: 2 },
+  { table: "IntegrationInboundEvent", column: "status", values: ["RECEIVED", "PROCESSED", "IGNORED", "FAILED"], tier: 2 },
 ];
 
 export const EXPR_CONSTRAINTS: ExprConstraint[] = [
@@ -99,9 +111,9 @@ export function constraintExpr(c: EnumConstraint | ExprConstraint): string {
  * checked. Existing rows are still checked — a violating row fails the migration, which is
  * what `npm run db:preflight` exists to catch first.
  */
-export function migrationSql(): string {
-  const lines = ["-- Tier 0.6: CHECK constraints on state, type and money columns.", "-- Generated from src/lib/db/constraints.ts by scripts/gen-constraints.ts — edit that file, not this one.", ""];
-  for (const c of [...ENUM_CONSTRAINTS, ...EXPR_CONSTRAINTS]) {
+export function migrationSql(tier: 0 | 2 = 0): string {
+  const lines = [tier === 2 ? "-- Tier 2: CHECK constraints on the integration layer's state columns." : "-- Tier 0.6: CHECK constraints on state, type and money columns.", "-- Generated from src/lib/db/constraints.ts by scripts/gen-constraints.ts — edit that file, not this one.", ""];
+  for (const c of [...ENUM_CONSTRAINTS, ...EXPR_CONSTRAINTS].filter((c) => (c.tier ?? 0) === tier)) {
     const name = constraintName(c);
     lines.push(`ALTER TABLE "${c.table}" DROP CONSTRAINT IF EXISTS "${name}";`);
     lines.push(`ALTER TABLE "${c.table}" ADD CONSTRAINT "${name}" CHECK (${constraintExpr(c)}) NOT VALID;`);

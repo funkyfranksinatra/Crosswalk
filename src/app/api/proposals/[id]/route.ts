@@ -12,7 +12,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const lines = p.lines.map((l) => redactForActor(actor, l as unknown as Record<string, unknown>));
     const economics = p.economicsJson ? JSON.parse(p.economicsJson) : null;
     if (economics && !can(actor, "view_margin")) { economics.grossProfit = null; economics.blendedMarginPct = null; economics.cogs = null; economics.byFamily = economics.byFamily.map((f: Record<string, unknown>) => ({ ...f, grossProfit: null, marginPct: null })); }
-    return { ...p, lines, economics, finalize, permissions: { editPricing: can(actor, "edit_proposed_pricing"), viewCost: can(actor, "view_cost"), viewMargin: can(actor, "view_margin"), approve: can(actor, "approve_discount"), export: can(actor, "export_proposals"), outcomes: can(actor, "record_outcomes") }, integrations: integrationStatus() };
+    return { ...p, lines, economics, finalize, permissions: { editPricing: can(actor, "edit_proposed_pricing"), viewCost: can(actor, "view_cost"), viewMargin: can(actor, "view_margin"), approve: can(actor, "approve_discount"), export: can(actor, "export_proposals"), outcomes: can(actor, "record_outcomes") }, integrations: await integrationStatus() };
   });
 }
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {

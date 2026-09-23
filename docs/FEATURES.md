@@ -211,6 +211,34 @@ Verification: `docs/TIER0_DEBUG_REPORT.md`.
 
 ---
 
+### 18. Integration layer (Tier 2, Sept 23, 2026)
+
+A provider-independent integration layer configured entirely under **Settings → Integrations**
+(`configure_settings`): a registry of eight integrations (Salesforce, SAP OData, Premier / Vizient
+/ HealthTrust rosters, document extraction, exchange rates, competitor contract prices), each with
+real adapters, a file or manual route where one exists, and a clearly labelled mock with failure
+scenarios (auth failure, timeout, rate limit, unavailable, partial, malformed, duplicate).
+Configuration is schema-driven (typed field specs, secrets sealed with AES-256-GCM under
+`INTEGRATIONS_ENCRYPTION_KEY` or referenced as `env:NAME`, never echoed); field mapping is
+per-entity JSON over sensible defaults with dry and live validation (no company field name is
+hard-coded — the GPO field has no default on purpose). The runner opens an `IntegrationSyncJob`
+per run (QUEUED / RUNNING / SUCCEEDED / PARTIAL / FAILED / CANCELLED, counters, row-level errors,
+cursors), writes through idempotent domain writers with provenance on `ExternalRef`, moves an
+incremental watermark, and updates the health model (NOT_CONFIGURED / CONFIGURED / CONNECTED /
+DEGRADED / ERROR / DISABLED). Anything ambiguous lands in a review queue (unmatched members,
+membership conflicts, duplicates, unknown competitors, price exceptions, overlaps, low-confidence
+extractions) with resolution actions. Salesforce write-back is idempotent by proposal id; the
+`/api/webhooks/salesforce` receiver verifies an HMAC signature and deduplicates by event id.
+Document extraction persists every field with the reader's confidence, routes to a review screen,
+and imports only verified lines at the source type's commercial confidence. FX rates are stored per
+provider and date, never overwritten, and conversions stay explicit. Contract-price files are
+validated (missing price, malformed dates, invalid currency, unknown SKU / manufacturer, ambiguous
+UOM, duplicates, overlaps, expiry) before they reach the intelligence model. Per-integration cron
+schedules run on pg-boss; every step is logged without credentials and audited. Tests: 33 unit
+(mapping engine, HTTP policy, sealing, webhooks, every adapter against injected fetch) and 16
+database scenarios covering the brief's matrix. Docs: `INTEGRATION_ARCHITECTURE.md`,
+`INTEGRATION_SETUP.md`.
+
 ## Part 2 — What still needs building
 
 ### Tier 0 — required before any shared or customer-facing deployment
@@ -235,16 +263,20 @@ size master needs product marketing to fill the worklist template, and the bench
 model-eval baselines need historical account lists and a model key to be run once and
 accepted.
 
-### Tier 2 — integrations that need credentials or a data owner
+### Tier 2 — integrations (built; need credentials and a data owner to go live)
 
-| # | Work | Needed from the organisation |
+The integration layer is built as production-ready scaffolds (§18). What remains per integration
+is company-specific and configured, not coded — see the onboarding checklist in
+[INTEGRATION_SETUP.md](INTEGRATION_SETUP.md).
+
+| # | Integration | Needed from the organisation |
 | --- | --- | --- |
-| 2.1 | **Salesforce adapter** (accounts, opportunities, quote write-back) + webhook route | Login URL, client id/secret or JWT key, quote object agreement, GPO-affiliation field |
-| 2.2 | **SAP ERP adapter** (material master, condition prices, standard cost by plant, billing documents) | OData base URL, client, credentials, exposed services, plant/region code mapping |
-| 2.3 | **GPO roster feeds** (Premier / Vizient / HealthTrust) | File drops or API with member roster, tier and effective dates |
-| 2.4 | **Document extraction / OCR** for invoices and bid files | A provider decision; `Document.extractionConfidence` is modelled, extraction is manual |
-| 2.5 | **FX rate feed** (ECB / Treasury / SAP TCURR) | Only needed when non-USD contracts appear; rates are entered by hand today |
-| 2.6 | **GPO contract price files for competitor products** | A data owner in product marketing or contracting |
+| 2.1 | Salesforce | Connected App credentials, run-as user, GPO affiliation field, quote objects |
+| 2.2 | SAP OData | Gateway URL, technical user, service names, plant → region, condition types |
+| 2.3 | GPO rosters | Roster access per GPO, column names, account-number column |
+| 2.4 | Document extraction | Vendor choice + credentials (manual works today) |
+| 2.5 | Exchange rates | Currencies; vendor only if ECB is not acceptable |
+| 2.6 | Competitor contract prices | File owner and location, column names, competitor aliases |
 
 ### Tier 3 — product and scale
 
