@@ -40,6 +40,63 @@ export interface GpoAdapter {
   pullMemberships(since?: Date): Promise<GpoMembershipRecord[]>;
 }
 
+// ---- Tier 2 canonical import records ------------------------------------------------------------
+// Every record an adapter produces carries provenance: which provider, which source system,
+// the source's own record id and timestamp, and a bounded reference blob (never credentials).
+
+export type Provenance = {
+  provider: string; // salesforce | odata | api | file | http | ecb | manual | mock
+  sourceSystem: string; // "salesforce", "sap", "premier", a filename, an endpoint
+  sourceRecordId: string;
+  sourceUpdatedAt?: string | null;
+  /** bounded reference metadata (object name, row number, page, raw ids) */
+  meta?: Record<string, unknown> | null;
+};
+
+export type AccountImportRecord = CrmAccount & { contacts?: ContactImportRecord[]; provenance: Provenance };
+export type OpportunityImportRecord = CrmOpportunity & { provenance: Provenance };
+export type ContactImportRecord = { externalId: string; accountExternalId: string; name: string; email?: string | null; phone?: string | null; title?: string | null; provenance: Provenance };
+/** GPO affiliation delivered separately from the account (a related object or a second query). */
+export type GpoAffiliationRecord = { accountExternalId: string; gpoName: string; gpoTier?: string | null; effectiveFrom?: string | null; effectiveTo?: string | null; provenance: Provenance };
+
+/** Outbound quote: the CRM-neutral shape of an approved proposal. */
+export type QuoteWriteback = CrmQuotePush & { idempotencyKey: string; approvalStatus: string; proposalStatus: string; contractValue: string; createdAt: string; approvedAt?: string | null; metadata?: Record<string, string | number | boolean | null> };
+export type QuoteWritebackResult = { externalId: string; created: boolean; lineExternalIds?: string[]; providerRef?: string | null };
+
+export type ProductImportRecord = ErpSku & { plant?: string | null; region?: string | null; provenance: Provenance };
+export type StandardCostImportRecord = ErpCost & { provenance: Provenance };
+export type PriceEntryImportRecord = { sku: string; price: string; currency: string; pricebook?: string | null; conditionType?: string | null; effectiveFrom: string; effectiveTo?: string | null; uom?: string | null; minQty?: string | null; provenance: Provenance };
+export type BillingImportRecord = ErpPurchase & { provenance: Provenance };
+
+export type GpoMembershipImportRecord = GpoMembershipRecord & {
+  externalMembershipId?: string | null;
+  memberName?: string | null;
+  address?: { line1?: string | null; city?: string | null; region?: string | null; postalCode?: string | null; country?: string | null } | null;
+  lastVerifiedAt?: string | null;
+  provenance: Provenance;
+};
+
+export type CompetitorPriceImportRecord = {
+  gpoName: string | null;
+  competitorName: string;
+  competitorSku: string;
+  description?: string | null;
+  price: string;
+  currency: string;
+  uom: string;
+  tier?: string | null;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+  contractRef?: string | null;
+  sourceOwner?: string | null;
+  provenance: Provenance;
+};
+
+export type ExtractedFieldRecord = { scope: "HEADER" | "LINE"; lineNo?: number | null; field: string; rawValue: string | null; normalizedValue: string | null; confidence: number | null; page?: number | null; section?: string | null };
+export type ExtractedDocument = { provider: string; model?: string | null; documentType: string; overallConfidence: number | null; fields: ExtractedFieldRecord[]; raw?: unknown };
+
+export type FxRateRecord = { base: string; quote: string; rate: string; date: string; provider: string; fetchedAt: string };
+
 export class NotConfigured extends Error {
   needs: string[];
   constructor(system: string, needs: string[]) {

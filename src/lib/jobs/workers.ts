@@ -33,7 +33,15 @@ const handlers: { [N in QueueName]: Handler<N> } = {
     const { refreshStaleRecords } = await import("@/lib/gudid/refresh");
     return refreshStaleRecords(data);
   },
-  "integration.sync": async (data) => {
+  "integration.sync": async (data, meta) => {
+    if (data.key) {
+      const { runSync } = await import("@/lib/integrations/core/runner");
+      const { isIntegrationKey } = await import("@/lib/integrations/core/config");
+      if (!isIntegrationKey(data.key)) throw new Error(`unknown integration ${data.key}`);
+      const r = await runSync(data.key, data.syncType ?? "", data.trigger ?? "schedule", data.actorUserId, { queueJobId: meta.id, full: Boolean(data.full) });
+      if (r.status === "FAILED" && r.error?.retryable) throw new Error(r.error.message); // let pg-boss retry transient failures; the job row already says FAILED
+      return r;
+    }
     const { syncCrmAccounts, syncErp, syncGpoMemberships } = await import("@/lib/integrations/sync");
     const { getCompany } = await import("@/lib/settings");
     if (data.system === "crm") return syncCrmAccounts(data.actorUserId);
@@ -138,6 +146,8 @@ async function registerSchedules(boss: PgBoss) {
   }
   const { scheduleFeeds } = await import("@/lib/feeds/schedule");
   await scheduleFeeds(boss);
+  const { scheduleIntegrations } = await import("@/lib/integrations/core/schedule");
+  await scheduleIntegrations(boss);
 }
 
 /**

@@ -385,6 +385,7 @@ model Account {
   taxExempt       Boolean                      @default(false)
   taxExemptionNo  String?
   shipToJson      String? // default ship-to address for tax calculation
+  contactsJson    String? // CRM contacts (bounded list: name, email, phone, title) — Tier 2 CRM sync
   createdAt       DateTime                     @default(now())
   updatedAt       DateTime                     @updatedAt
   memberships     GpoMembership[]
@@ -425,9 +426,15 @@ model GpoMembership {
   source        String    @default("manual") // manual | crm | gpo-feed | import
   verifiedAt    DateTime?
   verifiedBy    String?
+  /// Roster provenance (Tier 2)
+  externalMembershipId String?
+  memberName           String?
+  addressJson          String?
+  syncJobId            String?
   createdAt     DateTime  @default(now())
 
   @@index([accountId, gpoId])
+  @@index([gpoId, externalMembershipId])
 }
 
 model Opportunity {
@@ -571,10 +578,14 @@ model ExchangeRate {
   toCurrency   String
   rate         Decimal  @db.Decimal(18, 8)
   asOf         DateTime
-  source       String   @default("manual")
+  source       String   @default("manual") // manual | <fx provider name> | mock
+  fetchedAt    DateTime?
+  syncJobId    String?
+  enteredByUserId String?
   createdAt    DateTime @default(now())
 
   @@unique([fromCurrency, toCurrency, asOf, source])
+  @@index([fromCurrency, toCurrency, asOf])
 }
 
 /// Every commercially significant change. Reconstructable history (src/lib/audit.ts).
@@ -652,6 +663,14 @@ model CompetitorPriceObservation {
   verifiedAt          DateTime?
   notes               String?
   proposalLineId      String?
+  /// Contract-price provenance (Tier 2.6): tier, contract, validity end, who owns the source, which job imported it
+  tier                String?
+  contractRef         String?
+  validTo             DateTime?
+  sourceSystem        String?
+  sourceOwner         String?
+  syncJobId           String?
+  competitorDescription String?
   createdAt           DateTime   @default(now())
 
   @@index([competitorSku, observedAt])
@@ -900,6 +919,11 @@ model ExternalRef {
   externalId String
   syncedAt   DateTime @default(now())
   syncHash   String?
+  /// Provenance (Tier 2): which sync job wrote it, which mapping version, the source's own timestamp
+  syncJobId       String?
+  mappingVersion  Int?
+  sourceUpdatedAt DateTime?
+  metaJson        String? // bounded reference metadata from the source (never credentials)
 
   @@unique([system, entityType, externalId])
   @@index([entityType, entityId])
@@ -1251,4 +1275,167 @@ model PublicAward {
   @@unique([source, externalId])
   @@index([awardDate])
   @@index([competitorId])
+}
+
+
+/// ---- Tier 2: integration layer -----------------------------------------------------------
+
+/// One row per integration key (salesforce, sap, gpo:premier, …). Non-secret configuration in
+/// configJson; secrets encrypted at rest in secretsJson (or `env:NAME` references); mappings in
+/// mappingJson. Health columns are written by the test and sync paths only.
+model IntegrationConfig {
+  id               String    @id @default(cuid())
+  key              String    @unique // salesforce | sap | gpo:premier | gpo:vizient | gpo:healthtrust | documents | fx | competitor-contracts
+  provider         String // per integration: see src/lib/integrations/core/registry.ts
+  enabled          Boolean   @default(false)
+  configJson       String    @default("{}")
+  secretsJson      String? // AES-256-GCM sealed JSON of { field: value }
+  mappingJson      String    @default("{}")
+  scheduleCron     String? // null = no schedule
+  configVersion    Int       @default(1)
+  status           String    @default("NOT_CONFIGURED") // NOT_CONFIGURED | CONFIGURED | CONNECTED | DEGRADED | ERROR | DISABLED
+  lastTestAt       DateTime?
+  lastTestOk       Boolean?
+  lastConnectedAt  DateTime?
+  lastSyncAt       DateTime? // last successful sync
+  lastAttemptAt    DateTime?
+  lastError        String?
+  lastErrorCategory String?
+  cursorJson       String? // incremental-sync cursor per sync type
+  updatedByUserId  String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  jobs             IntegrationSyncJob[]
+}
+
+/// One synchronisation run of one integration.
+model IntegrationSyncJob {
+  id              String    @id @default(cuid())
+  integrationKey  String
+  integration     IntegrationConfig? @relation(fields: [integrationKey], references: [key])
+  provider        String
+  syncType        String // accounts | opportunities | materials | costs | prices | billing | roster | rates | contract-prices | quote-push | extraction | test-record
+  trigger         String    @default("manual") // schedule | manual | webhook | startup
+  status          String    @default("QUEUED") // QUEUED | RUNNING | SUCCEEDED | PARTIAL | FAILED | CANCELLED
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  received        Int       @default(0)
+  created         Int       @default(0)
+  updated         Int       @default(0)
+  skipped         Int       @default(0)
+  errored         Int       @default(0)
+  reviewed        Int       @default(0) // rows sent to the review queue
+  errorSummary    String?
+  errorCategory   String?
+  retryCount      Int       @default(0)
+  cursorBefore    String?
+  cursorAfter     String?
+  reportJson      String?
+  queueJobId      String?
+  actorUserId     String?
+  errors          IntegrationSyncError[]
+
+  @@index([integrationKey, startedAt])
+  @@index([status, startedAt])
+}
+
+/// Row-level failure inside a sync job.
+model IntegrationSyncError {
+  id         String   @id @default(cuid())
+  jobId      String
+  job        IntegrationSyncJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  entityType String
+  externalId String?
+  category   String // VALIDATION | MAPPING | DATA_CONFLICT | PROVIDER | UNKNOWN
+  message    String
+  rowRef     String? // file row / page / record locator
+  createdAt  DateTime @default(now())
+
+  @@index([jobId])
+}
+
+/// Records the system will not guess about: unmatched members, conflicts, duplicates, low-confidence
+/// extractions, contract-price exceptions. Nothing here has touched master data.
+model IntegrationReviewItem {
+  id              String    @id @default(cuid())
+  integrationKey  String
+  kind            String // UNMATCHED_ACCOUNT | MEMBERSHIP_CONFLICT | DUPLICATE | LOW_CONFIDENCE_EXTRACTION | PRICE_EXCEPTION | UNKNOWN_COMPETITOR | MAPPING_ERROR
+  status          String    @default("OPEN") // OPEN | RESOLVED | DISMISSED
+  syncJobId       String?
+  externalId      String?
+  dedupeKey       String? // one OPEN item per key
+  summary         String
+  payloadJson     String // the canonical record, redacted
+  suggestionJson  String? // e.g. candidate account ids
+  resolution      String? // LINKED | ACCEPTED | DISMISSED | CORRECTED
+  resolutionJson  String?
+  resolvedByUserId String?
+  resolvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([integrationKey, status, createdAt])
+  @@index([dedupeKey, status])
+}
+
+/// One extraction pass over a Document by a provider. Extraction confidence is NOT commercial
+/// confidence (that stays on CompetitorPriceObservation.rawConfidence).
+model DocumentExtraction {
+  id                String    @id @default(cuid())
+  documentId        String
+  provider          String // manual | http | mock | …
+  model             String?
+  documentType      String // INVOICE | PO | BID_LIST | CONTRACT_TABLE | COMPETITOR_LIST | OTHER
+  status            String    @default("PENDING") // PENDING | EXTRACTED | REVIEW | VERIFIED | REJECTED | FAILED
+  overallConfidence Float?
+  threshold         Float? // the review threshold in force when it ran
+  requestedByUserId String?
+  syncJobId         String?
+  error             String?
+  rawJson           String? // bounded provider response reference (never credentials)
+  createdAt         DateTime  @default(now())
+  completedAt       DateTime?
+  verifiedByUserId  String?
+  verifiedAt        DateTime?
+  fields            ExtractedField[]
+
+  @@index([documentId, createdAt])
+  @@index([status])
+}
+
+/// One extracted value with its provenance and verification state.
+model ExtractedField {
+  id                 String   @id @default(cuid())
+  extractionId       String
+  extraction         DocumentExtraction @relation(fields: [extractionId], references: [id], onDelete: Cascade)
+  scope              String   @default("HEADER") // HEADER | LINE
+  lineNo             Int?
+  field              String // canonical field name: competitorSku, quantity, unitPrice, uom, accountName, date, …
+  rawValue           String?
+  normalizedValue    String?
+  confidence         Float?
+  page               Int?
+  section            String?
+  verificationStatus String   @default("UNVERIFIED") // UNVERIFIED | VERIFIED | CORRECTED | REJECTED
+  correctedValue     String?
+  verifiedByUserId   String?
+  verifiedAt         DateTime?
+
+  @@index([extractionId, lineNo])
+}
+
+/// Inbound events (webhooks) received from providers; idempotent by (integration, eventId).
+model IntegrationInboundEvent {
+  id             String   @id @default(cuid())
+  integrationKey String
+  eventId        String
+  eventType      String?
+  receivedAt     DateTime @default(now())
+  processedAt    DateTime?
+  status         String   @default("RECEIVED") // RECEIVED | PROCESSED | IGNORED | FAILED
+  error          String?
+  payloadHash    String?
+  summaryJson    String? // bounded, redacted
+
+  @@unique([integrationKey, eventId])
+  @@index([integrationKey, receivedAt])
 }

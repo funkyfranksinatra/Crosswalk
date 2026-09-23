@@ -5,7 +5,7 @@ import { Card } from "@/components/ui";
 import { Pill } from "@/components/commercial";
 
 type SystemStatus = { adapter: string; configured: boolean; implemented: boolean; note: string; api: { name: string; env: { name: string; set: boolean }[]; implemented: boolean }; feed: { files: { name: string; present: boolean }[] } };
-type Status = { status: Record<"crm" | "erp" | "gpo", SystemStatus> & { feedDir: string | null }; recent: { id: string; system: string; direction: string; entityType: string; status: string; error: string | null; at: string }[]; counts: { system: string; status: string; _count: { _all: number } }[] };
+type Status = { status: Record<"crm" | "erp" | "gpo", SystemStatus> & { feedDir: string | null; tier2?: { key: string; label: string; provider: string | null; enabled: boolean; status: string }[] }; recent: { id: string; system: string; direction: string; entityType: string; status: string; error: string | null; at: string }[]; counts: { system: string; status: string; _count: { _all: number } }[] };
 type Report = { system: string; entityType: string; created: number; updated: number; skipped: number; failed: number; errors: string[] };
 
 const LABEL: Record<"crm" | "erp" | "gpo", string> = { crm: "CRM — accounts, parents, opportunities, GPO affiliation", erp: "ERP — SKU master, list prices, standard cost by plant/region, purchases", gpo: "GPO — membership roster with tier and effective dates" };
@@ -30,7 +30,8 @@ export function IntegrationsCard({ canSync }: { canSync: boolean }) {
     load();
   }
   return (
-    <Card title="Integrations" subtitle="CRM owns accounts/opportunities, ERP owns SKUs/costs/purchases, the GPO feed owns memberships. Sync is idempotent (external ids + payload hashes) and logged.">
+    <Card title="Integrations" subtitle="CRM owns accounts/opportunities, ERP owns SKUs/costs/purchases, the GPO feed owns memberships. Sync is idempotent (external ids + payload hashes) and logged." actions={<Link className="btn-primary" href="/settings/integrations">Configure integrations →</Link>}>
+      {s?.status.tier2?.some((t) => t.enabled) && <div className="mb-2 text-[12px] text-muted">Configured: {s.status.tier2.filter((t) => t.enabled).map((t) => `${t.label} (${t.provider}, ${t.status.toLowerCase()})`).join(" · ")}</div>}
       {s && (
         <div className="space-y-1.5 text-[12.5px]">
           {(["crm", "erp", "gpo"] as const).map((k) => {
