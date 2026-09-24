@@ -22,7 +22,7 @@ export function RefreshAnalytics({ asOf, stale, source }: { asOf: string; stale:
   return (
     <div className={`flex items-center gap-3 text-[12.5px] mb-4 rounded-lg px-3 py-2 ${stale ? "bg-alt-soft text-alt" : "bg-panel-2 text-muted"}`}>
       <span>{source === "live" ? "Computed just now" : `As of ${when.toLocaleString()}`}{stale ? " — older than the freshness window; refresh for current numbers" : ""}</span>
-      <button className="btn-ghost !py-0.5 text-[12px] ml-auto" onClick={refresh} disabled={busy}>{busy ? "Recomputing…" : "Refresh"}</button>
+      <button type="button" className="btn-ghost !py-0.5 text-[12px] ml-auto" onClick={refresh} disabled={busy}>{busy ? "Recomputing…" : "Refresh"}</button>
       {note && <span className="text-muted">{note}</span>}
       {err && <span className="text-none">{err}</span>}
     </div>

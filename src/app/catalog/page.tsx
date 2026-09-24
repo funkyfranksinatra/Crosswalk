@@ -9,6 +9,9 @@ import { getActor, can } from "@/lib/auth";
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<{ q?: string; cat?: string; only?: string }> }) {
   const { q = "", cat = "", only = "" } = await searchParams;
   const actor = await getActor();
+  // Prices are commercial data: list / pricebook prices need view_pricing, COGS needs view_cost.
+  // Roles without either (CLINICAL_REVIEWER) still see the catalog itself — SKUs, GUDID, bins.
+  const showPrice = can(actor, "view_pricing");
   const showCost = can(actor, "view_cost");
   const company = await getCompany();
   const where = {
@@ -32,7 +35,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader eyebrow={company.name} title="Our catalog" description="Every SKU Crosswalk can propose. Seeded from the curated cross-reference sheets, enriched from FDA GUDID, priced from your import." actions={<CatalogActions canManage={can(actor, "manage_catalog")} canImportCost={can(actor, "import_cost_data")} />} />
-      <div className="grid grid-cols-5 gap-3 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
         <Stat label="SKUs" value={total} />
         <Stat label="With GUDID record" value={withGudid} hint={withGudid < total ? `${total - withGudid} to enrich` : "complete"} tone="accent" />
         <Stat label="Priced" value={priced} hint={priced ? `${pricebooks.length} pricebook${pricebooks.length === 1 ? "" : "s"}` : "import pricing to rank on money"} tone={priced ? "exact" : "alt"} />
@@ -41,9 +44,9 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       </div>
       <Card padded={false}>
         <CatalogTable
-          products={products.map((p) => ({ id: p.id, sku: p.sku, description: p.description, category: p.category, brand: p.brand, labeler: p.labeler, status: p.status, gudidDi: p.gudidDi, gmdnName: p.gmdnName, listPrice: num(p.listPrice), cogs: showCost ? num(p.cogs) : null, binJson: p.binJson, binSource: p.binSource, prices: p.prices.filter((e) => e.pricebook).map((e) => ({ name: e.pricebook!.name, price: num(e.price) ?? 0 })), used: p._count.candidates }))}
+          products={products.map((p) => ({ id: p.id, sku: p.sku, description: p.description, category: p.category, brand: p.brand, labeler: p.labeler, status: p.status, gudidDi: p.gudidDi, gmdnName: p.gmdnName, listPrice: showPrice ? num(p.listPrice) : null, cogs: showCost ? num(p.cogs) : null, binJson: p.binJson, binSource: p.binSource, prices: showPrice ? p.prices.filter((e) => e.pricebook).map((e) => ({ name: e.pricebook!.name, price: num(e.price) ?? 0 })) : [], used: p._count.candidates }))}
           categories={categories.map((c) => ({ name: c.category ?? "Uncategorised", count: c._count._all }))}
-          q={q} cat={cat} only={only} total={total}
+          q={q} cat={cat} only={only} total={total} showPrice={showPrice} showCost={showCost}
         />
       </Card>
     </>

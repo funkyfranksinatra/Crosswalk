@@ -1,0 +1,1385 @@
+diff --git a/deploy/entrypoint.sh b/deploy/entrypoint.sh
+index 654584c..6285f46 100755
+--- a/deploy/entrypoint.sh
++++ b/deploy/entrypoint.sh
+@@ -7,35 +7,41 @@
+ #   anything else is executed as given (e.g. `npx tsx scripts/retention.ts --dry-run`)
+ # Secrets from SECRETS_PROVIDER are loaded by scripts/with-secrets.ts for the steps that
+ # run outside the app process (migrate), and by the app itself for web and worker.
++#
++# The long-running roles exec the local binaries directly (node_modules/.bin), never through
++# `npx`: npx does not forward SIGTERM to the process it spawned, so `docker stop` ended npx and
++# left the server / worker running without its graceful stop (in-flight jobs were not handed
++# back to the queue) until the container was killed.
+ set -eu
+-cd /app
++# /app in the image; the checkout when run directly (docs/DEPLOYMENT.md: `sh deploy/entrypoint.sh check`).
++cd "${APP_DIR:-$(dirname "$0")/..}"
+ role="${1:-web}"
+ [ $# -gt 0 ] && shift
+ 
+ migrate() {
+   if [ "${PREFLIGHT_ON_START:-true}" = "true" ]; then
+     echo "[entrypoint] db preflight (CHECK constraints)"
+-    npx tsx scripts/db-preflight.ts || { echo "[entrypoint] preflight found rows that would fail the constraints; fix them or set PREFLIGHT_ON_START=false"; exit 1; }
++    node_modules/.bin/tsx scripts/db-preflight.ts || { echo "[entrypoint] preflight found rows that would fail the constraints; fix them or set PREFLIGHT_ON_START=false"; exit 1; }
+   fi
+   echo "[entrypoint] prisma migrate deploy"
+-  npx tsx scripts/with-secrets.ts --check -- npx prisma migrate deploy
++  node_modules/.bin/tsx scripts/with-secrets.ts --check -- node_modules/.bin/prisma migrate deploy
+ }
+ 
+ case "$role" in
+   web)
+     if [ "${MIGRATE_ON_START:-true}" = "true" ]; then migrate; fi
+     echo "[entrypoint] next start on :${PORT:-3000} (JOBS_WORKER=${JOBS_WORKER:-inline})"
+-    exec npx next start -p "${PORT:-3000}" -H "${HOSTNAME:-0.0.0.0}"
++    exec node_modules/.bin/next start -p "${PORT:-3000}" -H "${HOSTNAME:-0.0.0.0}"
+     ;;
+   worker)
+     echo "[entrypoint] job worker"
+-    exec npx tsx scripts/worker.ts
++    exec node_modules/.bin/tsx scripts/worker.ts
+     ;;
+   migrate)
+     migrate
+     ;;
+   check)
+-    exec npx tsx scripts/with-secrets.ts --check
++    exec node_modules/.bin/tsx scripts/with-secrets.ts --check
+     ;;
+   *)
+     exec "$role" "$@"
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+index 4ab37d8..bdc053f 100644
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -226,7 +226,7 @@ model Request {
+   sourceUrl      String? // Google Sheets link when the intake came from one
+   xrefSheetUrl   String? // Drive write-back links (when a service account is configured)
+   offerSheetUrl  String?
+-  status         String        @default("draft") // draft | queued | running | complete | failed
++  status         String        @default("draft") // draft | queued | running | complete | failed | cancelled
+   stage          String? // human-readable current stage
+   progress       Int           @default(0) // 0..100
+   error          String?
+@@ -264,10 +264,10 @@ model RequestLine {
+   competitorProductId String?
+   competitorProduct   CompetitorProduct? @relation(fields: [competitorProductId], references: [id])
+   /// pending | resolved | not-found | error
+-  resolutionStatus    String             @default("pending")
++  resolutionStatus    String             @default("pending") // pending | resolved | not-found | error
+   resolutionNote      String?
+   /// pending | matched | no-match | error
+-  matchStatus         String             @default("pending")
++  matchStatus         String             @default("pending") // pending | matched | no-match | error
+   selectedCandidateId String?
+   overrideNote        String?
+   /// Note written FOR the customer (carried onto the proposal / quote); overrideNote stays internal.
+@@ -378,7 +378,7 @@ model Account {
+   id              String                       @id @default(cuid())
+   name            String
+   accountNumber   String?                      @unique
+-  type            String                       @default("SOLD_TO") // SOLD_TO | SHIP_TO | IDN | HEALTH_SYSTEM | GROUP
++  type            String                       @default("SOLD_TO") // SOLD_TO | SHIP_TO | BILL_TO | IDN | HEALTH_SYSTEM | GROUP | GPO_MEMBER
+   parentAccountId String?
+   parent          Account?                     @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
+   children        Account[]                    @relation("AccountHierarchy")
+@@ -660,7 +660,7 @@ model CompetitorPriceObservation {
+   observedAt          DateTime
+   effectiveAt         DateTime?
+   /// CUSTOMER_INVOICE | CUSTOMER_PO | CUSTOMER_BID_FILE | GPO_CONTRACT_FILE | WIN_LOSS_RECORD | INTERNAL_VERIFIED | REP_OBSERVED | ANECDOTAL
+-  sourceType          String
++  sourceType          String // CUSTOMER_INVOICE | CUSTOMER_PO | CUSTOMER_BID_FILE | GPO_CONTRACT_FILE | WIN_LOSS_RECORD | INTERNAL_VERIFIED | PUBLIC_BID_DB | REP_OBSERVED | ANECDOTAL
+   sourceRef           String?
+   documentId          String?
+   document            Document?  @relation(fields: [documentId], references: [id])
+@@ -797,7 +797,7 @@ model ProposalLine {
+   uom                       String            @default("EA")
+   listPrice                 Decimal?          @db.Decimal(18, 4)
+   contractPrice             Decimal?          @db.Decimal(18, 4)
+-  contractPriceSource       String? // LIST | GPO | IDN | LOCAL
++  contractPriceSource       String? // LIST | NATIONAL | GPO | IDN | LOCAL
+   waterfallJson             String?
+   competitorPrice           Decimal?          @db.Decimal(18, 4)
+   competitorPriceConfidence Float?
+@@ -1074,7 +1074,7 @@ model GudidImport {
+   productCodesJson   String? // FDA product-code filter (null = all)
+   inDistributionOnly Boolean       @default(true)
+   /// QUEUED | RUNNING | DONE | FAILED | CANCELLED
+-  status             String        @default("QUEUED")
++  status             String        @default("QUEUED") // QUEUED | RUNNING | DONE | FAILED | CANCELLED
+   expected           Int?
+   fetched            Int           @default(0)
+   created            Int           @default(0)
+@@ -1106,7 +1106,7 @@ model Notification {
+   userId        String
+   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+   /// RUN_COMPLETE | RUN_FAILED | APPROVAL_REQUESTED | APPROVAL_DECIDED | PROPOSAL_APPROVED | CROSS_PROPOSED | FEED_FAILED | ALERT | JOB_FAILED | BREAK_GLASS
+-  kind          String
++  kind          String // RUN_COMPLETE | RUN_FAILED | APPROVAL_REQUESTED | APPROVAL_DECIDED | PROPOSAL_APPROVED | CROSS_PROPOSED | FEED_FAILED | ALERT | JOB_FAILED | BREAK_GLASS
+   title         String
+   body          String?
+   link          String?
+@@ -1127,7 +1127,7 @@ model Notification {
+ model NotificationPreference {
+   userId String
+   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+-  kind   String // a Notification.kind or "*"
++  kind   String // RUN_COMPLETE | RUN_FAILED | APPROVAL_REQUESTED | APPROVAL_DECIDED | PROPOSAL_APPROVED | CROSS_PROPOSED | FEED_FAILED | ALERT | JOB_FAILED | BREAK_GLASS | * (a Notification.kind or "*")
+   inApp  Boolean @default(true)
+   email  Boolean @default(true)
+   teams  Boolean @default(false)
+@@ -1367,7 +1367,7 @@ model IntegrationSyncError {
+ model IntegrationReviewItem {
+   id              String    @id @default(cuid())
+   integrationKey  String
+-  kind            String // UNMATCHED_ACCOUNT | MEMBERSHIP_CONFLICT | DUPLICATE | LOW_CONFIDENCE_EXTRACTION | PRICE_EXCEPTION | UNKNOWN_COMPETITOR | MAPPING_ERROR
++  kind            String // UNMATCHED_ACCOUNT | MEMBERSHIP_CONFLICT | DUPLICATE | LOW_CONFIDENCE_EXTRACTION | PRICE_EXCEPTION | UNKNOWN_COMPETITOR | MAPPING_ERROR | OVERLAP
+   status          String    @default("OPEN") // OPEN | RESOLVED | DISMISSED
+   syncJobId       String?
+   externalId      String?
+diff --git a/prisma/seed-enterprise.ts b/prisma/seed-enterprise.ts
+index ea93b73..2ec43e4 100644
+--- a/prisma/seed-enterprise.ts
++++ b/prisma/seed-enterprise.ts
+@@ -25,9 +25,15 @@ import { DEFAULT_POLICY } from "../src/lib/pricing/policy-model";
+ import { recordObservation } from "../src/lib/intelligence";
+ import { audit } from "../src/lib/audit";
+ import { normalizeCfn } from "../src/lib/cfn";
++import { defaultCompanyName, defaultLabelers } from "../src/lib/tenancy";
+ 
+ const demo = !process.argv.includes("--no-demo");
+-const COMPANY = process.env.COMPANY_NAME ?? "Medtronic";
++const COMPANY = defaultCompanyName();
++
++/** The served company, resolved as the app does (name → oldest row); created with OWN_LABELERS only on an empty database. */
++async function resolveCompany() {
++  return (await prisma.company.findUnique({ where: { name: COMPANY } })) ?? (await prisma.company.findFirst({ orderBy: { createdAt: "asc" } })) ?? (await prisma.company.create({ data: { name: COMPANY, labelers: JSON.stringify(defaultLabelers()) } }));
++}
+ const day = (s: string) => new Date(s + "T00:00:00Z");
+ const monthsAgo = (n: number) => { const d = new Date(); d.setMonth(d.getMonth() - n); return d; };
+ 
+@@ -52,7 +58,7 @@ async function backfill() {
+   }
+   console.log(`Users: ${DEV_USERS.length} dev users across ${ROLES.length} roles`);
+   // Single tenant: load into the existing company whatever its name (never a second row).
+-  const company = (await prisma.company.findUnique({ where: { name: COMPANY } })) ?? (await prisma.company.findFirst({ orderBy: { createdAt: "asc" } })) ?? (await prisma.company.create({ data: { name: COMPANY, labelers: JSON.stringify(["Covidien", "Medtronic", "Sofradim"]) } }));
++  const company = await resolveCompany();
+ 
+   // Legacy COGS → dated StandardCost (global), only where nothing exists.
+   const withCogs = await prisma.ownProduct.findMany({ where: { companyId: company.id, cogs: { not: null } }, include: { costs: true } });
+@@ -98,7 +104,7 @@ async function backfill() {
+ }
+ 
+ async function demoData() {
+-  const company = await prisma.company.findUniqueOrThrow({ where: { name: COMPANY } });
++  const company = await resolveCompany();
+   const admin = await prisma.user.findUniqueOrThrow({ where: { email: "admin@crosswalk.dev" } });
+   const rep = await prisma.user.findUniqueOrThrow({ where: { email: "alex.rep@crosswalk.dev" } });
+   const premier = await prisma.gpo.upsert({ where: { name: "Premier" }, create: { name: "Premier", code: "PREM" }, update: {} });
+@@ -119,7 +125,9 @@ async function demoData() {
+   await prisma.opportunity.upsert({ where: { externalCrmId: "006DEV0000MSK01" }, create: { accountId: msk.id, name: "MSK — Hernia & Endomechanical conversion FY27", stage: "Proposal", ownerUserId: rep.id, closeDate: day("2026-12-15"), amount: "450000", currency: "USD", externalCrmId: "006DEV0000MSK01" }, update: {} });
+ 
+   // Products we price in the demo
+-  const skus = ["PPM1106X3", "PPM1510X3", "PPM4530", "PPDS12", "PPDS15", "PPDS1510", "PPDS2015", "PCO9X", "PCO2015X", "PCO2520X", "ABSTACK30X", "174006", "SIG60AMT", "SIG45AMT", "EGIA60AMT", "ONB12STF", "ONB5STF"];
++  // NONB12STF (VersaOne bladeless, non-optical 12 × 100) is the evidence-based cross for the Ethicon B12LTH line the
++  // e2e fixture prices (CW-DBG-0002); its demo list/cost mirror ONB12STF's — fixtures, not company figures.
++  const skus = ["PPM1106X3", "PPM1510X3", "PPM4530", "PPDS12", "PPDS15", "PPDS1510", "PPDS2015", "PCO9X", "PCO2015X", "PCO2520X", "ABSTACK30X", "174006", "SIG60AMT", "SIG45AMT", "EGIA60AMT", "ONB12STF", "ONB5STF", "NONB12STF"];
+   // Every SKU the demo prices is ensured to exist: the curated sheets carry most of them, but the demo
+   // must stand on its own where they are absent (CI, a fresh clone, a customer deployment before its
+   // catalog is loaded). Descriptions here are only a fallback — `create` never overwrites a real row.
+@@ -130,12 +138,13 @@ async function demoData() {
+     "174006": ["ProTack — Fixation Device", "Fixation"], ABSTACK30X: ["AbsorbaTack™ Fixation Device, 5 mm, single use, 30 tacks", "Fixation"],
+     SIG60AMT: ["Signia™ 60 mm Articulating Medium/Thick Reload with Tri-Staple™ Technology", "Surgical Stapling Products"], SIG45AMT: ["Signia™ 45 mm Articulating Medium/Thick Reload with Tri-Staple™ Technology", "Surgical Stapling Products"], EGIA60AMT: ["Endo GIA™ 60 mm Articulating Medium/Thick SULU with Tri-Staple Technology", "Surgical Stapling Products"],
+     ONB12STF: ["VersaOne™ Optical Trocar with Fixation Cannula; 12 mm x 100 mm", "Trocar Products"], ONB5STF: ["VersaOne™ Optical Trocar with Fixation Cannula; 5 mm x 100 mm", "Trocar Products"],
++    NONB12STF: ["VersaOne™ Bladeless Trocar with Fixation Cannula; Size: 12 mm; Length: 100 mm", "Trocar Products"],
+   };
+   for (const [sku, [description, category]] of Object.entries(ensure)) await prisma.ownProduct.upsert({ where: { companyId_sku: { companyId: company.id, sku } }, create: { companyId: company.id, sku, description, category }, update: {} });
+   const products = await prisma.ownProduct.findMany({ where: { companyId: company.id, sku: { in: skus } }, include: { costs: true } });
+   const bySku = new Map(products.map((p) => [p.sku, p]));
+   // Standard costs by plant (Juarez) with a global fallback; list prices where the legacy report had none.
+-  const listAndCost: Record<string, [string, string]> = { PPM1106X3: ["63.61", "18.40"], PPM1510X3: ["99.74", "27.90"], PPM4530: ["590.36", "162.00"], PPDS12: ["512.00", "155.00"], PPDS15: ["640.00", "190.00"], PPDS1510: ["699.58", "205.00"], PPDS2015: ["1122.25", "318.00"], PCO9X: ["486.00", "148.00"], PCO2015X: ["812.00", "241.00"], PCO2520X: ["1015.00", "296.00"], ABSTACK30X: ["794.21", "212.00"], "174006": ["655.00", "171.00"], SIG60AMT: ["1240.00", "388.00"], SIG45AMT: ["1180.00", "366.00"], EGIA60AMT: ["1195.00", "372.00"], ONB12STF: ["112.00", "31.00"], ONB5STF: ["98.00", "27.00"] };
++  const listAndCost: Record<string, [string, string]> = { PPM1106X3: ["63.61", "18.40"], PPM1510X3: ["99.74", "27.90"], PPM4530: ["590.36", "162.00"], PPDS12: ["512.00", "155.00"], PPDS15: ["640.00", "190.00"], PPDS1510: ["699.58", "205.00"], PPDS2015: ["1122.25", "318.00"], PCO9X: ["486.00", "148.00"], PCO2015X: ["812.00", "241.00"], PCO2520X: ["1015.00", "296.00"], ABSTACK30X: ["794.21", "212.00"], "174006": ["655.00", "171.00"], SIG60AMT: ["1240.00", "388.00"], SIG45AMT: ["1180.00", "366.00"], EGIA60AMT: ["1195.00", "372.00"], ONB12STF: ["112.00", "31.00"], ONB5STF: ["98.00", "27.00"], NONB12STF: ["112.00", "31.00"] /* demo values mirroring ONB12STF */ };
+   for (const [sku, [list, cost]] of Object.entries(listAndCost)) {
+     const p = bySku.get(sku);
+     if (!p) continue;
+diff --git a/prisma/seed.ts b/prisma/seed.ts
+index 7f5d304..eb50a73 100644
+--- a/prisma/seed.ts
++++ b/prisma/seed.ts
+@@ -13,9 +13,21 @@ import ExcelJS from "exceljs";
+ import { prisma } from "../src/lib/db";
+ import { normalizeCfn, isPlaceholderSku } from "../src/lib/cfn";
+ import { heuristicBin, FAMILIES } from "../src/lib/match/bin";
++import { defaultCompanyName, defaultLabelers } from "../src/lib/tenancy";
+ 
+ const SHEET = path.resolve(process.cwd(), "data/reference/Endomechanical.xlsx");
+-const COMPANY = process.env.COMPANY_NAME ?? "Medtronic";
++const COMPANY = defaultCompanyName();
++
++/**
++ * Single tenant: if a company already exists under another name, the seed loads into IT rather than
++ * creating a second row nobody is served from (COMPANY_NAME drift). Resolved exactly as the app does
++ * (settings name first, else the oldest row); a fresh database gets COMPANY_NAME with OWN_LABELERS.
++ */
++async function resolveCompany() {
++  const existing = (await prisma.company.findUnique({ where: { name: COMPANY } })) ?? (await prisma.company.findFirst({ orderBy: { createdAt: "asc" } }));
++  if (existing && existing.name !== COMPANY) console.warn(`Company "${existing.name}" already exists; seeding into it (COMPANY_NAME=${COMPANY} was not used to create a second company)`);
++  return existing ?? prisma.company.create({ data: { name: COMPANY, labelers: JSON.stringify(defaultLabelers()) } });
++}
+ 
+ type Row = { category: string; sku: string; description: string; matchType: string; competitorName: string; competitorCode: string; competitorDescription: string; reviewer: string; comment: string; sheet: string };
+ 
+@@ -35,7 +47,7 @@ async function main() {
+     console.log("Ask the project owner for data/reference/Endomechanical.xlsx (own SKUs + curated crosses) and, optionally,");
+     console.log("SSXrefReport_REQ-7604.xlsx (hernia SKUs + list prices) and CrossReference_0001880967.xlsx (sample intake).");
+     console.log("Seeding only the company record and the default pricebook; the catalog starts empty.");
+-    await prisma.company.upsert({ where: { name: COMPANY }, create: { name: COMPANY }, update: {} });
++    await resolveCompany();
+     await prisma.pricebook.upsert({ where: { name: "HOSPITAL LIST PRICE" }, create: { name: "HOSPITAL LIST PRICE" }, update: {} });
+     return;
+   }
+@@ -82,12 +94,7 @@ async function main() {
+   }
+   console.log(`Read ${rows.length} curated rows from ${SHEET}${skippedPlaceholders ? ` (${skippedPlaceholders} placeholder rows skipped)` : ""}`);
+ 
+-  // Single tenant: if a company already exists under another name, the seed loads into IT rather than
+-  // creating a second row nobody is served from (COMPANY_NAME drift). Rename it in Settings if needed.
+-  // Resolved exactly as the app does (settings name first, else the oldest row), so the seed never loads a company the UI does not serve.
+-  const existing = (await prisma.company.findUnique({ where: { name: COMPANY } })) ?? (await prisma.company.findFirst({ orderBy: { createdAt: "asc" } }));
+-  if (existing && existing.name !== COMPANY) console.warn(`Company "${existing.name}" already exists; seeding into it (COMPANY_NAME=${COMPANY} was not used to create a second company)`);
+-  const company = existing ?? await prisma.company.create({ data: { name: COMPANY, labelers: JSON.stringify(["Covidien", "Medtronic", "Sofradim"]) } });
++  const company = await resolveCompany();
+ 
+   // Own products: every MDT SKU + every Medtronic "competitor" code (internal substitutes are also our SKUs)
+   const own = new Map<string, { description: string; category: string }>();
+@@ -101,7 +108,7 @@ async function main() {
+   }
+   let created = 0;
+   for (const [sku, v] of own) {
+-    const bin = heuristicBin({ sku, description: v.description, category: v.category });
++    const bin = heuristicBin({ sku, manufacturer: company.name, description: v.description, category: v.category });
+     await prisma.ownProduct.upsert({
+       where: { companyId_sku: { companyId: company.id, sku } },
+       create: { companyId: company.id, sku, description: v.description, category: v.category, binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date() },
+@@ -115,7 +122,7 @@ async function main() {
+   for (const p of await prisma.ownProduct.findMany({ where: { companyId: company.id, NOT: { binSource: "llm" } } })) {
+     const raw = p.gudidJson ? JSON.parse(p.gudidJson) : null;
+     const g = raw ? summarizeRecord(raw) : null;
+-    const bin = heuristicBin({ sku: p.sku, brand: p.brand, description: g ? `${p.description} ; ${g.description ?? ""}` : p.description, category: p.category, gmdnName: p.gmdnName, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
++    const bin = heuristicBin({ sku: p.sku, manufacturer: p.labeler ?? company.name, brand: p.brand, description: g ? `${p.description} ; ${g.description ?? ""}` : p.description, category: p.category, gmdnName: p.gmdnName, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
+     // Categories that were auto-derived (they equal a family name) follow the bin; curated sales categories are kept.
+     const autoCategory = !p.category || FAMILIES.includes(p.category as (typeof FAMILIES)[number]);
+     await prisma.ownProduct.update({ where: { id: p.id }, data: { binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date(), ...(autoCategory && bin.family !== "Other" ? { category: bin.family } : {}) } });
+@@ -168,7 +175,7 @@ async function main() {
+       const category = txt(row.getCell(10).value);
+       const pricebookName = txt(row.getCell(12).value);
+       const price = Number(row.getCell(13).value);
+-      const bin = heuristicBin({ sku, description, category });
++      const bin = heuristicBin({ sku, manufacturer: company.name, description, category });
+       const prod = await prisma.ownProduct.upsert({
+         where: { companyId_sku: { companyId: company.id, sku } },
+         create: { companyId: company.id, sku, description, category, binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date(), listPrice: Number.isFinite(price) && price > 0 ? price : null },
+diff --git a/scripts/db-preflight.ts b/scripts/db-preflight.ts
+index 9e89911..cc17d40 100644
+--- a/scripts/db-preflight.ts
++++ b/scripts/db-preflight.ts
+@@ -12,19 +12,27 @@ import { violationQueries } from "../src/lib/db/constraints";
+ async function main() {
+   await loadSecrets(); // DATABASE_URL may live in the secret manager; the client reads it at load
+   const { prisma } = await import("../src/lib/db");
++  // Which tables exist is checked once through information_schema: on an empty database (first
++  // deploy) every query would otherwise fail and the Prisma client would print one `prisma:error`
++  // block per constraint — 68 stack traces for a state that is simply "nothing to check yet".
++  const present = new Set((await prisma.$queryRawUnsafe<{ table_name: string }[]>(`SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema()`)).map((r) => r.table_name));
+   let bad = 0;
++  const skipped: string[] = [];
+   for (const q of violationQueries()) {
++    if (!present.has(q.table)) { skipped.push(q.name); continue; }
+     let n = 0;
+     try {
+       const rows = await prisma.$queryRawUnsafe<{ n: number }[]>(q.sql);
+       n = rows[0]?.n ?? 0;
+     } catch (e) {
+       const msg = e instanceof Error ? e.message : String(e);
+-      if (/does not exist/.test(msg)) { console.log(`  skip  ${q.name}: table or column not present yet (run migrations first)`); continue; }
++      // a column added by a migration that has not run yet
++      if (/does not exist/.test(msg)) { skipped.push(q.name); continue; }
+       throw e;
+     }
+     if (n > 0) { bad += n; console.log(`  FAIL  ${q.name}: ${n} row(s) — ${q.description}`); }
+   }
++  if (skipped.length) console.log(`  skip  ${skipped.length} constraint(s) whose table or column is not present yet (run migrations first): ${skipped.slice(0, 5).join(", ")}${skipped.length > 5 ? ", …" : ""}`);
+   console.log(bad ? `\n${bad} row(s) would violate the constraints; fix them before migrating.` : "No rows violate the CHECK constraints.");
+   await prisma.$disconnect();
+   process.exit(bad ? 1 : 0);
+diff --git a/scripts/lib/harness.ts b/scripts/lib/harness.ts
+index d781acc..6f38c4d 100644
+--- a/scripts/lib/harness.ts
++++ b/scripts/lib/harness.ts
+@@ -33,3 +33,14 @@ export async function report() {
+   for (const f of failures) console.log(`  ✗ ${f}`);
+   if (failures.length) process.exit(1);
+ }
++
++/**
++ * Release everything a database-backed script may have started so the process can exit on its
++ * own: the pg-boss instance (its pool and timers keep the event loop alive whenever a step
++ * enqueued a job with inline workers) and the Prisma client. Safe to call when neither was
++ * started; imports lazily so the pure check suites never touch the database modules.
++ */
++export async function releaseResources(): Promise<void> {
++  try { const { stopBoss } = await import("../../src/lib/jobs/boss"); await stopBoss(); } catch { /* not started, or already stopped */ }
++  try { const { prisma } = await import("../../src/lib/db"); await prisma.$disconnect(); } catch { /* not connected */ }
++}
+diff --git a/scripts/model-eval.ts b/scripts/model-eval.ts
+index db7b99d..2b598ed 100644
+--- a/scripts/model-eval.ts
++++ b/scripts/model-eval.ts
+@@ -33,4 +33,10 @@ async function main() {
+   else console.log(`\nEval id ${r.id}. Re-run with --accept to make this the baseline.`);
+   await prisma.$disconnect();
+ }
+-main().catch((e) => { console.error(e); process.exit(1); });
++main().catch((e) => {
++  // A missing model key or a configuration problem is a one-line message, not a stack trace.
++  const msg = e instanceof Error ? e.message : String(e);
++  if (/OPENAI_API_KEY|not configured|not set/i.test(msg)) console.error(`Model eval: ${msg}`);
++  else console.error(e);
++  process.exit(1);
++});
+diff --git a/scripts/test-adversarial.ts b/scripts/test-adversarial.ts
+index ea21c1c..3033183 100644
+--- a/scripts/test-adversarial.ts
++++ b/scripts/test-adversarial.ts
+@@ -9,6 +9,7 @@
+  * Fixtures are synthetic (reference ADV-*) and removed before each run.
+  */
+ import "dotenv/config";
++import { releaseResources } from "./lib/harness";
+ import assert from "node:assert/strict";
+ import { prisma } from "../src/lib/db";
+ import { permissionsFor } from "../src/lib/auth/permissions";
+@@ -377,7 +378,8 @@ async function main() {
+   await cleanup();
+   console.log(`\n${passed} passed, ${failures.length} failed`);
+   for (const f of failures) console.log(`  ✗ ${f}`);
+-  await prisma.$disconnect();
++  // Stop the queue (started by any step that enqueued a job) and the client, so the process exits by itself.
++  await releaseResources();
+   if (failures.length) process.exit(1);
+ }
+ main().catch((e) => { console.error(e); process.exit(1); });
+diff --git a/scripts/test-enterprise.ts b/scripts/test-enterprise.ts
+index 8065d5f..ace312d 100644
+--- a/scripts/test-enterprise.ts
++++ b/scripts/test-enterprise.ts
+@@ -14,6 +14,7 @@
+  * published. Idempotent: prior test artefacts are removed first.
+  */
+ import "dotenv/config";
++import { releaseResources } from "./lib/harness";
+ import assert from "node:assert/strict";
+ import fs from "node:fs";
+ import path from "node:path";
+@@ -102,7 +103,9 @@ async function main() {
+     assert.ok(resolved >= 30, `resolved ${resolved}`);
+     const stapler = lines.find((l) => l.cfnNorm === "GST60D")!;
+     assert.equal(stapler.candidates[0]?.ownProduct.sku, "EGIA60AMT");
+-    assert.equal(lines.find((l) => l.cfnNorm === "B12LTH")!.candidates[0]?.ownProduct.sku, "ONB12STF");
++    // B12LTH (Endopath Xcel bladeless, non-optical, 12 × 100, handled) → NONB12STF: the like-for-like VersaOne bladeless
++    // non-optical 12 × 100. The curated "Exact" ONB12STF is optical and is ranked Close (docs/MATCH_QUALITY_MODEL.md §4).
++    assert.equal(lines.find((l) => l.cfnNorm === "B12LTH")!.candidates[0]?.ownProduct.sku, "NONB12STF");
+   });
+ 
+   // ---- 2. Proposal creation: waterfall, cost, intelligence, recommendation snapshots ----
+@@ -159,7 +162,7 @@ async function main() {
+   // ---- 3. Rep prices the deal: one stapler line below floor, mesh deep, trocar within authority -------
+   const reload = by("EGIA60AMT");
+   const meshLine = by("PPM4530");
+-  const trocar = by("ONB12STF");
++  const trocar = by("NONB12STF");
+   await step("pricing a stapler line below floor requires the pricing committee; a deep mesh discount needs the director; a 10% trocar discount is within rep authority; every change is audited", async () => {
+     const belowFloor = d(reload.floorPrice).times(0.9);
+     const l1 = await setProposedPrice(rep, reload.id, belowFloor, "customer demands parity with Ethicon GST pricing");
+@@ -276,11 +279,11 @@ async function main() {
+     const { contract } = await recordOutcome(rep, proposal.id, { outcome: "WON", contractMonths: 12 });
+     assert.ok(contract);
+     const ctx = await loadPricingContext({ accountId: msk.id });
+-    const prod = await prisma.ownProduct.findFirstOrThrow({ where: { sku: "ONB12STF" }, include: { prices: { include: { pricebook: true } } } });
++    const prod = await prisma.ownProduct.findFirstOrThrow({ where: { sku: "NONB12STF" }, include: { prices: { include: { pricebook: true } } } });
+     const r = ctx.resolvePrice({ ...prod, prices: prod.prices.map((e) => ({ ...e, pricebook: e.pricebook ? { name: e.pricebook.name } : null })) }, new Decimal(600));
+     assert.equal(r.source, "LOCAL");
+     assert.ok(r.price!.eq(round(d(trocar.contractPrice).times(0.95))), `contract price ${r.price} ≠ approved ${round(d(trocar.contractPrice).times(0.95))}`);
+-    await prisma.purchaseRecord.create({ data: { accountId: msk.id, productId: prod.id, sku: "ONB12STF", quantity: "120", netPrice: r.price!.toFixed(4), currency: "USD", invoiceDate: new Date(), contractId: contract!.id, proposalId: proposal.id, source: "import", externalId: `E2E-${proposal.id}` } });
++    await prisma.purchaseRecord.create({ data: { accountId: msk.id, productId: prod.id, sku: "NONB12STF", quantity: "120", netPrice: r.price!.toFixed(4), currency: "USD", invoiceDate: new Date(), contractId: contract!.id, proposalId: proposal.id, source: "import", externalId: `E2E-${proposal.id}` } });
+     const conv = await proposalConversion(proposal.id);
+     assert.equal(conv.linesConverted, 1);
+     const perf = await contractPerformance(contract!.id);
+@@ -393,7 +396,8 @@ async function main() {
+ 
+   console.log(`\n${passed} passed, ${failures.length} failed`);
+   for (const f of failures) console.log(`  ✗ ${f}`);
+-  await prisma.$disconnect();
++  // Stop the queue (started by any step that enqueued a job) and the client, so the process exits by itself.
++  await releaseResources();
+   if (failures.length) process.exit(1);
+ }
+ main().catch((e) => { console.error(e); process.exit(1); });
+diff --git a/scripts/worker.ts b/scripts/worker.ts
+index 9bf50cc..ded98dc 100644
+--- a/scripts/worker.ts
++++ b/scripts/worker.ts
+@@ -17,6 +17,9 @@ async function main() {
+   // Imported after secrets are in place: the Prisma client reads DATABASE_URL at load.
+   const { startWorkers } = await import("../src/lib/jobs/workers");
+   const { stopBoss } = await import("../src/lib/jobs/boss");
++  // Single tenant per deployment: a database with two Company rows is refused (TENANCY_STRICT=false only warns).
++  const { checkTenancy } = await import("../src/lib/tenancy");
++  await checkTenancy();
+   await startWorkers();
+   log.info("worker.ready", { pid: process.pid });
+   for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, async () => { log.info("worker.stopping", { signal: sig }); await stopBoss(); process.exit(0); });
+diff --git a/src/lib/db.ts b/src/lib/db.ts
+index 97b2812..c3ec097 100644
+--- a/src/lib/db.ts
++++ b/src/lib/db.ts
+@@ -38,14 +38,29 @@ export function strictSsl(connectionString: string): string {
+   return connectionString;
+ }
+ 
++/** DATABASE_POOL_MAX (5): a whole number 1–200; anything else is the default rather than a NaN pool size. */
++export function poolMax(env: Record<string, string | undefined> = process.env): number {
++  const raw = env.DATABASE_POOL_MAX?.trim();
++  if (!raw) return 5;
++  const n = Number(raw);
++  return Number.isInteger(n) && n >= 1 && n <= 200 ? n : 5;
++}
++
++/** DATABASE_ADAPTER (pg): pg | neon-ws | neon-http; an unknown value is refused at load, not silently "pg". */
++export function adapterKind(env: Record<string, string | undefined> = process.env): "pg" | "neon-ws" | "neon-http" {
++  const kind = (env.DATABASE_ADAPTER ?? "pg").trim().toLowerCase();
++  if (kind === "pg" || kind === "neon-ws" || kind === "neon-http") return kind;
++  throw new Error(`DATABASE_ADAPTER must be pg, neon-ws or neon-http (got "${kind}")`);
++}
++
+ function makeAdapter() {
+-  const kind = (process.env.DATABASE_ADAPTER ?? "pg").toLowerCase();
++  const kind = adapterKind();
+   if (kind === "neon-http") return new PrismaNeonHttp(url!, {});
+   if (kind === "neon-ws") {
+     neonConfig.webSocketConstructor = ws;
+-    return new PrismaNeon({ connectionString: url, max: Number(process.env.DATABASE_POOL_MAX ?? 5) });
++    return new PrismaNeon({ connectionString: url, max: poolMax() });
+   }
+-  return new PrismaPg({ connectionString: strictSsl(url!), max: Number(process.env.DATABASE_POOL_MAX ?? 5) });
++  return new PrismaPg({ connectionString: strictSsl(url!), max: poolMax() });
+ }
+ 
+ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+diff --git a/src/lib/documents/storage.ts b/src/lib/documents/storage.ts
+index 124a34b..664472e 100644
+--- a/src/lib/documents/storage.ts
++++ b/src/lib/documents/storage.ts
+@@ -17,5 +17,6 @@ export async function storeDocumentBytes(id: string, bytes: Buffer): Promise<str
+   return p;
+ }
+ export async function readDocumentBytes(id: string): Promise<Buffer | null> {
+-  try { return await readFile(fileFor(id)); } catch { return null; }
++  const p = fileFor(id); // an invalid id is an error, never "not found"
++  try { return await readFile(p); } catch { return null; }
+ }
+diff --git a/src/lib/feeds/index.ts b/src/lib/feeds/index.ts
+index cba0088..689e0b3 100644
+--- a/src/lib/feeds/index.ts
++++ b/src/lib/feeds/index.ts
+@@ -76,12 +76,26 @@ export function isFeedName(name: unknown): name is FeedName {
+   return typeof name === "string" && Object.hasOwn(FEEDS, name);
+ }
+ 
+-/** Where a feed's data comes from right now, and a content hash so unchanged drops are skipped. `ref` names files, never server paths. */
+-export function feedSource(name: FeedName): { kind: "api" | "file" | "none"; ref: string | null; hash: string | null; present: string[] } {
++export type FeedSource = { kind: "api" | "file" | "none"; ref: string | null; hash: string | null; present: string[] };
++
++/**
++ * Where a feed's data comes from right now, and a content hash so unchanged drops are skipped.
++ * `ref` names files or the integration, never server paths. The crm / erp / gpo feeds are served by
++ * an enabled Tier 2 integration (Settings → Integrations) when there is one — those pull from the
++ * provider, so they carry no hash and are never "unchanged". The retired SF_* / SAP_* variables still
++ * count as an API source so the ingestion runs and fails with the truthful message (sync.ts).
++ */
++export async function feedSource(name: FeedName): Promise<FeedSource> {
+   const dir = feedDir();
+   const present = dir ? FEEDS[name].files.filter((f) => fs.existsSync(path.join(dir, f))) : [];
+-  if (name === "crm" && process.env.SF_CLIENT_ID) return { kind: "api", ref: "Salesforce", hash: null, present };
+-  if (name === "erp" && process.env.SAP_ODATA_BASE_URL) return { kind: "api", ref: "SAP OData", hash: null, present };
++  if (name === "crm" || name === "erp" || name === "gpo") {
++    const { tier2Status, legacyEnvPresent } = await import("@/lib/integrations/sync");
++    const t2 = await tier2Status();
++    const on = t2.filter((t) => t.enabled && (name === "gpo" ? t.family === "gpo" : t.key === (name === "crm" ? "salesforce" : "sap")));
++    if (on.length) return { kind: "api", ref: on.map((t) => `${t.label} (${t.provider})`).join(", "), hash: null, present };
++    if (name === "crm" && legacyEnvPresent("crm")) return { kind: "api", ref: "Salesforce (legacy SF_* variables — not used)", hash: null, present };
++    if (name === "erp" && legacyEnvPresent("erp")) return { kind: "api", ref: "SAP OData (legacy SAP_* variables — not used)", hash: null, present };
++  }
+   if (!dir || !present.length) return { kind: "none", ref: null, hash: null, present };
+   const h = createHash("sha256");
+   for (const f of present) { h.update(f); h.update(fileHash(path.join(dir, f))); }
+@@ -151,24 +165,36 @@ export type IngestOptions = { trigger: "schedule" | "manual" | "startup"; actorU
+ export async function ingestFeed(name: string, opts: IngestOptions) {
+   if (!isFeedName(name)) throw new Error(`unknown feed "${name}"`);
+   const feed = name;
+-  // One ingestion of a feed at a time, whichever door it came through (queue or "Sync now").
+-  const active = await prisma.feedRun.findFirst({ where: { feed, status: "RUNNING", startedAt: { gt: new Date(Date.now() - RUNNING_STALE_MS) } }, select: { id: true, startedAt: true } });
+-  if (active) throw new Error(`Feed "${feed}" is already being ingested (started ${active.startedAt.toISOString()})`);
+-  const source = feedSource(feed);
+-  if (source.kind === "none") {
+-    const run = await prisma.feedRun.create({ data: { feed, trigger: opts.trigger, status: "SKIPPED", sourceRef: source.ref, error: `no source configured (set INTEGRATION_FEED_DIR with ${FEEDS[feed].files.join(" / ")}, or the API credentials)`, finishedAt: new Date(), jobId: opts.jobId ?? null } });
+-    return { status: "SKIPPED" as const, runId: run.id, reason: run.error };
+-  }
+-  if (source.hash && !opts.force) {
+-    // Only a fully clean run "consumes" a file: one with rejected rows (an ERP SKU file that landed
+-    // after the pricing file) is tried again on the next schedule, not skipped forever.
+-    const last = await prisma.feedRun.findFirst({ where: { feed, status: "OK", sourceHash: source.hash, failed: 0 }, orderBy: { startedAt: "desc" }, select: { id: true, startedAt: true } });
+-    if (last) {
+-      const run = await prisma.feedRun.create({ data: { feed, trigger: opts.trigger, status: "SKIPPED", sourceRef: source.ref, sourceHash: source.hash, error: `unchanged since ${last.startedAt.toISOString()}`, finishedAt: new Date(), jobId: opts.jobId ?? null } });
+-      return { status: "SKIPPED" as const, runId: run.id, reason: run.error };
++  const source = await feedSource(feed);
++  // One ingestion of a feed at a time, whichever door it came through (queue or "Sync now"). The
++  // check and the RUNNING row are written under a per-feed advisory lock: two callers arriving
++  // together (a schedule and a "Sync now", two worker processes) would otherwise both pass a plain
++  // find-then-create and ingest the same file twice. A RUNNING row from a process that died is
++  // closed as FAILED here rather than blocking the feed for ever.
++  const opened = await prisma.$transaction(async (tx) => {
++    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`feed:${feed}`}))::text`;
++    await tx.feedRun.updateMany({ where: { feed, status: "RUNNING", startedAt: { lt: new Date(Date.now() - RUNNING_STALE_MS) } }, data: { status: "FAILED", finishedAt: new Date(), error: "the process running this ingestion stopped before it finished" } });
++    const active = await tx.feedRun.findFirst({ where: { feed, status: "RUNNING" }, select: { id: true, startedAt: true } });
++    if (active) return { kind: "active" as const, startedAt: active.startedAt };
++    if (source.kind === "none") {
++      const run = await tx.feedRun.create({ data: { feed, trigger: opts.trigger, status: "SKIPPED", sourceRef: source.ref, error: `no source configured (set INTEGRATION_FEED_DIR with ${FEEDS[feed].files.join(" / ")}, or enable the integration under Settings → Integrations)`, finishedAt: new Date(), jobId: opts.jobId ?? null } });
++      return { kind: "skipped" as const, run };
+     }
+-  }
+-  const run = await prisma.feedRun.create({ data: { feed, trigger: opts.trigger, sourceRef: source.ref, sourceHash: source.hash, jobId: opts.jobId ?? null } });
++    if (source.hash && !opts.force) {
++      // Only a fully clean run "consumes" a file: one with rejected rows (an ERP SKU file that landed
++      // after the pricing file) is tried again on the next schedule, not skipped forever.
++      const last = await tx.feedRun.findFirst({ where: { feed, status: "OK", sourceHash: source.hash, failed: 0 }, orderBy: { startedAt: "desc" }, select: { id: true, startedAt: true } });
++      if (last) {
++        const run = await tx.feedRun.create({ data: { feed, trigger: opts.trigger, status: "SKIPPED", sourceRef: source.ref, sourceHash: source.hash, error: `unchanged since ${last.startedAt.toISOString()}`, finishedAt: new Date(), jobId: opts.jobId ?? null } });
++        return { kind: "skipped" as const, run };
++      }
++    }
++    const run = await tx.feedRun.create({ data: { feed, trigger: opts.trigger, sourceRef: source.ref, sourceHash: source.hash, jobId: opts.jobId ?? null } });
++    return { kind: "running" as const, run };
++  });
++  if (opened.kind === "active") throw new Error(`Feed "${feed}" is already being ingested (started ${opened.startedAt.toISOString()})`);
++  if (opened.kind === "skipped") return { status: "SKIPPED" as const, runId: opened.run.id, reason: opened.run.error };
++  const run = opened.run;
+   const t0 = Date.now();
+   try {
+     const c = await runFeed(feed, opts.actorUserId ?? null);
+@@ -182,7 +208,7 @@ export async function ingestFeed(name: string, opts: IngestOptions) {
+     await prisma.feedRun.update({ where: { id: run.id }, data: { status: "FAILED", finishedAt: new Date(), error: error.slice(0, 2000) } });
+     log.error("feed.failed", { feed, trigger: opts.trigger, ms: Date.now() - t0, error });
+     const { notifyFeedFailed } = await import("@/lib/notifications");
+-    await notifyFeedFailed(feed, error, run.id).catch(() => undefined);
++    await notifyFeedFailed(feed, error, run.id).catch((ne) => log.warn("feed.notify_failed", { feed, error: ne instanceof Error ? ne.message : String(ne) }));
+     throw e;
+   }
+ }
+@@ -208,7 +234,7 @@ export async function requestIngest(feed: FeedName, actorUserId: string | null,
+   return { jobId, alreadyQueued: deduplicated };
+ }
+ 
+-export type FeedStatus = { name: FeedName; title: string; description: string; cron: string | null; source: ReturnType<typeof feedSource>; lastOk: Date | null; lastRun: { status: string; startedAt: Date; error: string | null; rows: number; created: number; updated: number; skipped: number; failed: number } | null; ageHours: number | null; maxAgeHours: number; stale: boolean };
++export type FeedStatus = { name: FeedName; title: string; description: string; cron: string | null; source: FeedSource; lastOk: Date | null; lastRun: { status: string; startedAt: Date; error: string | null; rows: number; created: number; updated: number; skipped: number; failed: number } | null; ageHours: number | null; maxAgeHours: number; stale: boolean };
+ 
+ /** Everything the Settings page and the alert rules need, in one shape. */
+ export async function feedStatuses(): Promise<FeedStatus[]> {
+@@ -220,7 +246,7 @@ export async function feedStatuses(): Promise<FeedStatus[]> {
+     ]);
+     // A RUNNING row whose process died is a failure, not "in progress".
+     const lastRun = lastRunRaw && lastRunRaw.status === "RUNNING" && Date.now() - lastRunRaw.startedAt.getTime() > RUNNING_STALE_MS ? { ...lastRunRaw, status: "FAILED", error: lastRunRaw.error ?? "the process running this ingestion stopped before it finished" } : lastRunRaw;
+-    const source = feedSource(def.name);
++    const source = await feedSource(def.name);
+     const cron = feedCron(def.name);
+     const ageHours = lastOk ? (Date.now() - lastOk.startedAt.getTime()) / 3600_000 : null;
+     const maxAgeHours = feedMaxAgeHours(def.name);
+diff --git a/src/lib/feeds/schedule.ts b/src/lib/feeds/schedule.ts
+index a919696..e648399 100644
+--- a/src/lib/feeds/schedule.ts
++++ b/src/lib/feeds/schedule.ts
+@@ -11,7 +11,10 @@ export async function scheduleFeeds(boss: PgBoss) {
+     const cron = feedCron(name);
+     const key = `feed-${name}`;
+     if (!cron) { await boss.unschedule("feed.ingest", key).catch(() => undefined); continue; }
+-    await boss.schedule("feed.ingest", cron, { feed: name, trigger: "schedule" }, { tz: "UTC", key, singletonKey: `feed:${name}`, missed: "once" });
++    // A malformed FEED_<NAME>_CRON must not take down the job system (workers, orphan recovery and
++    // every other schedule are registered after this): log it and leave that one feed unscheduled.
++    try { await boss.schedule("feed.ingest", cron, { feed: name, trigger: "schedule" }, { tz: "UTC", key, singletonKey: `feed:${name}`, missed: "once" }); }
++    catch (e) { log.error("jobs.schedule_failed", { queue: "feed.ingest", feed: name, cron, error: e instanceof Error ? e.message : String(e) }); await boss.unschedule("feed.ingest", key).catch(() => undefined); }
+   }
+   if (process.env.FEEDS_RUN_ON_START === "true") {
+     for (const name of Object.keys(FEEDS) as FeedName[]) {
+diff --git a/src/lib/integrations/core/admin.ts b/src/lib/integrations/core/admin.ts
+index 6f7a4a0..c1e1cfe 100644
+--- a/src/lib/integrations/core/admin.ts
++++ b/src/lib/integrations/core/admin.ts
+@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
+ import { audit } from "@/lib/audit";
+ import { log } from "@/lib/log";
+ import { publicFieldSpec } from "./fields";
+-import { readConfig, saveConfig, secretsPresent, type IntegrationKey, type SaveInput } from "./config";
++import { readConfig, saveConfig, secretsState, type IntegrationKey, type SaveInput } from "./config";
+ import { definition, fieldsFor, providerOf, INTEGRATIONS, effectiveMapping } from "./registry";
+ import { openReviewCount, REVIEW_KINDS } from "./review";
+ import { parseMappingBundle, type MappingBundle } from "./mapping";
+@@ -31,7 +31,8 @@ export async function listIntegrations(): Promise<IntegrationSummary[]> {
+ export async function integrationDetail(k: IntegrationKey) {
+   const d = await definition(k);
+   const row = await prisma.integrationConfig.findUnique({ where: { key: k } });
+-  const present = row ? [...(await secretsPresent(k))] : [];
++  const secrets = row ? await secretsState(k) : { present: new Set<string>(), unreadable: null };
++  const present = [...secrets.present];
+   const overrides = parseMappingBundle(row?.mappingJson);
+   const jobs = await prisma.integrationSyncJob.findMany({ where: { integrationKey: k }, orderBy: { startedAt: "desc" }, take: 20, select: { id: true, provider: true, syncType: true, trigger: true, status: true, startedAt: true, completedAt: true, received: true, created: true, updated: true, skipped: true, errored: true, reviewed: true, errorSummary: true, errorCategory: true } });
+   let config: Record<string, unknown> = {};
+@@ -45,7 +46,7 @@ export async function integrationDetail(k: IntegrationKey) {
+       syncTypes: d.syncTypes, webhook: d.webhook ?? null, requiredFromCustomer: d.requiredFromCustomer,
+     },
+     config: row ? {
+-      provider: row.provider, enabled: row.enabled, config, secretsPresent: present, mapping: overrides, effectiveMapping: effectiveMapping(d, overrides), scheduleCron: row.scheduleCron, configVersion: row.configVersion,
++      provider: row.provider, enabled: row.enabled, config, secretsPresent: present, secretsUnreadable: secrets.unreadable, mapping: overrides, effectiveMapping: effectiveMapping(d, overrides), scheduleCron: row.scheduleCron, configVersion: row.configVersion,
+       status: row.status, lastTestAt: row.lastTestAt, lastTestOk: row.lastTestOk, lastConnectedAt: row.lastConnectedAt, lastSyncAt: row.lastSyncAt, lastAttemptAt: row.lastAttemptAt, lastError: row.lastError, lastErrorCategory: row.lastErrorCategory, updatedAt: row.updatedAt,
+     } : null,
+     jobs,
+diff --git a/src/lib/integrations/core/config.ts b/src/lib/integrations/core/config.ts
+index ce1823b..f6eb5ed 100644
+--- a/src/lib/integrations/core/config.ts
++++ b/src/lib/integrations/core/config.ts
+@@ -84,10 +84,16 @@ export async function readConfig(k: IntegrationKey): Promise<ResolvedConfig | nu
+   return { key: k, provider: row.provider, enabled: row.enabled, config: parseJson(row.configJson), secrets, mapping: parseMappingBundle(row.mappingJson), scheduleCron: row.scheduleCron, configVersion: row.configVersion, status: row.status };
+ }
+ 
+-/** Which secret fields have a stored value (for the UI: `{ set: true }`, never the value). */
++/** Which secret fields have a stored value (for the UI: `{ set: true }`, never the value); unreadable secrets count as absent. */
+ export async function secretsPresent(k: IntegrationKey): Promise<Set<string>> {
++  return (await secretsState(k)).present;
++}
++
++/** Presence per secret field plus, when the stored blob cannot be opened under the current key, the reason (so the UI can say "re-enter"). */
++export async function secretsState(k: IntegrationKey): Promise<{ present: Set<string>; unreadable: string | null }> {
+   const row = await prisma.integrationConfig.findUnique({ where: { key: k }, select: { secretsJson: true } });
+-  return new Set(Object.keys(open(row?.secretsJson)));
++  try { return { present: new Set(Object.keys(open(row?.secretsJson))), unreadable: null }; }
++  catch (e) { return { present: new Set(), unreadable: e instanceof Error ? e.message : String(e) }; }
+ }
+ 
+ export type SaveInput = {
+@@ -107,7 +113,13 @@ export type SaveInput = {
+  */
+ export async function saveConfig(k: IntegrationKey, input: SaveInput, specs: FieldSpec[], actorUserId: string | null): Promise<{ status: string; configVersion: number; errors: { field: string; message: string }[] }> {
+   const existing = await prisma.integrationConfig.findUnique({ where: { key: k } });
+-  const storedSecrets = open(existing?.secretsJson);
++  // Secrets sealed under a key this process does not have (rotated or lost INTEGRATIONS_ENCRYPTION_KEY)
++  // must not make every save fail — that is exactly when an admin needs to re-enter them. They are
++  // treated as absent for this save: supplied values replace the unreadable blob; a save that supplies
++  // none keeps the blob untouched (restoring the old key still recovers it) and reports the problem.
++  let storedSecrets: Record<string, string> = {};
++  let unreadable: string | null = null;
++  try { storedSecrets = open(existing?.secretsJson); } catch (e) { unreadable = e instanceof Error ? e.message : String(e); }
+   const nextSecrets: Record<string, string> = { ...storedSecrets };
+   for (const [name, v] of Object.entries(input.secrets ?? {})) {
+     const spec = specs.find((s) => s.name === name && s.secret);
+@@ -121,12 +133,14 @@ export async function saveConfig(k: IntegrationKey, input: SaveInput, specs: Fie
+   let config: Record<string, unknown>;
+   try { config = normalizeConfig(input.config ?? {}, specs); } catch (e) { return { status: existing?.status ?? "NOT_CONFIGURED", configVersion: existing?.configVersion ?? 0, errors: [{ field: "config", message: e instanceof Error ? e.message : String(e) }] }; }
+   const v = validateConfig(config, specs, new Set(Object.keys(nextSecrets)));
++  const keepUnreadable = unreadable !== null && Object.keys(nextSecrets).length === 0;
++  if (keepUnreadable) { v.ok = false; v.errors.push({ field: "secrets", message: unreadable! }); }
+   const enabled = input.enabled ?? existing?.enabled ?? false;
+   const status = !enabled ? "DISABLED" : v.ok ? "CONFIGURED" : "NOT_CONFIGURED";
+   const data = {
+     provider: input.provider, enabled,
+     configJson: JSON.stringify(config),
+-    secretsJson: Object.keys(nextSecrets).length ? seal(nextSecrets) : null,
++    secretsJson: keepUnreadable ? existing!.secretsJson : Object.keys(nextSecrets).length ? seal(nextSecrets) : null,
+     mappingJson: JSON.stringify(input.mapping ?? parseMappingBundle(existing?.mappingJson)),
+     scheduleCron: input.scheduleCron === undefined ? existing?.scheduleCron ?? null : input.scheduleCron,
+     configVersion: (existing?.configVersion ?? 0) + 1,
+diff --git a/src/lib/integrations/core/registry.ts b/src/lib/integrations/core/registry.ts
+index f4535db..a3c6896 100644
+--- a/src/lib/integrations/core/registry.ts
++++ b/src/lib/integrations/core/registry.ts
+@@ -236,7 +236,8 @@ const FX: IntegrationDefinition = {
+     { name: "baseCurrencies", label: "Base currencies", type: "text", default: "USD", help: "Comma-separated", group: "Scope" },
+     { name: "quoteCurrencies", label: "Quote currencies", type: "text", default: "EUR,GBP,CAD", help: "Comma-separated", group: "Scope" },
+     { name: "fallback", label: "When no rate exists for the date", type: "select", default: "fail", options: [{ value: "fail", label: "Fail the conversion (recommended)" }, { value: "previous-business-day", label: "Use the previous business day's rate (labelled)" }], group: "Policy" },
+-    { name: "maxLookbackDays", label: "Max look-back days", type: "number", default: 3, group: "Policy" },
++    // Default shared with src/lib/integrations/fx/service.ts (FX_MAX_LOOKBACK_DEFAULT): one canonical policy.
++    { name: "maxLookbackDays", label: "Max look-back days", type: "number", default: 5, help: "Only with the previous-business-day fallback; 5 covers a weekend plus a holiday on either side (0–30)", group: "Policy", validate: (v) => { const n = Number(v); return Number.isInteger(n) && n >= 0 && n <= 30 ? null : "Max look-back days must be a whole number between 0 and 30"; } },
+   ],
+   mappingSpecs: {}, defaultMapping: {},
+   syncTypes: [{ id: "rates", label: "Daily rates", description: "Pull today's rates for every base × quote pair" }],
+diff --git a/src/lib/integrations/fx/service.ts b/src/lib/integrations/fx/service.ts
+index 684f6f4..3aefbe3 100644
+--- a/src/lib/integrations/fx/service.ts
++++ b/src/lib/integrations/fx/service.ts
+@@ -14,7 +14,36 @@ import { ConfigurationError, IntegrationError } from "../core/errors";
+ import { assertCurrency } from "./providers";
+ 
+ export type FxPolicy = { fallback: "fail" | "previous-business-day"; maxLookbackDays: number };
+-export const DEFAULT_FX_POLICY: FxPolicy = { fallback: "fail", maxLookbackDays: 5 };
++
++/**
++ * CANONICAL missing-rate policy (docs/INTEGRATION_SETUP.md § FX). One definition, read by the
++ * registry's field defaults and by every conversion:
++ *   fallback          `fail` — a date with no rate is an error, never a substituted current rate.
++ *   maxLookbackDays   5 — when `previous-business-day` is chosen, walk back at most 5 calendar days:
++ *                     a weekend (2) plus a holiday on either side of it (Fri or Mon) with one to spare,
++ *                     e.g. Tue 29 Dec → Mon 28 (holiday) → weekend → Thu 24 (holiday) → Wed 23.
++ * Anything an operator sets under Settings → Integrations → FX overrides it (`fxPolicyFrom`);
++ * the value is clamped to 0–30 days because a longer walk is no longer "the previous business day".
++ */
++export const FX_MAX_LOOKBACK_DEFAULT = 5;
++export const FX_MAX_LOOKBACK_CAP = 30;
++export const DEFAULT_FX_POLICY: FxPolicy = { fallback: "fail", maxLookbackDays: FX_MAX_LOOKBACK_DEFAULT };
++
++/** The policy from an FX IntegrationConfig's non-secret settings (missing or malformed values → the canonical default). */
++export function fxPolicyFrom(config: Record<string, unknown> | null | undefined): FxPolicy {
++  const fb = String(config?.fallback ?? "").trim();
++  const raw = config?.maxLookbackDays;
++  const n = raw === undefined || raw === null || raw === "" ? NaN : Number(raw);
++  const days = Number.isFinite(n) ? Math.min(FX_MAX_LOOKBACK_CAP, Math.max(0, Math.floor(n))) : FX_MAX_LOOKBACK_DEFAULT;
++  return { fallback: fb === "previous-business-day" ? "previous-business-day" : "fail", maxLookbackDays: days };
++}
++
++/** The policy the deployment has configured (Settings → Integrations → FX), or the canonical default when there is none. */
++export async function configuredFxPolicy(): Promise<FxPolicy> {
++  const { readConfig } = await import("../core/config");
++  const cfg = await readConfig("fx").catch(() => null);
++  return fxPolicyFrom(cfg?.config);
++}
+ 
+ export async function storeRate(r: FxRateRecord, syncJobId: string | null = null, enteredByUserId: string | null = null) {
+   const asOf = new Date(`${r.date}T00:00:00.000Z`);
+@@ -43,7 +72,7 @@ export async function rateFor(provider: FxRateProvider | null, base: string, quo
+     if (provider && provider.provider !== "manual") {
+       let fetched: FxRateRecord | null = null;
+       try { fetched = await provider.getRate(b, q, d); } catch (e) { if (i === days) throw e instanceof IntegrationError ? e : new IntegrationError("PROVIDER_UNAVAILABLE", `FX provider failed: ${(e as Error).message}`); log.warn("fx.provider_error", { provider: provider.provider, error: (e as Error).message }); }
+-      if (fetched) { const row = await storeRate(fetched); return { rateId: row.id, rate: fetched.rate, base: b, quote: q, date: d, provider: fetched.provider, note: i ? `no ${b}/${q} rate on ${date}; used ${d} per the fallback policy` : null }; }
++      if (fetched) { const row = await storeRate(fetched); return { rateId: row.id, rate: fetched.rate, base: b, quote: q, date: d, provider: fetched.provider, note: i ? `no ${b}/${q} rate on ${date}; used ${d} (${i} day${i > 1 ? "s" : ""} earlier) per the fallback policy` : null }; }
+     }
+   }
+   throw new IntegrationError("NOT_FOUND", `No ${b}→${q} exchange rate for ${date}${days ? ` or the ${days} days before it` : ""}. ${provider && provider.provider !== "manual" ? `The ${provider.provider} provider has none for that date` : "Enter one under Settings → Exchange rates or configure an FX provider"}; a current rate is never substituted for a historical one.`, { retryable: false });
+diff --git a/src/lib/integrations/salesforce.ts b/src/lib/integrations/salesforce.ts
+deleted file mode 100644
+index 5bf17df..0000000
+--- a/src/lib/integrations/salesforce.ts
++++ /dev/null
+@@ -1,21 +0,0 @@
+-/**
+- * Salesforce CRM adapter — SKELETON. Documents the contract and the credentials it
+- * needs; every method throws NotConfigured until they are supplied. Intentionally
+- * not a mock: nothing here pretends to have synced.
+- *
+- * Required env: SF_LOGIN_URL, SF_CLIENT_ID, SF_CLIENT_SECRET (or JWT bearer: SF_JWT_KEY, SF_USERNAME),
+- * SF_API_VERSION. Objects: Account (+ParentId), Opportunity, Contact, User, and a custom
+- * Crosswalk_Quote__c / Crosswalk_Quote_Line__c (or the CPQ Quote objects, to be decided
+- * with the Salesforce admin). GPO affiliation is usually a custom field (Account.GPO__c).
+- */
+-import { NotConfigured, type CrmAdapter, type CrmAccount, type CrmOpportunity, type CrmQuotePush } from "./types";
+-
+-const NEEDS = ["SF_LOGIN_URL", "SF_CLIENT_ID", "SF_CLIENT_SECRET or SF_JWT_KEY+SF_USERNAME", "SF_API_VERSION", "custom quote objects agreed with the SF admin"];
+-
+-export class SalesforceCrmAdapter implements CrmAdapter {
+-  readonly system = "salesforce";
+-  static configured(): boolean { return Boolean(process.env.SF_LOGIN_URL && process.env.SF_CLIENT_ID); }
+-  async pullAccounts(): Promise<CrmAccount[]> { throw new NotConfigured("Salesforce", NEEDS); }
+-  async pullOpportunities(): Promise<CrmOpportunity[]> { throw new NotConfigured("Salesforce", NEEDS); }
+-  async pushQuote(_q: CrmQuotePush): Promise<{ externalId: string }> { throw new NotConfigured("Salesforce", NEEDS); }
+-}
+diff --git a/src/lib/integrations/salesforce/writeback.ts b/src/lib/integrations/salesforce/writeback.ts
+index 477c125..3b89163 100644
+--- a/src/lib/integrations/salesforce/writeback.ts
++++ b/src/lib/integrations/salesforce/writeback.ts
+@@ -10,15 +10,19 @@ import { audit } from "@/lib/audit";
+ import { economicsToJson } from "@/lib/proposals/economics";
+ import type { CRMAdapter } from "../core/contracts";
+ import type { QuoteWriteback, QuoteWritebackResult } from "../types";
+-import { ValidationError, asIntegrationError } from "../core/errors";
++import { ValidationError, asIntegrationError, redactMessage } from "../core/errors";
+ import { createHash } from "node:crypto";
+ 
+ const hash = (o: unknown) => createHash("sha256").update(JSON.stringify(o)).digest("hex");
+ 
+ export async function buildQuoteWriteback(proposalId: string, pushMargin: boolean): Promise<QuoteWriteback> {
+   const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { account: true, opportunity: true, lines: { orderBy: { lineNo: "asc" } }, approvals: { orderBy: { decidedAt: "desc" }, take: 1 } } });
+-  if (!["APPROVED", "WON"].includes(p.status)) throw new ValidationError(`proposal ${p.reference} is ${p.status}; only approved proposals are written to the CRM`);
+   if (!p.account.externalCrmId) throw new ValidationError(`account ${p.account.name} is not linked to a CRM record — sync accounts first`);
++  // finalizeCheck (approvals/service) is the one gate for anything that leaves as a quote: approved or
++  // won, not expired, every included line priced and approved. Status alone let expired proposals through.
++  const { finalizeCheck } = await import("@/lib/approvals/service");
++  const gate = await finalizeCheck(proposalId);
++  if (!gate.ok) throw new ValidationError(`proposal ${p.reference} cannot be written to the CRM: ${gate.reason}`);
+   const econ = p.economicsJson ? (JSON.parse(p.economicsJson) as ReturnType<typeof economicsToJson>) : null;
+   const approval = p.approvals[0];
+   return {
+@@ -45,9 +49,10 @@ export async function writeBackQuote(crm: CRMAdapter, system: string, actorUserI
+     res = await crm.createOrUpdateQuote(payload);
+   } catch (e) {
+     const err = asIntegrationError(e);
+-    await prisma.syncLog.create({ data: { system, direction: "OUT", entityType: "Proposal", entityId: proposalId, status: "FAILED", error: err.message.slice(0, 2000), payloadHash: h } });
+-    log.warn("integration.quote_writeback_failed", { integration: "salesforce", proposalId, category: err.category, error: err.message, ms: Date.now() - t0 });
+-    await audit({ actorUserId, entityType: "Proposal", entityId: proposalId, action: "CRM_PUSH_FAILED", context: { system, category: err.category, message: err.message } });
++    const message = redactMessage(err.message); // an adapter's own message may quote what the provider rejected
++    await prisma.syncLog.create({ data: { system, direction: "OUT", entityType: "Proposal", entityId: proposalId, status: "FAILED", error: message.slice(0, 2000), payloadHash: h } });
++    log.warn("integration.quote_writeback_failed", { integration: "salesforce", proposalId, category: err.category, error: message, ms: Date.now() - t0 });
++    await audit({ actorUserId, entityType: "Proposal", entityId: proposalId, action: "CRM_PUSH_FAILED", context: { system, category: err.category, message } });
+     throw err;
+   }
+   await prisma.externalRef.upsert({ where: { system_entityType_externalId: { system, entityType: "Proposal", externalId: res.externalId } }, create: { system, entityType: "Proposal", externalId: res.externalId, entityId: proposalId, syncHash: h, metaJson: JSON.stringify({ lines: res.lineExternalIds?.length ?? payload.lines.length, providerRef: res.providerRef ?? null }) }, update: { entityId: proposalId, syncHash: h, syncedAt: new Date(), metaJson: JSON.stringify({ lines: res.lineExternalIds?.length ?? payload.lines.length, providerRef: res.providerRef ?? null }) } });
+diff --git a/src/lib/integrations/sap.ts b/src/lib/integrations/sap.ts
+deleted file mode 100644
+index ed879cd..0000000
+--- a/src/lib/integrations/sap.ts
++++ /dev/null
+@@ -1,20 +0,0 @@
+-/**
+- * SAP ERP adapter — SKELETON (OData / BAPI via an integration layer). Every method
+- * throws NotConfigured until credentials and the interface contract exist.
+- *
+- * Required: SAP_ODATA_BASE_URL, SAP_CLIENT, SAP_USER/SAP_PASSWORD or OAuth (SAP_TOKEN_URL,
+- * SAP_CLIENT_ID, SAP_CLIENT_SECRET); services for material master (MARA/MAKT), sales
+- * prices (KONP/A-tables or SD condition API), standard cost by plant (MBEW), and billing
+- * documents (VBRK/VBRP) for purchase history.
+- */
+-import { NotConfigured, type ErpAdapter, type ErpSku, type ErpCost, type ErpPurchase } from "./types";
+-
+-const NEEDS = ["SAP_ODATA_BASE_URL", "SAP_CLIENT", "SAP credentials (basic or OAuth)", "exposed services: material master, condition prices, standard cost by plant, billing documents"];
+-
+-export class SapErpAdapter implements ErpAdapter {
+-  readonly system = "sap";
+-  static configured(): boolean { return Boolean(process.env.SAP_ODATA_BASE_URL); }
+-  async pullSkuMaster(): Promise<ErpSku[]> { throw new NotConfigured("SAP", NEEDS); }
+-  async pullStandardCosts(): Promise<ErpCost[]> { throw new NotConfigured("SAP", NEEDS); }
+-  async pullPurchases(): Promise<ErpPurchase[]> { throw new NotConfigured("SAP", NEEDS); }
+-}
+diff --git a/src/lib/integrations/sap/adapter.ts b/src/lib/integrations/sap/adapter.ts
+index 5d75187..43343ab 100644
+--- a/src/lib/integrations/sap/adapter.ts
++++ b/src/lib/integrations/sap/adapter.ts
+@@ -8,7 +8,8 @@
+ import type { ERPAdapter, ConnectionTestResult, Page, PullOptions } from "../core/contracts";
+ import type { ProductImportRecord, StandardCostImportRecord, PriceEntryImportRecord, BillingImportRecord } from "../types";
+ import { applyMapping, mergeMapping, type FieldMap, type MappingBundle } from "../core/mapping";
+-import { ConfigurationError, MappingError } from "../core/errors";
++import { ConfigurationError, ValidationError } from "../core/errors";
++import { money } from "@/lib/money";
+ import { ODataClient, odataDateTime, type ODataConfig } from "./odata";
+ import { MATERIAL_SPEC, COST_SPEC, PRICE_SPEC, BILLING_SPEC, SAP_DEFAULT_MAPPING } from "./mapping";
+ 
+@@ -67,14 +68,19 @@ export class SapAdapter implements ERPAdapter {
+     if (opts?.since && svc.changeDateField) filters.push(`${svc.changeDateField} gt ${odataDateTime(this.cfg.odata.version, opts.since)}`);
+     const page = opts?.cursor?.startsWith("link:") ? await this.client.get(opts.cursor.slice(5), {}, `${name}.next`) : await this.client.get(`${svc.service}/${svc.entitySet}`, { $filter: filters.join(" and ") || undefined, $top: svc.pageSize ?? opts?.limit ?? 500 }, `${name}.list`);
+     const records: T[] = [];
++    // A row that does not map (missing required field, bad number, zero price unit…) is rejected on
++    // its own — recorded as a row error by the runner, the job ends PARTIAL — instead of failing the
++    // whole page: one bad material must not stop the other 499 from landing.
++    const rejected: { externalId: string | null; message: string }[] = [];
+     for (const raw of page.records) {
++      const id = String((raw as Record<string, unknown>)[map.sku?.source ?? "Product"] ?? (raw as Record<string, unknown>)[map.externalId?.source ?? "BillingDocument"] ?? "?");
+       const m = applyMapping<Record<string, unknown>>(raw, map, spec);
+       const errors = m.issues.filter((i) => i.level === "error");
+-      if (errors.length) throw new MappingError(`${ENTITY[name]} ${String((raw as Record<string, unknown>)[map.sku?.source ?? "Product"] ?? "?")}: ${errors.map((e) => e.message).join("; ")}`, { retryable: false });
+-      const out = finish(m.record, raw as Record<string, unknown>);
+-      if (out) records.push(out);
++      if (errors.length) { rejected.push({ externalId: id, message: `${ENTITY[name]} ${id}: ${errors.map((e) => e.message).join("; ")}` }); continue; }
++      try { const out = finish(m.record, raw as Record<string, unknown>); if (out) records.push(out); }
++      catch (e) { rejected.push({ externalId: id, message: `${ENTITY[name]} ${id}: ${e instanceof Error ? e.message : String(e)}` }); }
+     }
+-    return { records, nextCursor: page.next ? `link:${page.next}` : null };
++    return { records, nextCursor: page.next ? `link:${page.next}` : null, rejected };
+   }
+ 
+   fetchMaterials(opts?: PullOptions) {
+@@ -82,8 +88,12 @@ export class SapAdapter implements ERPAdapter {
+   }
+   fetchStandardCosts(opts?: PullOptions) {
+     return this.pull<StandardCostImportRecord>("costs", COST_SPEC, opts, (r) => {
+-      const unit = Number(r.priceUnit ?? 1) || 1;
+-      const cost = (Number(r.cost) / unit).toFixed(6);
++      // SAP keeps the cost per price unit (PEINH): a unit of 0 or a non-numeric one is a bad record, not "1".
++      const unit = r.priceUnit === undefined || r.priceUnit === null || r.priceUnit === "" ? 1 : Number(r.priceUnit);
++      if (!Number.isFinite(unit) || unit <= 0) throw new ValidationError(`price unit "${String(r.priceUnit)}" must be a positive number`, { retryable: false });
++      const total = money(String(r.cost));
++      if (!total) throw new ValidationError(`cost "${String(r.cost)}" is not a number`, { retryable: false });
++      const cost = total.div(unit).toFixed(6);
+       const plant = (r.plant as string | undefined) ?? null;
+       return { sku: String(r.sku), plant, region: plant ? this.cfg.plantRegions[plant] ?? this.cfg.plantRegions["*"] ?? null : null, currency: (r.currency as string) ?? "USD", costType: (r.costType as string) ?? "STANDARD", cost, effectiveFrom: String(r.effectiveFrom), effectiveTo: (r.effectiveTo as string) ?? null, provenance: { provider: PROVIDER, sourceSystem: "sap", sourceRecordId: `${r.sku}|${plant ?? ""}|${r.effectiveFrom}`, meta: { entitySet: this.cfg.services.costs?.entitySet, priceUnit: unit } } };
+     });
+@@ -99,8 +109,11 @@ export class SapAdapter implements ERPAdapter {
+     return this.pull<BillingImportRecord>("billing", BILLING_SPEC, opts, (r, raw) => {
+       const item = raw.BillingDocumentItem ?? raw.Item ?? "";
+       const qty = Number(r.quantity);
++      if (!Number.isFinite(qty) || qty <= 0) throw new ValidationError(`quantity "${String(r.quantity)}" must be a positive number`, { retryable: false });
++      const net = money(String(r.netPrice));
++      if (!net) throw new ValidationError(`net price "${String(r.netPrice)}" is not a number`, { retryable: false });
+       // NetAmount is the item's net value; per-unit is what the purchase record stores
+-      const perUnit = qty > 0 && raw.NetAmount !== undefined && Number(r.netPrice) === Number(raw.NetAmount) ? (Number(r.netPrice) / qty).toFixed(6) : String(r.netPrice);
++      const perUnit = raw.NetAmount !== undefined && net.eq(money(String(raw.NetAmount)) ?? -1) ? net.div(qty).toFixed(6) : net.toString();
+       return { externalId: `${r.externalId}${item ? `-${item}` : ""}`, accountExternalId: (r.accountExternalId as string) ?? null, accountNumber: (r.accountNumber as string) ?? null, sku: String(r.sku), quantity: String(qty), netPrice: perUnit, currency: (r.currency as string) ?? "USD", invoiceDate: String(r.invoiceDate), contractNumber: (r.contractNumber as string) ?? null, provenance: { provider: PROVIDER, sourceSystem: "sap", sourceRecordId: `${r.externalId}${item ? `-${item}` : ""}`, meta: { entitySet: this.cfg.services.billing?.entitySet } } };
+     });
+   }
+diff --git a/src/lib/integrations/sync.ts b/src/lib/integrations/sync.ts
+index e069ce5..bb30422 100644
+--- a/src/lib/integrations/sync.ts
++++ b/src/lib/integrations/sync.ts
+@@ -9,22 +9,41 @@ import { prisma } from "@/lib/db";
+ import { normalizeAccountType } from "@/lib/accounts/types";
+ import { toDb, money } from "@/lib/money";
+ import { normalizeCfn, isPlaceholderSku } from "@/lib/cfn";
+-import type { CrmAdapter, ErpAdapter, GpoAdapter, CrmQuotePush } from "./types";
++import { NotConfigured, type CrmAdapter, type ErpAdapter, type GpoAdapter, type CrmQuotePush } from "./types";
+ import { DevCrmAdapter, DevErpAdapter, DevGpoAdapter } from "./dev";
+-import { SalesforceCrmAdapter } from "./salesforce";
+-import { SapErpAdapter } from "./sap";
+ import { FileCrmAdapter, FileErpAdapter, FileGpoAdapter, FEED_FILES, feedDir, feedFilesPresent } from "./file";
+ import { audit } from "@/lib/audit";
+ import { publicErrorMessage } from "@/lib/api";
+ import { economicsToJson } from "@/lib/proposals/economics";
+ import { readConfig, INTEGRATION_KEYS, type IntegrationKey } from "./core/config";
++import { redactMessage } from "./core/errors";
+ import { INTEGRATIONS } from "./core/registry";
+ 
+-/** Adapter selection: API adapter when its credentials exist → file feed when INTEGRATION_FEED_DIR is set → labelled dev fixtures. */
+-export function crmAdapter(): CrmAdapter { return SalesforceCrmAdapter.configured() ? new SalesforceCrmAdapter() : FileCrmAdapter.configured() ? new FileCrmAdapter() : new DevCrmAdapter(); }
+-export function erpAdapter(): ErpAdapter { return SapErpAdapter.configured() ? new SapErpAdapter() : FileErpAdapter.configured() ? new FileErpAdapter() : new DevErpAdapter(); }
++/**
++ * Adapter selection for the legacy entry points: a Tier 2 integration enabled under Settings →
++ * Integrations takes over (checked by each sync function) → the file feed when INTEGRATION_FEED_DIR
++ * is set → the labelled dev fixtures. The old SF_* / SAP_* environment variables select nothing:
++ * the API skeletons they used to pick (which only threw NotConfigured) were removed once the Tier 2
++ * Salesforce and SAP providers existed. When they are present without the matching Tier 2
++ * integration enabled, the sync refuses with a message that says exactly that (`refuseLegacyEnv`)
++ * rather than quietly using files or fixtures under credentials the operator believed were in use.
++ */
++export function crmAdapter(): CrmAdapter { return FileCrmAdapter.configured() ? new FileCrmAdapter() : new DevCrmAdapter(); }
++export function erpAdapter(): ErpAdapter { return FileErpAdapter.configured() ? new FileErpAdapter() : new DevErpAdapter(); }
+ export function gpoAdapter(): GpoAdapter { return FileGpoAdapter.configured() ? new FileGpoAdapter() : new DevGpoAdapter(); }
+ 
++export const LEGACY_ENV = { crm: ["SF_LOGIN_URL", "SF_CLIENT_ID", "SF_CLIENT_SECRET", "SF_API_VERSION"], erp: ["SAP_ODATA_BASE_URL", "SAP_CLIENT", "SAP_USER", "SAP_PASSWORD"] } as const;
++/** True when the retired environment route is (still) configured for a system. */
++export function legacyEnvPresent(system: "crm" | "erp"): boolean {
++  return system === "crm" ? Boolean(process.env.SF_LOGIN_URL?.trim() || process.env.SF_CLIENT_ID?.trim()) : Boolean(process.env.SAP_ODATA_BASE_URL?.trim());
++}
++/** Legacy credentials without the Tier 2 integration enabled: refuse truthfully instead of syncing from files/fixtures. */
++function refuseLegacyEnv(system: "crm" | "erp"): void {
++  if (!legacyEnvPresent(system)) return;
++  const [label, key] = system === "crm" ? ["Salesforce", "salesforce"] : ["SAP", "sap"];
++  throw new NotConfigured(label, [`the ${LEGACY_ENV[system].join(" / ")} environment variables select no adapter any more — configure and enable "${label}" (key ${key}) under Settings → Integrations, or unset them to use the file feed / development fixtures`]);
++}
++
+ const envSet = (names: string[]) => names.map((name) => ({ name, set: Boolean(process.env[name]) }));
+ 
+ export type IntegrationSystemStatus = {
+@@ -47,7 +66,13 @@ export async function tier2Status(): Promise<Tier2Status[]> {
+   return INTEGRATION_KEYS.map((k) => { const r = byKey.get(k); const d = INTEGRATIONS[k]; return { key: k, label: d.label, family: d.family, provider: r?.provider ?? null, enabled: r?.enabled ?? false, status: r?.status ?? "NOT_CONFIGURED", lastSyncAt: r?.lastSyncAt?.toISOString() ?? null, lastTestAt: r?.lastTestAt?.toISOString() ?? null, lastTestOk: r?.lastTestOk ?? null, lastError: r?.lastError ?? null, lastErrorCategory: r?.lastErrorCategory ?? null }; });
+ }
+ 
+-async function enabled(k: IntegrationKey): Promise<boolean> { const c = await readConfig(k).catch(() => null); return Boolean(c?.enabled); }
++/**
++ * Is a Tier 2 integration switched on? Read from the row's flag, not from `readConfig`: a row whose
++ * secrets cannot be decrypted (rotated key) must still route to the Tier 2 path and fail there with
++ * the "re-enter the secrets" error — swallowing that and quietly syncing from files or fixtures
++ * (or writing a quote to a file instead of the CRM) would be the wrong kind of graceful.
++ */
++async function enabled(k: IntegrationKey): Promise<boolean> { const row = await prisma.integrationConfig.findUnique({ where: { key: k }, select: { enabled: true } }); return Boolean(row?.enabled); }
+ 
+ export async function integrationStatus(): Promise<Record<"crm" | "erp" | "gpo", IntegrationSystemStatus> & { feedDir: string | null; tier2: Tier2Status[] }> {
+   const tier2 = await tier2Status();
+@@ -56,22 +81,22 @@ export async function integrationStatus(): Promise<Record<"crm" | "erp" | "gpo",
+   const present = feedFilesPresent();
+   const dir = feedDir();
+   const feed = (k: keyof typeof FEED_FILES) => ({ files: FEED_FILES[k].map((name) => ({ name, present: Boolean(present[name]) })) });
+-  const sf = SalesforceCrmAdapter.configured();
+-  const sap = SapErpAdapter.configured();
++  const sf = legacyEnvPresent("crm");
++  const sap = legacyEnvPresent("erp");
+   const file = Boolean(dir);
+   return {
+     feedDir: dir,
+     tier2,
+     crm: {
+-      adapter: sfOn ? `salesforce (${t2("salesforce").provider})` : crmAdapter().system, configured: sfOn || sf || file, implemented: sfOn || !sf,
+-      note: sfOn ? `Salesforce integration (${t2("salesforce").provider}) — ${t2("salesforce").status}` : sf ? "Legacy SF_* environment variables present — configure Salesforce under Settings → Integrations instead" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no CRM connected",
+-      api: { name: "Salesforce", env: envSet(["SF_LOGIN_URL", "SF_CLIENT_ID", "SF_CLIENT_SECRET", "SF_API_VERSION"]), implemented: true },
++      adapter: sfOn ? `salesforce (${t2("salesforce").provider})` : sf ? "none (legacy SF_* variables are ignored)" : crmAdapter().system, configured: sfOn || (file && !sf), implemented: true,
++      note: sfOn ? `Salesforce integration (${t2("salesforce").provider}) — ${t2("salesforce").status}` : sf ? "Legacy SF_* environment variables present — they select no adapter; configure and enable Salesforce under Settings → Integrations (syncs refuse until then)" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no CRM connected",
++      api: { name: "Salesforce", env: envSet([...LEGACY_ENV.crm]), implemented: true },
+       feed: feed("crm"),
+     },
+     erp: {
+-      adapter: sapOn ? `sap (${t2("sap").provider})` : erpAdapter().system, configured: sapOn || sap || file, implemented: sapOn || !sap,
+-      note: sapOn ? `SAP integration (${t2("sap").provider}) — ${t2("sap").status}` : sap ? "Legacy SAP_* environment variables present — configure SAP under Settings → Integrations instead" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no ERP connected",
+-      api: { name: "SAP (OData)", env: envSet(["SAP_ODATA_BASE_URL", "SAP_CLIENT", "SAP_USER", "SAP_PASSWORD"]), implemented: true },
++      adapter: sapOn ? `sap (${t2("sap").provider})` : sap ? "none (legacy SAP_* variables are ignored)" : erpAdapter().system, configured: sapOn || (file && !sap), implemented: true,
++      note: sapOn ? `SAP integration (${t2("sap").provider}) — ${t2("sap").status}` : sap ? "Legacy SAP_* environment variables present — they select no adapter; configure and enable SAP under Settings → Integrations (syncs refuse until then)" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no ERP connected",
++      api: { name: "SAP (OData)", env: envSet([...LEGACY_ENV.erp]), implemented: true },
+       feed: feed("erp"),
+     },
+     gpo: {
+@@ -93,7 +118,7 @@ const hash = (o: unknown) => createHash("sha256").update(JSON.stringify(o)).dige
+ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<{ ok: true; value: T; attempt: number } | { ok: false; error: string; attempt: number }> {
+   let last = "";
+   for (let i = 1; i <= attempts; i++) {
+-    try { return { ok: true, value: await fn(), attempt: i }; } catch (e) { last = publicErrorMessage(e); if (i < attempts) await new Promise((r) => setTimeout(r, 200 * 2 ** (i - 1))); }
++    try { return { ok: true, value: await fn(), attempt: i }; } catch (e) { last = redactMessage(publicErrorMessage(e)); if (i < attempts) await new Promise((r) => setTimeout(r, 200 * 2 ** (i - 1))); }
+   }
+   return { ok: false, error: last, attempt: attempts };
+ }
+@@ -103,7 +128,7 @@ async function upsertRef(system: string, entityType: string, externalId: string,
+ }
+ 
+ async function log(system: string, direction: "IN" | "OUT", entityType: string, r: { entityId?: string | null; externalId?: string | null; status: string; attempt?: number; error?: string | null; payloadHash?: string | null }) {
+-  await prisma.syncLog.create({ data: { system, direction, entityType, entityId: r.entityId ?? null, externalId: r.externalId ?? null, status: r.status, attempt: r.attempt ?? 1, error: r.error ?? null, payloadHash: r.payloadHash ?? null } });
++  await prisma.syncLog.create({ data: { system, direction, entityType, entityId: r.entityId ?? null, externalId: r.externalId ?? null, status: r.status, attempt: r.attempt ?? 1, error: r.error ? redactMessage(r.error).slice(0, 2000) : null, payloadHash: r.payloadHash ?? null } });
+ }
+ 
+ export type SyncReport = { system: string; entityType: string; created: number; updated: number; skipped: number; failed: number; errors: string[] };
+@@ -118,6 +143,7 @@ export async function syncCrmAccounts(actorUserId: string | null): Promise<SyncR
+     if (o) { rep.created += o.counters.created; rep.updated += o.counters.updated; rep.skipped += o.counters.skipped; rep.failed += o.counters.errored; if (o.error) rep.errors.push(o.error.message); }
+     return rep;
+   }
++  refuseLegacyEnv("crm");
+   const crm = crmAdapter();
+   const rep = report(crm.system, "Account");
+   const rows = await crm.pullAccounts();
+@@ -182,6 +208,7 @@ export async function syncErp(actorUserId: string | null, companyId: string): Pr
+     }
+     return out;
+   }
++  refuseLegacyEnv("erp");
+   const erp = erpAdapter();
+   const skuRep = report(erp.system, "OwnProduct");
+   for (const s of await erp.pullSkuMaster()) {
+@@ -255,19 +282,29 @@ export async function syncGpoMemberships(actorUserId: string | null): Promise<Sy
+   return rep;
+ }
+ 
++/** A proposal leaves for the CRM only when it could be finalised — `finalizeCheck` decides, and its reason is the error. */
++export async function assertPushable(proposalId: string): Promise<void> {
++  const { finalizeCheck } = await import("@/lib/approvals/service");
++  const f = await finalizeCheck(proposalId);
++  if (!f.ok) throw new Error(`Not pushed to CRM: ${f.reason}`);
++}
++
+ /** Push an approved proposal to CRM as a quote (idempotent by proposal id + payload hash). */
+ export async function pushQuote(actorUserId: string | null, proposalId: string) {
+-  const sf = await readConfig("salesforce").catch(() => null);
+-  if (sf?.enabled) {
++  if (await enabled("salesforce")) {
++    const sf = (await readConfig("salesforce"))!; // throws a ConfigurationError when the stored secrets cannot be read
+     const { buildCrm } = await import("./core/registry");
+     const { writeBackQuote } = await import("./salesforce/writeback");
+     const crm = await buildCrm(sf);
+     const r = await writeBackQuote(crm, sf.provider === "mock" ? "salesforce-mock" : "salesforce", actorUserId, proposalId, sf.config.pushMargin === true || sf.config.pushMargin === "true");
+     return { externalId: r.externalId, skipped: r.skipped };
+   }
++  refuseLegacyEnv("crm");
+   const crm = crmAdapter();
+   const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { account: true, opportunity: true, lines: { orderBy: { lineNo: "asc" } } } });
+-  if (!["APPROVED", "WON"].includes(p.status)) throw new Error("Only approved proposals are pushed to CRM");
++  // The same gate as the quote exports (docs/BUSINESS_RULES.md): approved or won, not expired, every
++  // included line priced and approved — status alone let an expired or since-unpriced proposal through.
++  await assertPushable(proposalId);
+   const econ = p.economicsJson ? (JSON.parse(p.economicsJson) as ReturnType<typeof economicsToJson>) : null;
+   const payload: CrmQuotePush = {
+     proposalId: p.id, reference: p.reference, accountExternalId: p.account.externalCrmId ?? p.account.id, opportunityExternalId: p.opportunity?.externalCrmId ?? null, status: p.status, currency: p.currency,
+diff --git a/src/lib/jobs/boss.ts b/src/lib/jobs/boss.ts
+index d3d2932..37dc6f4 100644
+--- a/src/lib/jobs/boss.ts
++++ b/src/lib/jobs/boss.ts
+@@ -13,8 +13,9 @@
+ import { PgBoss } from "pg-boss";
+ 
+ type IDatabase = { executeSql(text: string, values?: unknown[]): Promise<{ rows: unknown[] }> };
+-import { prisma, strictSsl } from "@/lib/db";
++import { prisma, strictSsl, adapterKind } from "@/lib/db";
+ import { log, withRequestContext } from "@/lib/log";
++import { intEnv, enumEnv } from "@/lib/env";
+ import { QUEUES, type QueueName, type JobData } from "./queues";
+ 
+ const schemaEnv = process.env.JOBS_SCHEMA ?? "pgboss";
+@@ -25,16 +26,26 @@ type Db = IDatabase & { end(): Promise<void> };
+ type G = typeof globalThis & { __crosswalkBoss?: Promise<PgBoss> | null; __crosswalkBossStopped?: boolean; __crosswalkBossDb?: Db | null };
+ const g = globalThis as G;
+ 
++export type JobsMode = "inline" | "external" | "off";
++/**
++ * JOBS_WORKER, validated: inline (default — this process enqueues and runs jobs), external (this
++ * process only enqueues; `npm run worker` runs them) or off (no queue). Anything else — "on",
++ * "yes", "true" — is NOT a mode: it is logged (env.invalid) and read as the default, inline, so a
++ * typo leaves the queue processed rather than silently filling up with nobody working it.
++ */
++export function jobsMode(): JobsMode {
++  return enumEnv("JOBS_WORKER", ["inline", "external", "off"] as const, "inline");
++}
+ export function jobsEnabled(): boolean {
+-  return (process.env.JOBS_WORKER ?? "inline") !== "off";
++  return jobsMode() !== "off";
+ }
+ 
+ /** A pg-compatible pool for pg-boss, chosen like the Prisma adapter is (src/lib/db.ts). */
+ async function makeDb(): Promise<IDatabase & { end(): Promise<void> }> {
+   const url = process.env.DATABASE_URL;
+   if (!url) throw new Error("DATABASE_URL is not set");
+-  const max = Number(process.env.JOBS_POOL_MAX ?? 3);
+-  if ((process.env.DATABASE_ADAPTER ?? "pg").toLowerCase() === "neon-ws") {
++  const max = intEnv("JOBS_POOL_MAX", 3, { min: 1, max: 100 });
++  if (adapterKind() === "neon-ws") {
+     const { Pool, neonConfig } = await import("@neondatabase/serverless");
+     const ws = (await import("ws")).default;
+     neonConfig.webSocketConstructor = ws;
+@@ -58,7 +69,7 @@ export function getBoss(): Promise<PgBoss> {
+         db: g.__crosswalkBossDb,
+         schema: JOBS_SCHEMA,
+         // Maintenance (expiring dead jobs, archiving) runs in every process; cheap and idempotent.
+-        maintenanceIntervalSeconds: Number(process.env.JOBS_MAINTENANCE_SECONDS ?? 60),
++        maintenanceIntervalSeconds: intEnv("JOBS_MAINTENANCE_SECONDS", 60, { min: 1, max: 86_400 }),
+         // pg-boss's own supervision loop — required for expired-job retries.
+         supervise: true,
+         schedule: true,
+@@ -125,20 +136,19 @@ export async function jobById(name: QueueName, id: string) {
+ 
+ export type QueueHealth = { name: string; queued: number; ready: number; active: number; failed: number; oldestReadySeconds: number | null };
+ 
+-/** Counts per queue plus the age of the oldest job that is ready but not picked up — the "stalled" signal. */
++/**
++ * Counts per queue plus the age of the oldest job that is ready but not picked up — the "stalled"
++ * signal. The counts come from pg-boss's queue statistics, which it refreshes at most once per
++ * minute (and less often under vacuum back-off); the stalled signal is read live from the job
++ * table in one grouped query so /api/health and the alert never depend on a stale counter.
++ */
+ export async function queueHealth(): Promise<QueueHealth[]> {
+   const boss = await getBoss();
+   const queues = await boss.getQueues(Object.keys(QUEUES));
+-  const out: QueueHealth[] = [];
+-  for (const q of queues) {
+-    let oldest: number | null = null;
+-    if (q.readyCount > 0) {
+-      const rows = await prisma.$queryRawUnsafe<{ age: number | null }[]>(`SELECT EXTRACT(EPOCH FROM (now() - min(created_on)))::float AS age FROM ${JOBS_SCHEMA}.job WHERE name = $1 AND state IN ('created','retry') AND start_after <= now()`, q.name).catch(() => [{ age: null }]);
+-      oldest = rows[0]?.age == null ? null : Math.round(Number(rows[0].age));
+-    }
+-    out.push({ name: q.name, queued: q.queuedCount, ready: q.readyCount, active: q.activeCount, failed: q.failedCount, oldestReadySeconds: oldest });
+-  }
+-  return out;
++  // Not caught: a failing query here must surface (health → degraded, alert rule → "could not run") rather than read as "nothing stalled".
++  const ages = await prisma.$queryRawUnsafe<{ name: string; age: number | null }[]>(`SELECT name, EXTRACT(EPOCH FROM (now() - min(created_on)))::float AS age FROM ${JOBS_SCHEMA}.job WHERE state IN ('created','retry') AND start_after <= now() GROUP BY name`);
++  const oldestBy = new Map(ages.map((r) => [r.name, r.age == null ? null : Math.round(Number(r.age))]));
++  return queues.map((q) => ({ name: q.name, queued: q.queuedCount, ready: q.readyCount, active: q.activeCount, failed: q.failedCount, oldestReadySeconds: oldestBy.get(q.name) ?? null }));
+ }
+ 
+ /** Recent failures across queues (for the Settings → System panel and the alerts). */
+diff --git a/src/lib/jobs/workers.ts b/src/lib/jobs/workers.ts
+index f23703f..bb8fcbd 100644
+--- a/src/lib/jobs/workers.ts
++++ b/src/lib/jobs/workers.ts
+@@ -9,7 +9,8 @@
+ import type { PgBoss, JobWithMetadata } from "pg-boss";
+ import { prisma } from "@/lib/db";
+ import { log } from "@/lib/log";
+-import { getBoss, jobsEnabled } from "./boss";
++import { getBoss, jobsEnabled, jobsMode } from "./boss";
++import { intEnv } from "@/lib/env";
+ import { QUEUES, CRON, type QueueName, type JobData } from "./queues";
+ 
+ type G = typeof globalThis & { __crosswalkWorkers?: Promise<void> | null; __crosswalkQueuesRegistered?: boolean };
+@@ -88,18 +89,21 @@ const CONCURRENCY: Record<QueueName, number> = { "request.run": 1, "gudid.import
+ async function onFinalFailure(queue: QueueName, data: unknown, error: string) {
+   try {
+     const { notifyJobFailed } = await import("@/lib/notifications");
+-    await notifyJobFailed(queue, data, error);
++    const { redactMessage } = await import("@/lib/integrations/core/errors");
++    await notifyJobFailed(queue, data, redactMessage(error)); // a driver or provider message may quote a credential
+   } catch (e) {
+     log.error("jobs.final_failure_notify_error", { queue, error: e instanceof Error ? e.message : String(e) });
+   }
+ }
+ 
+ async function register<N extends QueueName>(boss: PgBoss, name: N) {
+-  const retryLimit = QUEUES[name].retryLimit;
+   for (let i = 0; i < CONCURRENCY[name]; i++) {
+     const options = { batchSize: 1, includeMetadata: true, pollingIntervalSeconds: name === "notify.deliver" ? 2 : 5 } as const;
+     await boss.work<JobData[N], unknown, typeof options>(name, options, async (jobs: JobWithMetadata<JobData[N]>[]) => {
+       const job = jobs[0];
++      // The job's own limit (a send() may override the queue's), else the queue's: "final attempt" must
++      // agree with what pg-boss will actually do, or the last failure is never reported to anyone.
++      const retryLimit = typeof job.retryLimit === "number" ? job.retryLimit : QUEUES[name].retryLimit;
+       const attempt = (job.retryCount ?? 0) + 1;
+       const finalAttempt = attempt > retryLimit;
+       const t0 = Date.now();
+@@ -121,15 +125,17 @@ async function register<N extends QueueName>(boss: PgBoss, name: N) {
+ 
+ /** Cron-driven queues. Schedules are idempotent per (queue, key). */
+ async function registerSchedules(boss: PgBoss) {
+-  await boss.schedule("alerts.evaluate", CRON["alerts.evaluate"], {}, { tz: "UTC", singletonKey: "cron" });
+-  await boss.schedule("gudid.refresh", CRON["gudid.refresh"], { limit: Number(process.env.GUDID_REFRESH_BATCH ?? 200) }, { tz: "UTC", singletonKey: "refresh:sweep" });
+-  // A bad or "off" cron for one of these must not stop feeds scheduling and orphan recovery below.
++  // A bad or "off" cron for any of these must not stop the other schedules, feeds scheduling and
++  // orphan recovery below: it is logged (jobs.schedule_failed) and that one schedule is left off.
+   // Schedule keys allow only [A-Za-z0-9_-]; the job's singletonKey may carry ":" like the manual ones.
+-  const sched = async (queue: "embed.refresh" | "analytics.refresh" | "retention.sweep", cron: string, data: object, key: string, singletonKey: string) => {
+-    if (cron === "off") { await boss.unschedule(queue, key).catch(() => undefined); return; }
+-    try { await boss.schedule(queue, cron, data, { tz: "UTC", key, singletonKey }); } catch (e) { log.error("jobs.schedule_failed", { queue, cron, error: e instanceof Error ? e.message : String(e) }); }
++  const sched = async (queue: "alerts.evaluate" | "gudid.refresh" | "embed.refresh" | "analytics.refresh" | "retention.sweep", cron: string, data: object, key: string | undefined, singletonKey: string) => {
++    if (cron === "off") { await boss.unschedule(queue, key ?? undefined).catch(() => undefined); return; }
++    try { await boss.schedule(queue, cron, data, { tz: "UTC", ...(key ? { key } : {}), singletonKey }); }
++    catch (e) { log.error("jobs.schedule_failed", { queue, cron, error: e instanceof Error ? e.message : String(e) }); await boss.unschedule(queue, key ?? undefined).catch(() => undefined); }
+   };
+-  await sched("embed.refresh", CRON["embed.refresh"], { limit: Number(process.env.EMBED_REFRESH_BATCH ?? 5000) }, "embed-sweep", "embed:sweep");
++  await sched("alerts.evaluate", CRON["alerts.evaluate"], {}, undefined, "cron");
++  await sched("gudid.refresh", CRON["gudid.refresh"], { limit: intEnv("GUDID_REFRESH_BATCH", 200, { min: 1, max: 100_000 }) }, undefined, "refresh:sweep");
++  await sched("embed.refresh", CRON["embed.refresh"], { limit: intEnv("EMBED_REFRESH_BATCH", 5000, { min: 1, max: 1_000_000 }) }, "embed-sweep", "embed:sweep");
+   await sched("analytics.refresh", CRON["analytics.refresh"], { trigger: "schedule" }, "analytics-cron", "analytics:cron");
+   // Retention is scheduled only while it is switched on; switching it off unschedules it at the next start.
+   const { retentionConfig } = await import("@/lib/retention");
+@@ -202,7 +208,7 @@ export function startWorkers(): Promise<void> {
+       if (!g.__crosswalkQueuesRegistered) { for (const name of Object.keys(QUEUES) as QueueName[]) await register(boss, name); g.__crosswalkQueuesRegistered = true; }
+       await registerSchedules(boss);
+       await recoverOrphans().catch((e) => log.error("jobs.recover_error", { error: e instanceof Error ? e.message : String(e) }));
+-      log.info("jobs.workers_started", { queues: Object.keys(QUEUES), mode: process.env.JOBS_WORKER ?? "inline" });
++      log.info("jobs.workers_started", { queues: Object.keys(QUEUES), mode: jobsMode() });
+     })().catch((e) => {
+       g.__crosswalkWorkers = null;
+       log.error("jobs.workers_failed", { error: e instanceof Error ? e.message : String(e) });
+diff --git a/src/lib/notifications/index.ts b/src/lib/notifications/index.ts
+index 8e380a2..b088f05 100644
+--- a/src/lib/notifications/index.ts
++++ b/src/lib/notifications/index.ts
+@@ -172,8 +172,8 @@ export async function notifyFeedFailed(feed: string, error: string, feedRunId: s
+   await notify({ kind: "FEED_FAILED", userIds: await adminIds(), title: `Feed "${feed}" failed`, body: error, link: `${baseUrl()}/settings`, entityType: "FeedRun", entityId: feedRunId, dedupeKey: feed });
+ }
+ 
+-export async function notifyAlert(a: { fingerprint: string; severity: string; title: string; detail: string | null; id: string }) {
+-  await notify({ kind: "ALERT", userIds: await adminIds(), title: `[${a.severity}] ${a.title}`, body: a.detail, link: `${baseUrl()}/settings`, entityType: "Alert", entityId: a.id, dedupeKey: a.fingerprint });
++export async function notifyAlert(a: { fingerprint: string; severity: string; title: string; detail: string | null; id: string }): Promise<{ created: number }> {
++  return notify({ kind: "ALERT", userIds: await adminIds(), title: `[${a.severity}] ${a.title}`, body: a.detail, link: `${baseUrl()}/settings`, entityType: "Alert", entityId: a.id, dedupeKey: a.fingerprint });
+ }
+ 
+ export async function notifyJobFailed(queue: string, data: unknown, error: string) {
+diff --git a/src/lib/observability/alerts.ts b/src/lib/observability/alerts.ts
+index f25ebfc..6a65906 100644
+--- a/src/lib/observability/alerts.ts
++++ b/src/lib/observability/alerts.ts
+@@ -113,9 +113,11 @@ export async function evaluateAlerts(rules: typeof RULES = RULES): Promise<{ fir
+     const due = renewed || !row.lastNotifiedAt || now.getTime() - row.lastNotifiedAt.getTime() > renotifyMs;
+     if (due) {
+       try {
+-        await notifyAlert({ fingerprint: row.fingerprint, severity: row.severity, title: row.title, detail: row.detail, id: row.id });
+-        await prisma.alert.update({ where: { id: row.id }, data: { lastNotifiedAt: now } }); // only a delivered notification counts
+-        notified++;
++        // Only a notification that was actually created counts: `notify` dedupes a repeat of the same
++        // fingerprint to the same people within an hour (a condition that resolves and re-fires), and
++        // that must neither inflate `notified` nor restart the ALERT_RENOTIFY_HOURS clock.
++        const { created } = await notifyAlert({ fingerprint: row.fingerprint, severity: row.severity, title: row.title, detail: row.detail, id: row.id });
++        if (created > 0) { await prisma.alert.update({ where: { id: row.id }, data: { lastNotifiedAt: now } }); notified++; }
+       } catch (e) {
+         log.warn("alerts.notify_failed", { fingerprint: c.fingerprint, error: e instanceof Error ? e.message : String(e) });
+       }
+diff --git a/src/lib/retention.ts b/src/lib/retention.ts
+index ffedac7..5535443 100644
+--- a/src/lib/retention.ts
++++ b/src/lib/retention.ts
+@@ -159,6 +159,9 @@ export async function runRetention(cfg: RetentionConfig = retentionConfig(), opt
+ 
+   const total = Object.values(counts).reduce((s, n) => s + n, 0);
+   log.info("retention.sweep", { dryRun: cfg.dryRun, counts, more });
+-  await audit({ actorUserId: opts.actorUserId ?? null, entityType: "System", entityId: "retention", action: cfg.dryRun ? "RETENTION_DRY_RUN" : "RETENTION_SWEEP", context: { counts, more, days: cfg.days, batch: cfg.batch, total } }).catch(() => undefined);
++  // The audit row is the record that a sweep happened: if it cannot be written the job fails loudly
++  // (JOB_FAILED reaches the admins) rather than deleting quietly — the deletes above are already done.
++  try { await audit({ actorUserId: opts.actorUserId ?? null, entityType: "System", entityId: "retention", action: cfg.dryRun ? "RETENTION_DRY_RUN" : "RETENTION_SWEEP", context: { counts, more, days: cfg.days, batch: cfg.batch, total } }); }
++  catch (e) { log.error("retention.audit_failed", { counts, error: e instanceof Error ? e.message : String(e) }); throw e; }
+   return { dryRun: cfg.dryRun, counts, more };
+ }
+diff --git a/src/lib/tenancy.ts b/src/lib/tenancy.ts
+index 18360e3..529034b 100644
+--- a/src/lib/tenancy.ts
++++ b/src/lib/tenancy.ts
+@@ -5,14 +5,39 @@
+  * through `getCompany()`. A second customer gets a second deployment: separate database,
+  * separate secrets, separate model key — the simplest thing that is also the safest.
+  *
+- * This module makes that explicit: a startup check that warns when more than one Company row
+- * exists (drift from a renamed COMPANY_NAME, or an old seed), a status line for Settings →
+- * System, and a guard the seed uses so it never quietly creates a second company.
++ * This module makes that explicit: a startup check that refuses (strict) or warns when more
++ * than one Company row exists (drift from a renamed COMPANY_NAME, or an old seed), a status
++ * line for Settings → System, and the company defaults the seeds and `getCompany()` share:
++ *
++ *   COMPANY_NAME   the company's name (default Medtronic)
++ *   OWN_LABELERS   comma-separated openFDA labeler names that count as "us" when the Company
++ *                  row is first created (default Covidien, Medtronic, Sofradim). Read only at
++ *                  creation: the stored `Company.labelers` list is the truth afterwards.
+  */
+ import { prisma } from "@/lib/db";
+ import { log } from "@/lib/log";
+ import { getCompany } from "@/lib/settings";
+ 
++type Env = Record<string, string | undefined>;
++
++export const DEFAULT_COMPANY_NAME = "Medtronic";
++const DEFAULT_LABELERS = ["Covidien", "Medtronic", "Sofradim"];
++
++/** The company name a fresh deployment is created with. */
++export function defaultCompanyName(env: Env = process.env): string {
++  return env.COMPANY_NAME?.trim() || DEFAULT_COMPANY_NAME;
++}
++
++/** The own-labeler list a fresh Company row is created with (OWN_LABELERS, comma-separated). */
++export function defaultLabelers(env: Env = process.env): string[] {
++  const raw = env.OWN_LABELERS;
++  if (raw === undefined || !raw.trim()) return [...DEFAULT_LABELERS];
++  const seen = new Set<string>();
++  const out: string[] = [];
++  for (const part of raw.split(",")) { const v = part.trim(); if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); out.push(v); } }
++  return out.length ? out : [...DEFAULT_LABELERS];
++}
++
+ export type TenancyStatus = { mode: "single"; company: { id: string; name: string; labelers: string[] } | null; companies: { id: string; name: string; products: number; requests: number }[]; ok: boolean; note: string };
+ 
+ export async function tenancyStatus(): Promise<TenancyStatus> {
+@@ -24,13 +49,23 @@ export async function tenancyStatus(): Promise<TenancyStatus> {
+   return { mode: "single", company: primary ? { id: primary.id, name: primary.name, labelers: JSON.parse(primary.labelers || "[]") } : null, companies, ok: extra.length === 0, note };
+ }
+ 
+-/** Called once at startup (instrumentation): never throws, only warns. */
+-export async function checkTenancy(): Promise<void> {
+-  try {
+-    const t = await tenancyStatus();
+-    if (!t.ok) log.warn("tenancy.multiple_companies", { companies: t.companies, served: t.company?.name ?? null });
+-    else log.info("tenancy.single", { company: t.company?.name ?? null });
+-  } catch (e) {
+-    log.warn("tenancy.check_failed", { error: e instanceof Error ? e.message : String(e) });
+-  }
++/** True unless TENANCY_STRICT=false: a second Company row refuses start-up instead of only warning. */
++export function tenancyStrict(env: Env = process.env): boolean {
++  return (env.TENANCY_STRICT ?? "true").trim().toLowerCase() !== "false";
++}
++
++/**
++ * Called once at startup (instrumentation, worker). With `strict` (the default) a database that
++ * holds more than one Company row makes it throw "Refusing to start …" — the web server and the
++ * worker must not serve a database whose catalog is split across companies nobody is looking at.
++ * A missing company is not an error (the seed or the first settings save creates it). A database
++ * that cannot be reached is only warned about: the caller's own connection handling reports that.
++ */
++export async function checkTenancy(opts: { strict?: boolean } = {}): Promise<void> {
++  const strict = opts.strict ?? tenancyStrict();
++  let t: TenancyStatus;
++  try { t = await tenancyStatus(); } catch (e) { log.warn("tenancy.check_failed", { error: e instanceof Error ? e.message : String(e) }); return; }
++  if (t.ok) { log.info("tenancy.single", { company: t.company?.name ?? null }); return; }
++  log[strict ? "error" : "warn"]("tenancy.multiple_companies", { companies: t.companies, served: t.company?.name ?? null, strict });
++  if (strict) throw new Error(`Refusing to start: ${t.companies.length} Company rows in one database (${t.companies.map((c) => `"${c.name}"`).join(", ")}); Crosswalk is single-tenant per deployment — remove or merge the extra rows, or set TENANCY_STRICT=false to serve "${t.company?.name}" and only warn`);
+ }

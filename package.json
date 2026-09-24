@@ -1,6 +1,6 @@
 {
   "name": "crosswalk",
-  "version": "0.4.0",
+  "version": "0.7.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -31,7 +31,8 @@
     "test:watch": "vitest",
     "secrets:check": "tsx scripts/with-secrets.ts --check",
     "db:preflight": "tsx scripts/db-preflight.ts",
-    "retention": "tsx scripts/retention.ts"
+    "retention": "tsx scripts/retention.ts",
+    "lint": "eslint \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -63,6 +64,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/ws": "^8.18.1",
+    "@typescript-eslint/parser": "^8.70.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5",

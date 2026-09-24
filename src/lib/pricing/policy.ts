@@ -53,13 +53,24 @@ export async function draftPolicy(actorUserId: string | null, raw: PolicyInput) 
   return row;
 }
 
-/** Activate a draft: supersede the currently active version for the same family. */
+/**
+ * Activate a draft: supersede the currently active version for the same family. The family is
+ * locked for the transaction (advisory lock keyed on the family name) so two activations racing
+ * for one family serialise: the second sees the first's row as ACTIVE and supersedes it — without
+ * the lock, both UPDATE … WHERE status = 'ACTIVE' statements could run against a snapshot in which
+ * neither draft was active yet, leaving two ACTIVE policies. Only a DRAFT can be activated; rolling
+ * back is a new draft, so the version history stays linear.
+ */
 export async function activatePolicy(actorUserId: string | null, id: string) {
   const row = await prisma.pricingPolicy.findUnique({ where: { id } });
   if (!row) throw new Error("policy not found");
-  await prisma.$transaction([
-    prisma.pricingPolicy.updateMany({ where: { productFamily: row.productFamily, status: "ACTIVE" }, data: { status: "SUPERSEDED", supersededAt: new Date() } }),
-    prisma.pricingPolicy.update({ where: { id }, data: { status: "ACTIVE", effectiveFrom: new Date() } }),
-  ]);
-  await audit({ actorUserId, entityType: "PricingPolicy", entityId: id, action: "ACTIVATED", context: { productFamily: row.productFamily, version: row.version } });
+  if (row.status !== "DRAFT") throw new Error(`only a DRAFT policy can be activated (${row.productFamily} v${row.version} is ${row.status})`);
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"pricing-policy:" + row.productFamily.toLowerCase()}))`;
+    const fresh = await tx.pricingPolicy.findUnique({ where: { id }, select: { status: true } });
+    if (!fresh || fresh.status !== "DRAFT") throw new Error(`only a DRAFT policy can be activated (${row.productFamily} v${row.version} is ${fresh?.status ?? "gone"})`);
+    await tx.pricingPolicy.updateMany({ where: { productFamily: row.productFamily, status: "ACTIVE" }, data: { status: "SUPERSEDED", supersededAt: new Date() } });
+    await tx.pricingPolicy.update({ where: { id }, data: { status: "ACTIVE", effectiveFrom: new Date() } });
+    await tx.auditEvent.create({ data: { actorUserId, entityType: "PricingPolicy", entityId: id, action: "ACTIVATED", contextJson: JSON.stringify({ productFamily: row.productFamily, version: row.version }) } });
+  }, { timeout: 30_000, maxWait: 10_000 });
 }

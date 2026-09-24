@@ -1,9 +1,17 @@
 # Backups, recovery and retention
 
-The database is the whole state of Crosswalk: catalog, curated crosses, requests (which
-carry a prospect's purchase list), proposals, contracts, prices, costs, audit trail. Uploaded
-bid files are recorded as `Document` rows with their extracted content; nothing else lives on
-disk. Back up the database and you have backed up the system.
+The database is almost the whole state of Crosswalk: catalog, curated crosses, requests (which
+carry a prospect's purchase list), proposals, contracts, prices, costs, audit trail, the job
+queue (`pgboss` schema) and the `Document` rows with their extracted fields and observations.
+
+**One thing lives outside it: the bytes of uploaded documents** (invoices, POs, bid files sent
+to extraction), written to `DOCUMENT_STORAGE_DIR` (default `./.data/documents`, one file per
+document id). A database dump does not contain them; after a restore the `Document` rows,
+extractions, review items and price observations are all there, but "open the source
+document" and "re-run extraction" need the files. Back the directory up alongside the dump
+(or point `DOCUMENT_STORAGE_DIR` at a mounted, separately backed-up bucket), and copy it back
+before the drill's "open a proposal" step includes a document. Everything else is the
+database: back it up and you have backed up the system.
 
 ## What Neon gives you
 
@@ -26,8 +34,11 @@ own storage on a schedule.
 # From a box with the Postgres 17 client tools and the production DATABASE_URL (pooler host is fine).
 pg_dump "$DATABASE_URL" --format=custom --no-owner --no-privileges \
   --file "crosswalk-$(date -u +%Y%m%dT%H%M%SZ).dump"
+# The uploaded document bytes are not in the database: archive the directory with the dump.
+tar -czf "crosswalk-documents-$(date -u +%Y%m%dT%H%M%SZ).tgz" -C "${DOCUMENT_STORAGE_DIR:-./.data/documents}" .
 # Encrypt before it leaves the box, then copy to versioned object storage with a lifecycle
-# rule (e.g. keep 35 daily, 12 monthly).
+# rule (e.g. keep 35 daily, 12 monthly). The client's major version must match the server's
+# (pg_dump 16 refuses a Postgres 17 server): use the postgresql-client-17 tools for a pg17 database.
 ```
 
 A restore into a fresh branch (never straight over `main`):
@@ -63,7 +74,7 @@ Record the date and duration in this file.
 
 | Date | Dump | Restore time | Result |
 | --- | --- | --- | --- |
-| _none yet_ | | | |
+| 2026-09-24 (local drill, debug run WS5) | `pg_dump --format=custom --no-owner --no-privileges` of a seeded local database (74 tables incl. `pgboss`, 1.2 MB, 0.3 s) | `pg_restore` into a fresh database: 0.7 s | Row counts identical in every table; no sequences to reset (ids are cuids); `vector` extension, `OwnProduct.embedding vector(1536)` (352 embedded rows) and the HNSW index restored; 15 migrations recorded. Document bytes were, as expected, not in the dump. Evidence: `docs/debug-runs/2026-09-24-full-application/evidence/ws5/backup-roundtrip.txt`. |
 
 ## Retention
 

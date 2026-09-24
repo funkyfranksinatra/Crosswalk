@@ -1,0 +1,39 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+ ❯ tests/unit/ws2-money.test.ts (8 tests | 1 failed) 30ms
+   ❯ WS2 money oracle (8)
+     × money(): null vs zero, NaN, ±Infinity (number and string), overflow strings, Prisma-like objects 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/ws2-money.test.ts > WS2 money oracle > money(): null vs zero, NaN, ±Infinity (number and string), overflow strings, Prisma-like objects
+AssertionError: expected NaN to be null
+
+- Expected:
+null
+
++ Received:
+Decimal {
+  "constructor": [Function Decimal],
+  "d": null,
+  "e": NaN,
+  "s": NaN,
+}
+
+ ❯ tests/unit/ws2-money.test.ts:83:26
+     81|     // Strings that decimal.js would happily parse as non-finite must …
+     82|     // scenario price or freight typed as "NaN"/"Infinity" would other…
+     83|     expect(money("NaN")).toBeNull();
+       |                          ^
+     84|     expect(money("Infinity")).toBeNull();
+     85|     expect(money("-Infinity")).toBeNull();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 passed (8)
+   Start at  08:06:55
+   Duration  816ms (transform 54%, setup 38%, tests 5%, import 2%, worker 1%)
+

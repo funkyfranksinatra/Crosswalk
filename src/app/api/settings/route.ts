@@ -3,15 +3,19 @@ import { getSettings, saveSettings } from "@/lib/settings";
 import { llmConfig } from "@/lib/llm/client";
 import { prisma } from "@/lib/db";
 import { authorize } from "@/lib/api";
+import { can } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 
 export async function GET() {
-  const { deny } = await authorize(null);
+  const { actor, deny } = await authorize(null);
   if (deny) return deny;
   const s = await getSettings();
   const llm = llmConfig();
-  const calls = await prisma.llmCall.groupBy({ by: ["purpose", "ok"], _count: { _all: true }, _avg: { durationMs: true } });
-  return NextResponse.json({ ...s, llm: { available: llm.available, model: llm.model, baseURL: llm.baseURL ?? null }, calls });
+  // Operational detail (endpoint, per-purpose call statistics) is for operators; everyone else
+  // gets the settings and whether a model is available.
+  const operator = can(actor, "configure_settings");
+  const calls = operator ? await prisma.llmCall.groupBy({ by: ["purpose", "ok"], _count: { _all: true }, _avg: { durationMs: true } }) : undefined;
+  return NextResponse.json({ ...s, llm: { available: llm.available, model: llm.model, baseURL: operator ? llm.baseURL ?? null : undefined }, ...(operator ? { calls } : {}) });
 }
 
 export async function POST(req: Request) {

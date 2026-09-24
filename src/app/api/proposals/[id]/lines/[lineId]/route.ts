@@ -3,7 +3,7 @@ import { handle, body, str } from "@/lib/api";
 import { money } from "@/lib/money";
 import { setProposedPrice, setLineIncluded, refreshEconomics, assertEditable } from "@/lib/proposals/service";
 import { audit } from "@/lib/audit";
-import { redactForActor } from "@/lib/auth";
+import { redactForActor, redactJsonForActor } from "@/lib/auth";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string; lineId: string }> }) {
   const { id, lineId } = await params;
@@ -35,6 +35,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
     const updated = await prisma.proposalLine.findUniqueOrThrow({ where: { id: lineId } });
     const economics = await refreshEconomics(id);
-    return { line: redactForActor(actor, updated as unknown as Record<string, unknown>), economics: (await import("@/lib/proposals/economics")).economicsToJson(economics) };
+    return { line: redactForActor(actor, updated as unknown as Record<string, unknown>), economics: redactJsonForActor(actor, (await import("@/lib/proposals/economics")).economicsToJson(economics)) };
   });
 }

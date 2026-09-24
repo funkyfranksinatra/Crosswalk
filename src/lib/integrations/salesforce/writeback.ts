@@ -10,15 +10,19 @@ import { audit } from "@/lib/audit";
 import { economicsToJson } from "@/lib/proposals/economics";
 import type { CRMAdapter } from "../core/contracts";
 import type { QuoteWriteback, QuoteWritebackResult } from "../types";
-import { ValidationError, asIntegrationError } from "../core/errors";
+import { ValidationError, asIntegrationError, redactMessage } from "../core/errors";
 import { createHash } from "node:crypto";
 
 const hash = (o: unknown) => createHash("sha256").update(JSON.stringify(o)).digest("hex");
 
 export async function buildQuoteWriteback(proposalId: string, pushMargin: boolean): Promise<QuoteWriteback> {
   const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { account: true, opportunity: true, lines: { orderBy: { lineNo: "asc" } }, approvals: { orderBy: { decidedAt: "desc" }, take: 1 } } });
-  if (!["APPROVED", "WON"].includes(p.status)) throw new ValidationError(`proposal ${p.reference} is ${p.status}; only approved proposals are written to the CRM`);
   if (!p.account.externalCrmId) throw new ValidationError(`account ${p.account.name} is not linked to a CRM record — sync accounts first`);
+  // finalizeCheck (approvals/service) is the one gate for anything that leaves as a quote: approved or
+  // won, not expired, every included line priced and approved. Status alone let expired proposals through.
+  const { finalizeCheck } = await import("@/lib/approvals/service");
+  const gate = await finalizeCheck(proposalId);
+  if (!gate.ok) throw new ValidationError(`proposal ${p.reference} cannot be written to the CRM: ${gate.reason}`);
   const econ = p.economicsJson ? (JSON.parse(p.economicsJson) as ReturnType<typeof economicsToJson>) : null;
   const approval = p.approvals[0];
   return {
@@ -45,9 +49,10 @@ export async function writeBackQuote(crm: CRMAdapter, system: string, actorUserI
     res = await crm.createOrUpdateQuote(payload);
   } catch (e) {
     const err = asIntegrationError(e);
-    await prisma.syncLog.create({ data: { system, direction: "OUT", entityType: "Proposal", entityId: proposalId, status: "FAILED", error: err.message.slice(0, 2000), payloadHash: h } });
-    log.warn("integration.quote_writeback_failed", { integration: "salesforce", proposalId, category: err.category, error: err.message, ms: Date.now() - t0 });
-    await audit({ actorUserId, entityType: "Proposal", entityId: proposalId, action: "CRM_PUSH_FAILED", context: { system, category: err.category, message: err.message } });
+    const message = redactMessage(err.message); // an adapter's own message may quote what the provider rejected
+    await prisma.syncLog.create({ data: { system, direction: "OUT", entityType: "Proposal", entityId: proposalId, status: "FAILED", error: message.slice(0, 2000), payloadHash: h } });
+    log.warn("integration.quote_writeback_failed", { integration: "salesforce", proposalId, category: err.category, error: message, ms: Date.now() - t0 });
+    await audit({ actorUserId, entityType: "Proposal", entityId: proposalId, action: "CRM_PUSH_FAILED", context: { system, category: err.category, message } });
     throw err;
   }
   await prisma.externalRef.upsert({ where: { system_entityType_externalId: { system, entityType: "Proposal", externalId: res.externalId } }, create: { system, entityType: "Proposal", externalId: res.externalId, entityId: proposalId, syncHash: h, metaJson: JSON.stringify({ lines: res.lineExternalIds?.length ?? payload.lines.length, providerRef: res.providerRef ?? null }) }, update: { entityId: proposalId, syncHash: h, syncedAt: new Date(), metaJson: JSON.stringify({ lines: res.lineExternalIds?.length ?? payload.lines.length, providerRef: res.providerRef ?? null }) } });

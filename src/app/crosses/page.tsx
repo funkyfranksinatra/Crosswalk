@@ -26,7 +26,7 @@ export default async function CrossesPage({ searchParams }: { searchParams: Prom
     <>
       <PageHeader eyebrow="Governed cross-reference" title="Crosswalk" description="Human-curated crosses, governed: clinical and product-marketing review, an equivalence level a customer may be shown, and frozen published versions that proposals pin. Rep-proposed crosses queue here and never reach a quote until published." />
       <Governance canManage={can(actor, "manage_crosswalk")} canPublish={can(actor, "publish_crosswalk")} canClinical={can(actor, "review_crosswalk_clinical") || (actor?.roles ?? []).includes("ADMIN")} />
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <Stat label="Crosses" value={total} hint={`${byCompany.length} competitors · ${bySource.length} sheets`} />
         <Stat label="Exact" value={count("Exact Match")} tone="exact" />
         <Stat label="Close" value={count("Close Match")} tone="close" />
@@ -39,7 +39,7 @@ export default async function CrossesPage({ searchParams }: { searchParams: Prom
             <thead><tr><th>Our SKU</th><th>Our description</th><th>Match</th><th>Equivalence</th><th>Competitor</th><th>Their code</th><th>Their description</th><th>Notes</th><th>Source</th></tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className={r.isActive ? "" : "opacity-50"}>
+                <tr key={r.id} className={r.isActive ? "" : "bg-panel-2 [&>td]:text-muted"}>
                   <td className="mono font-semibold">{r.ownSku}{r.preferredOwnSku && r.preferredOwnSku !== r.ownSku && <div className="text-[11px] text-accent">prefer {r.preferredOwnSku}</div>}</td>
                   <td className="max-w-[300px] text-ink-2"><div className="line-clamp-2">{r.ownDescription}</div></td>
                   <td><MatchChip type={r.matchType} /></td>

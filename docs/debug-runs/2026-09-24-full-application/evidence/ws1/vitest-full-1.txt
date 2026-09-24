@@ -1,0 +1,122 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+stdout | tests/db/tier1.test.ts > Tier 1 > 1.1 job queue > a run goes through the queue, completes, checkpoints every stage and notifies its creator
+prisma:error 
+Invalid `prisma.request.findUniqueOrThrow()` invocation in
+/home/claude/cracr/src/lib/pipeline/run.ts:228:40
+
+  225 }
+  226 
+  227 async function runRequestInner(requestId: string, runOpts: RunOptions) {
+→ 228   const request = await prisma.request.findUniqueOrThrow(
+An operation failed because it depends on one or more records that were required but not found. No record was found for a query.
+
+stdout | tests/db/tier1.test.ts > Tier 1 > 1.1 job queue > a run goes through the queue, completes, checkpoints every stage and notifies its creator
+prisma:error 
+Invalid `prisma.gudidImport.findUniqueOrThrow()` invocation in
+/home/claude/cracr/src/lib/gudid/library.ts:147:40
+
+  144 type Cursor = { leaf: number; skip: number; leaves?: { search: string; count: number }[] };
+  145 
+  146 export async function runImport(id: string, runOpts: { jobId?: string | null; attempt?: number; resume?: boolean; finalAttempt?: boolean } = {}) {
+→ 147   const job = await prisma.gudidImport.findUniqueOrThrow(
+An operation failed because it depends on one or more records that were required but not found. No record was found for a query.
+
+stderr | tests/db/tier1.test.ts > Tier 1 > 1.1 job queue > a run goes through the queue, completes, checkpoints every stage and notifies its creator
+[api] PrismaClientKnownRequestError: 
+Invalid `prisma.request.findUniqueOrThrow()` invocation in
+/home/claude/cracr/src/lib/pipeline/run.ts:228:40
+
+  225 }
+  226 
+  227 async function runRequestInner(requestId: string, runOpts: RunOptions) {
+→ 228   const request = await prisma.request.findUniqueOrThrow(
+An operation failed because it depends on one or more records that were required but not found. No record was found for a query.
+    at vn.handleRequestError (/home/claude/cracr/node_modules/@prisma/client/runtime/client.js:65:8643)
+    at vn.handleAndLogRequestError (/home/claude/cracr/node_modules/@prisma/client/runtime/client.js:65:7932)
+    at vn.request (/home/claude/cracr/node_modules/@prisma/client/runtime/client.js:65:7639)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at a (/home/claude/cracr/node_modules/@prisma/client/runtime/client.js:99:6935)
+    at runRequestInner (/home/claude/cracr/src/lib/pipeline/run.ts:228:19)
+    at runRequest (/home/claude/cracr/src/lib/pipeline/run.ts:192:5)
+    at /home/claude/cracr/src/lib/jobs/workers.ts:108:21
+    at resolveWithinSeconds (file:///home/claude/cracr/node_modules/pg-boss/dist/tools.js:71:18)
+    at Manager.#processJobs (file:///home/claude/cracr/node_modules/pg-boss/dist/manager.js:547:28)
+    at Worker.onFetch (file:///home/claude/cracr/node_modules/pg-boss/dist/manager.js:893:21)
+    at Worker.run (file:///home/claude/cracr/node_modules/pg-boss/dist/worker.js:68:21) {
+  code: 'P2025',
+  meta: { modelName: 'Request', operation: 'a query' },
+  clientVersion: '7.10.0'
+}
+
+stdout | tests/db/tier1.test.ts > Tier 1 > 1.1 job queue > a run goes through the queue, completes, checkpoints every stage and notifies its creator
+prisma:error 
+Invalid `prisma.request.update()` invocation in
+/home/claude/cracr/src/lib/pipeline/run.ts:213:26
+
+  210 const final = runOpts.finalAttempt ?? true;
+  211 // Only the last attempt is a failure the user sees; earlier ones stay "running" and say why.
+  212 // Not final: the retry is queued, so the row says "queued" with the reason; the checkpoint stays.
+→ 213 await prisma.request.update(
+An operation failed because it depends on one or more records that were required but not found. No record was found for an update.
+
+stdout | tests/db/tier1.test.ts > Tier 1 > 1.1 job queue > a run goes through the queue, completes, checkpoints every stage and notifies its creator
+prisma:error 
+Invalid `prisma.gudidImport.findUniqueOrThrow()` invocation in
+/home/claude/cracr/src/lib/gudid/library.ts:147:40
+
+  144 type Cursor = { leaf: number; skip: number; leaves?: { search: string; count: number }[] };
+  145 
+  146 export async function runImport(id: string, runOpts: { jobId?: string | null; attempt?: number; resume?: boolean; finalAttempt?: boolean } = {}) {
+→ 147   const job = await prisma.gudidImport.findUniqueOrThrow(
+An operation failed because it depends on one or more records that were required but not found. No record was found for a query.
+
+ ❯ tests/db/tier1.test.ts (24 tests | 2 failed) 9706ms
+   ❯ Tier 1 (24)
+     ❯ 1.1 job queue (10)
+       × a run goes through the queue, completes, checkpoints every stage and notifies its creator 5423ms
+       × a failing attempt that the queue will retry stays 'running' and says so; the final attempt fails the run, tells the creator, and never shows raw driver text 135ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/db/tier1.test.ts > Tier 1 > 1.1 job queue > a run goes through the queue, completes, checkpoints every stage and notifies its creator
+TypeError: .toMatch() expects to receive a string, but got undefined
+ ❯ tests/db/tier1.test.ts:108:24
+    106|       expect(await prisma.matchCandidate.count({ where: { line: { requ…
+    107|       const n = await prisma.notification.findFirst({ where: { userId:…
+    108|       expect(n?.title).toMatch(/is ready/);
+       |                        ^
+    109|       const boss = await getBoss();
+    110|       const job = await boss.getJobById("request.run", jobId!);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/db/tier1.test.ts > Tier 1 > 1.1 job queue > a failing attempt that the queue will retry stays 'running' and says so; the final attempt fails the run, tells the creator, and never shows raw driver text
+AssertionError: promise resolved "undefined" instead of rejecting
+
+- Expected:
+Error {
+  "message": "rejected promise",
+}
+
++ Received:
+undefined
+
+ ❯ tests/db/tier1.test.ts:201:74
+    199|       const r = await makeRequest("fail", rep);
+    200|       await prisma.request.update({ where: { id: r.id }, data: { optio…
+    201|       await expect(runRequest(r.id, { attempt: 1, finalAttempt: false …
+       |                                                                          ^
+    202|       let row = await prisma.request.findUniqueOrThrow({ where: { id: …
+    203|       expect(row.status).toBe("queued"); // the retry is queued; the r…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 17 passed (18)
+      Tests  2 failed | 386 passed (388)
+   Start at  07:46:51
+   Duration  52.85s (tests 79%, setup 9%, import 8%, transform 4%)
+
+EXIT=1

@@ -1,0 +1,67 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+ ❯ tests/db/ws2-proposals.test.ts (8 tests | 3 failed) 1103ms
+   ❯ WS2 proposals — scenarios and price bounds (8)
+     × KN-12: the service, the CHECK constraint and the UI agree on the six scenario kinds 6ms
+     × CUSTOMER_REQUESTED seeds the customer's current competitor price where known, else the proposed price; CUSTOM and FINAL copy the proposal 8ms
+     × scenario prices and manual prices share one set of bounds: > 0, ≤ 1e9, ≤ 10 × list, rounded; null clears 42ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/db/ws2-proposals.test.ts > WS2 proposals — scenarios and price bounds > KN-12: the service, the CHECK constraint and the UI agree on the six scenario kinds
+TypeError: SCENARIO_KINDS is not iterable
+ ❯ tests/db/ws2-proposals.test.ts:60:55
+     58|   test("KN-12: the service, the CHECK constraint and the UI agree on t…
+     59|     const constraint = ENUM_CONSTRAINTS.find((c) => c.table === "Scena…
+     60|     expect([...constraint.values].sort()).toEqual([...SCENARIO_KINDS].…
+       |                                                       ^
+     61|     for (const kind of SCENARIO_KINDS) {
+     62|       const s = await createScenario(rep.actor, fx.proposal.id, kind);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/db/ws2-proposals.test.ts > WS2 proposals — scenarios and price bounds > CUSTOMER_REQUESTED seeds the customer's current competitor price where known, else the proposed price; CUSTOM and FINAL copy the proposal
+Error: kind must be RECOMMENDED, AGGRESSIVE, MARGIN_OPTIMIZED or CUSTOM
+ ❯ createScenario src/lib/proposals/service.ts:313:90
+    311|   requirePermission(actor, "edit_proposed_pricing");
+    312|   const p = await prisma.proposal.findUniqueOrThrow({ where: { id: pro…
+    313|   if (!["RECOMMENDED", "AGGRESSIVE", "MARGIN_OPTIMIZED", "CUSTOM"].inc…
+       |                                                                                          ^
+    314|   if (name !== undefined && (typeof name !== "string" || name.length >…
+    315|   const cache = await policyCacheFor(p.lines);
+ ❯ tests/db/ws2-proposals.test.ts:91:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/db/ws2-proposals.test.ts > WS2 proposals — scenarios and price bounds > scenario prices and manual prices share one set of bounds: > 0, ≤ 1e9, ≤ 10 × list, rounded; null clears
+AssertionError: promise resolved "{ …(4) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "included": true,
++   "proposalLineId": "cmuf9a102000ll37dg7zvvwr9",
++   "proposedPrice": "3000.01",
++   "scenarioId": "cmuf9a15y000zl37d6vxibo0o",
+  }
+
+ ❯ tests/db/ws2-proposals.test.ts:129:72
+    127|     await expect(setScenarioPrice(rep.actor, s.id, l.id, D(0))).reject…
+    128|     await expect(setScenarioPrice(rep.actor, s.id, l.id, D("-1"))).rej…
+    129|     await expect(setScenarioPrice(rep.actor, s.id, l.id, D("3000.01"))…
+       |                                                                        ^
+    130|     await expect(setScenarioPrice(rep.actor, s.id, l.id, MAX_UNIT_PRIC…
+    131|     await setScenarioPrice(rep.actor, s.id, l.id, D("123.455"));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 5 passed (8)
+   Start at  08:14:15
+   Duration  2.35s (tests 51%, transform 31%, setup 12%, import 6%)
+

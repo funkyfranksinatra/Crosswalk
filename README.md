@@ -196,7 +196,7 @@ src/lib/proposals/          proposal service (snapshots, scenarios, versions), d
 src/lib/approvals/          routing rules, submit / decide / finalize gating
 src/lib/xref/governance.ts  cross approval, clinical/marketing review, published crosswalk versions
 src/lib/compliance/ · analytics/   contract performance, conversion, renewals · win/loss, effectiveness, accuracy
-src/lib/integrations/       CRM / ERP / GPO adapter contracts, dev fixtures, Salesforce/SAP skeletons, idempotent sync
+src/lib/integrations/       CRM / ERP / GPO adapter contracts, dev fixtures, file feeds, idempotent sync; core/ + salesforce/ sap/ gpo/ documents/ fx/ competitor-contracts/ (Tier 2 providers)
 src/lib/audit.ts            audit events (before/after/context)
 src/app/                    Next.js App Router UI + API routes (`src/lib/api.ts` wraps every route with a permission)
 docs/ARCHITECTURE.md        decisions and rationale (matching pipeline)

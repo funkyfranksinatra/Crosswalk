@@ -35,10 +35,19 @@ export async function register() {
     setTimeout(() => proc?.exit(1), 0);
     throw e;
   }
-  // Tenancy is single per deployment; say so (and warn about drift) once per process, queue or not.
-  import("@/lib/tenancy").then(({ checkTenancy }) => checkTenancy()).catch(() => undefined);
-  const mode = process.env.JOBS_WORKER ?? "inline";
-  if (mode !== "inline") return;
+  // Tenancy is single per deployment: a database holding more than one Company row refuses to
+  // start (TENANCY_STRICT=false downgrades that to a warning); a database with no company yet is fine.
+  try {
+    const { checkTenancy } = await import("@/lib/tenancy");
+    await checkTenancy();
+  } catch (e) {
+    console.error(`[crosswalk] refusing to start: ${e instanceof Error ? e.message : String(e)}`);
+    const proc = (globalThis as { process?: { exit(code: number): never } }).process;
+    setTimeout(() => proc?.exit(1), 0);
+    throw e;
+  }
+  const { jobsMode } = await import("@/lib/jobs/boss");
+  if (jobsMode() !== "inline") return;
   const { startWorkers } = await import("@/lib/jobs/workers");
   const { log } = await import("@/lib/log");
   const attempt = (n: number) => {

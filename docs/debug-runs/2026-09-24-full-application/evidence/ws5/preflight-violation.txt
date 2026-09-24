@@ -1,0 +1,106 @@
+== apply 20260914200000_postgres_baseline
+psql:prisma/migrations/20260914200000_postgres_baseline/migration.sql:2: NOTICE:  schema "public" already exists, skipping
+
+== apply 20260914210000_enterprise_platform
+
+== apply 20260915020000_gudid_library
+
+== apply 20260915210000_widen_pct_columns
+
+== apply 20260915220000_purchase_external_index
+
+== apply 20260917060000_tier1_platform
+
+== apply 20260917120000_tier1_fixes
+
+== apply 20260918000000_tier3_product_scale
+
+== apply 20260918000100_tier3_line_flags
+
+== apply 20260919000000_tier0_break_glass
+
+== preflight
+  FAIL  chk_Request_status: 1 row(s) — Request.status must be one of draft, queued, running, complete, failed, cancelled
+  FAIL  chk_Account_type: 1 row(s) — Account.type must be one of SOLD_TO, SHIP_TO, BILL_TO, IDN, HEALTH_SYSTEM, GROUP, GPO_MEMBER
+  skip  9 constraint(s) whose table or column is not present yet (run migrations first): chk_IntegrationConfig_status, chk_IntegrationSyncJob_status, chk_IntegrationSyncJob_trigger, chk_IntegrationReviewItem_kind, chk_IntegrationReviewItem_status, …
+
+2 row(s) would violate the constraints; fix them before migrating.
+preflight exit=1
+rows unchanged: bogus / WAREHOUSE
+== migrate deploy (expected to fail at the constraint migration)
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "crosswalk_ws5_viol", schema "public" at "localhost:5432"
+
+15 migrations found in prisma/migrations
+
+Applying migration `20260919000100_tier0_check_constraints`
+Error: P3018
+
+A migration failed to apply. New migrations cannot be applied before the error is recovered from. Read more about how to resolve migration issues in a production database: https://pris.ly/d/migrate-resolve
+
+Migration name: 20260919000100_tier0_check_constraints
+
+Database error code: 23514
+
+Database error:
+ERROR: check constraint "chk_Request_status" of relation "Request" is violated by some row
+
+DbError { severity: "ERROR", parsed_severity: Some(Error), code: SqlState(E23514), message: "check constraint \"chk_Request_status\" of relation \"Request\" is violated by some row", detail: None, hint: None, position: None, where_: None, schema: Some("public"), table: Some("Request"), column: None, datatype: None, constraint: Some("chk_Request_status"), file: Some("tablecmds.c"), line: Some(6128), routine: Some("ATRewriteTable") }
+
+
+deploy exit=1
+20260914200000_postgres_baseline|t|f
+20260914210000_enterprise_platform|t|f
+20260915020000_gudid_library|t|f
+20260915210000_widen_pct_columns|t|f
+20260915220000_purchase_external_index|t|f
+20260917060000_tier1_platform|t|f
+20260917120000_tier1_fixes|t|f
+20260918000000_tier3_product_scale|t|f
+20260918000100_tier3_line_flags|t|f
+20260919000000_tier0_break_glass|t|f
+20260919000100_tier0_check_constraints|f|f
+after failed deploy rows unchanged: bogus / WAREHOUSE ; check constraints present: 10
+== recovery: fix rows, mark rolled back, deploy again
+  skip  9 constraint(s) whose table or column is not present yet (run migrations first): chk_IntegrationConfig_status, chk_IntegrationSyncJob_status, chk_IntegrationSyncJob_trigger, chk_IntegrationReviewItem_kind, chk_IntegrationReviewItem_status, …
+No rows violate the CHECK constraints.
+preflight exit=0
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "crosswalk_ws5_viol", schema "public" at "localhost:5432"
+
+Migration 20260919000100_tier0_check_constraints marked as rolled back.
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "crosswalk_ws5_viol", schema "public" at "localhost:5432"
+
+15 migrations found in prisma/migrations
+
+Applying migration `20260919000100_tier0_check_constraints`
+Applying migration `20260923000000_tier2_integrations`
+Applying migration `20260923000001_tier2_account_contacts`
+Applying migration `20260923000002_tier2_check_constraints`
+Applying migration `20260924000000_match_quality`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20260919000100_tier0_check_constraints/
+    └─ migration.sql
+  └─ 20260923000000_tier2_integrations/
+    └─ migration.sql
+  └─ 20260923000001_tier2_account_contacts/
+    └─ migration.sql
+  └─ 20260923000002_tier2_check_constraints/
+    └─ migration.sql
+  └─ 20260924000000_match_quality/
+    └─ migration.sql
+
+All migrations have been successfully applied.
+deploy exit=0
+checks: 68 validated: 68

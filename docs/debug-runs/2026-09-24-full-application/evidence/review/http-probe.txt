@@ -1,0 +1,85 @@
+# reviewer HTTP probe 2026-09-24T12:04:38.115Z base=http://127.0.0.1:3103
+PASS  anon GET /api/crosses -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon GET /api/crosswalk/versions -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon GET /api/catalog/enrich -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon POST /api/catalog/add -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon GET /api/contracts/renewals -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon GET /api/accounts/cmufgd5pu00d1fc7dx36e6fls -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon GET /api/proposals -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon GET /api/proposals/cmufg8i390050fc7dyfvweusn -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon GET /api/proposals/cmufg8i390050fc7dyfvweusn/scenarios -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon GET /api/approvals -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon DELETE /api/approvals/delegations/cmufg8i390050fc7dyfvweusn -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon GET /api/requests/cmufg50yo000ufc7ddlfgrbk0 -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon GET /api/requests/cmufg50yo000ufc7ddlfgrbk0/export?type=xref&format=xlsx -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon POST /api/requests -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon GET /api/settings -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon PATCH /api/competitor/cmufg8i390050fc7dyfvweusn -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon POST /api/contracts/cmufg7wm60039fc7dqvih8e1e/entries -> 401  -- 401 {"error":"Sign in required"}
+PASS  anon PATCH /api/proposals/cmufg8i390050fc7dyfvweusn/lines/cmufg8i390050fc7dyfvweusn -> 401  -- 401 {"error":"Sign in required"}
+PASS  REP GET /api/catalog/enrich -> 403  -- 403 {"error":"Missing permission: manage_catalog"}
+PASS  CLINICAL GET /api/catalog/enrich -> 403  -- 403
+PASS  ADMIN GET /api/catalog/enrich -> 200  -- 200 {"running":false,"done":0,"total":0,"enriched":0,"missing":0,"startedAt":1790250782201}
+PASS  REP POST /api/catalog/add -> 403  -- 403
+PASS  ADMIN POST /api/catalog/add {} -> 400 validation  -- 400 {"error":"skus is required (text or a list of catalog numbers)"}
+PASS  ADMIN POST /api/catalog/add 20001 chars -> 400  -- 400 {"error":"skus is too long"}
+PASS  CLINICAL GET /api/crosses -> 200  -- 200
+PASS    ...and no price keys in the payload
+PASS  CLINICAL GET /api/crosswalk/versions -> 200  -- 200
+PASS  CLINICAL GET /api/approvals -> 403 (view_pricing)  -- 403
+PASS  CLINICAL PATCH line -> 403  -- 403
+PASS  REP POST contract entries -> 403 (edit_contract_pricing)  -- 403
+PASS  ADMIN POST contract entries {} -> 400  -- 400 {"error":"entries must be a list"}
+FAIL  ADMIN POST contract entries price 0x10 -> 400  -- 200 {"created":1,"superseded":0,"unknown":[]}
+PASS  EXEC PATCH /api/competitor -> 403  -- 403
+PASS  REP GET renewals?days=abc -> 400  -- 400 {"error":"days must be a whole number between 1 and 3650"}
+PASS  REP GET renewals?days=0 -> 400  -- 400
+PASS  REP GET renewals?days=30 -> 200  -- 200
+PASS  STRANGER GET Lakeshore account -> 404  -- 404 {"error":"not found"}
+PASS  owner REP GET Lakeshore account -> 200  -- 200
+FAIL  STRANGER PATCH Lakeshore -> 404 (not 403/200)  -- 405 null
+PASS  STRANGER GET REQ-0002 (no account, admin-created) -> 404  -- 404 {"error":"not found"}
+PASS  REP GET REQ-0002 -> 404 too (scope, not identity)  -- 404
+PASS  ADMIN GET REQ-0002 -> 200  -- 200
+PASS  STRANGER export REQ-0002 -> 404  -- 404 {"error":"not found"}
+PASS  STRANGER compare REQ-0002 -> 404  -- 404
+PASS  STRANGER GET unknown id -> 404 (same as out of scope)  -- 404
+PASS  STRANGER GET //id (double slash) -> not 200  -- 308
+PASS  STRANGER GET id%2F -> not 200  -- 404
+PASS  STRANGER spoof x-crosswalk-path -> still 404  -- 404
+PASS  STRANGER spoof x-crosswalk-path to a visible id -> still 404  -- 404
+PASS  STRANGER spoof route/request-id headers -> 404  -- 404 rid=spoofed
+FAIL    ...x-request-id in the response is not the spoofed one  -- spoofed
+FAIL  ADMIN export unknown id -> 404 JSON  -- 400 {"error":"\nInvalid `prisma.request.findUniqueOrThrow()` invocation:\n\n\nAn operation failed because it depends on one or more records that were required but n
+PASS  ADMIN export type=bogus -> 400  -- 400 {"error":"type must be xref or offer; format xlsx, csv or pdf"}
+PASS  ADMIN POST /api/requests JSON -> 400 multipart expected  -- 400 {"error":"Expected a multipart/form-data body"}
+PASS  ADMIN POST /api/intake/preview JSON -> 400  -- 400 {"error":"Expected a multipart/form-data body"}
+PASS  ADMIN PATCH unknown lineId -> 404 (not 500)  -- 404 {"error":"not found"}
+PASS  ADMIN PATCH unknown scenario -> 404  -- 404 {"error":"scenario not found on this proposal"}
+PASS  ADMIN POST scenario kind=EVIL -> 400  -- 400 {"error":"kind must be one of RECOMMENDED, AGGRESSIVE, MARGIN_OPTIMIZED, CUSTOMER_REQUESTED, CUSTOM, FINAL"}
+PASS  ADMIN POST /api/crosses body 'null' -> 400  -- 400 {"error":"ownSku, competitorName and competitorCode are required"}
+PASS  REP DELETE unknown delegation -> 404  -- 404 {"error":"Delegation not found"}
+PASS  GET /api/accounts/x%00y -> 400  -- 400
+PASS  GET /api/accounts?q=%00 -> 400 (not 500)  -- 400 {"error":"Text contains characters that cannot be stored (control characters)"}
+PASS  anon POST /api/webhooks/salesforce -> handler response (not proxy 401 'Sign in required')  -- 403 {"error":"webhook not configured"}
+PASS  anon GET /api/webhooks/salesforce -> 401 (gate)  -- 401
+PASS  anon POST /api/webhooks/salesforce/ (trailing slash) -> not a handler 2xx  -- 308
+FAIL  webhook declared content-length 300 KB -> 413  -- -1 "TypeError: fetch failed"
+PASS  x-sso-subject spoof on /api/auth/me -> actor null  -- 200 {"actor":null,"sso":false,"ssoMode":"none"}
+PASS  x-sso-subject + bogus secret on /api/settings -> 401  -- 401
+PASS  REP cookie + x-sso-subject admin -> still REP  -- "alex.rep@crosswalk.dev"
+PASS  CSRF: POST with Origin evil + cookie -> 403  -- 403 {"error":"Cross-site request refused","reason":"origin mismatch"}
+PASS  CSRF: Sec-Fetch-Site cross-site -> 403  -- 403 {"error":"Cross-site request refused","reason":"sec-fetch-site=cross-site"}
+PASS  CSRF: Sec-Fetch-Site same-site -> 403  -- 403 {"error":"Cross-site request refused","reason":"sec-fetch-site=same-site"}
+PASS  CSRF: same-origin -> passes gate (400 from validation)  -- 400 {"error":"kind must be one of RECOMMENDED, AGGRESSIVE, MARGIN_OPTIMIZED, CUSTOMER_REQUESTED, CUSTOM, FINAL"}
+PASS  CSRF: Origin = addressed host, no sec-fetch-site -> passes gate  -- 400
+FAIL  CSRF: Origin evil + spoofed X-Forwarded-Host evil -> ?  -- 400 {"error":"kind must be one of RECOMMENDED, AGGRESSIVE, MARGIN_OPTIMIZED, CUSTOMER_REQUESTED, CUSTOM, FINAL"}
+PASS  CSRF: Origin null -> 403  -- 403
+PASS  CSRF: GET unaffected  -- 200
+PASS    no CORS header on the reply
+PASS  CORS preflight from evil: no allow-origin  -- 204 null
+PASS  REP GET /api/settings -> 200  -- 200
+PASS    no `calls` / `baseURL` for a rep  -- keys=weights,maxCandidates,companyName,llm llm={"available":false,"model":"gpt-5.6-astra"}
+PASS  ADMIN GET /api/settings has calls  -- keys=weights,maxCandidates,companyName,llm,calls
+
+# 76 passed, 6 failed

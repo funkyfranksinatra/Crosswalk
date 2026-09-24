@@ -114,13 +114,20 @@ describe.skipIf(!hasDb)("Tier 3", () => {
       const hadKey = process.env.OPENAI_API_KEY; process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "sk-tier3-fake";
       try {
         const company = await getCompany();
-        // Forget a few vectors so the sweep has work; only pending rows are scanned, oldest-embedded first.
+        // State-independent (CW-DBG-0001): a fresh seed has every catalog row pending, so a single
+        // limit-60 sweep leaves hundreds behind and the "nothing pending" assertion below would read the
+        // seed, not refreshEmbeddings. Drain the backlog with the fake embedder first (bounded loop).
+        let drained = 0;
+        for (let sweep = 0; sweep < 100; sweep++) { const r = await refreshEmbeddings("OwnProduct", { limit: 60 }); drained += r.scanned; if (r.scanned === 0) break; }
+        expect((await refreshEmbeddings("OwnProduct", { limit: 60 })).scanned).toBe(0); // the drain converged
+        // Forget two vectors so the sweep has exactly that much work; only pending rows are scanned, oldest-embedded first.
         await prisma.$executeRawUnsafe(`UPDATE "OwnProduct" SET "embeddingHash" = NULL, "embeddedAt" = NULL WHERE "sku" IN ('PPM1510X3', 'PPM1106X3')`);
         const first = await refreshEmbeddings("OwnProduct", { limit: 60 });
-        expect(first.scanned).toBeGreaterThan(0); expect(first.embedded).toBeGreaterThan(0);
+        expect(first.scanned).toBe(2); expect(first.embedded).toBe(2); expect(first.unchanged).toBe(0);
         const again = await refreshEmbeddings("OwnProduct", { limit: 60 });
         expect(again.embedded).toBe(0); // unchanged text is not re-embedded
         expect(again.scanned).toBe(0); // …and nothing is pending any more
+        expect(drained).toBeGreaterThanOrEqual(0); // (informational: how much the fresh-seed backlog was)
         // A row edited since it was embedded (Prisma bumps updatedAt) is picked up; unchanged text is re-stamped, not re-embedded.
         await prisma.$executeRawUnsafe(`UPDATE "OwnProduct" SET "updatedAt" = now() WHERE "sku" = 'PPM1510X3'`);
         const touched = await refreshEmbeddings("OwnProduct", { limit: 60 });

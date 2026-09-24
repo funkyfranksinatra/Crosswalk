@@ -21,7 +21,7 @@
 
 There are three adapters per system and the app picks one automatically, in this order:
 
-1. **Vendor API adapter** — selected when its credentials are in `.env` (`SF_LOGIN_URL` + `SF_CLIENT_ID` for Salesforce, `SAP_ODATA_BASE_URL` for SAP). Today these are *skeletons*: they document the contract and throw `NotConfigured`; an engineer implements `pullAccounts` / `pullSkuMaster` / … against the vendor API once the organisation grants access. Settings → Integrations shows "not implemented" when credentials are present but the adapter is a skeleton.
+1. **Vendor API adapter** — the Salesforce and SAP providers configured and enabled under Settings → Integrations (`docs/INTEGRATION_SETUP.md`); when one is enabled it takes over the crm / erp entry points below. The old environment route (`SF_LOGIN_URL` + `SF_CLIENT_ID`, `SAP_ODATA_BASE_URL`) selected *skeletons* that only threw `NotConfigured`; they were removed. Leave those variables unset — while any is set without the matching integration enabled, the sync refuses and says so rather than falling back to files or fixtures. (Historical note: an engineer implements `pullAccounts` / `pullSkuMaster` / … against the vendor API once the organisation grants access. Settings → Integrations shows "not implemented" when credentials are present but the adapter is a skeleton.
 2. **File feed adapter** (`file.ts`) — selected when `INTEGRATION_FEED_DIR` points to a folder. This is the route most organisations can use immediately: Salesforce reports, SAP extracts and GPO member rosters are all exportable as CSV, and an iPaaS or a scheduled job can drop them into a share. Files and columns:
 
    | File | Columns |

@@ -1,0 +1,44 @@
+# reviewer redaction probe 2026-09-24T12:06:48.803Z COGS set: 18.4,27,27.9,31,148,155,162,171,190,205,212,241,296,318,366,372,388
+FAIL  REP /api/requests/cmufg50yo000ufc7ddlfgrbk0 200: no margin figure / COGS value / cost keys  -- {"margin":"73% margin","cogsHits":[27,31,366],"keyHits":[]}
+      ADMIN /api/requests/cmufg50yo000ufc7ddlfgrbk0 200: margin=73% margin cogsHits=27,31,162,296,366 keys=5
+PASS  REP /api/requests/cmufg50yo000ufc7ddlfgrbk0/compare 404: no margin figure / COGS value / cost keys  -- {"margin":null,"cogsHits":[],"keyHits":[]}
+      ADMIN /api/requests/cmufg50yo000ufc7ddlfgrbk0/compare 404: margin=null cogsHits= keys=0
+FAIL  REP /api/proposals/cmufg8d13004hfc7dwquv6omt 200: no margin figure / COGS value / cost keys  -- {"margin":"margin. 42.4%","cogsHits":[],"keyHits":[]}
+      ADMIN /api/proposals/cmufg8d13004hfc7dwquv6omt 200: margin=margin 69.7% cogsHits= keys=5
+PASS  REP /api/proposals/cmufg8d13004hfc7dwquv6omt/scenarios 200: no margin figure / COGS value / cost keys  -- {"margin":null,"cogsHits":[],"keyHits":[]}
+      ADMIN /api/proposals/cmufg8d13004hfc7dwquv6omt/scenarios 200: margin=null cogsHits= keys=0
+PASS  REP /api/proposals/cmufg8d13004hfc7dwquv6omt/audit 200: no margin figure / COGS value / cost keys  -- {"margin":null,"cogsHits":[],"keyHits":[]}
+      ADMIN /api/proposals/cmufg8d13004hfc7dwquv6omt/audit 200: margin=null cogsHits= keys=0
+PASS  REP /api/proposals/cmufg8d13004hfc7dwquv6omt/drift 200: no margin figure / COGS value / cost keys  -- {"margin":null,"cogsHits":[],"keyHits":[]}
+      ADMIN /api/proposals/cmufg8d13004hfc7dwquv6omt/drift 200: margin=null cogsHits= keys=0
+FAIL  REP /api/proposals/cmufg5emu002dfc7dynkg6kgp 200: no margin figure / COGS value / cost keys  -- {"margin":"margin. 42.4%","cogsHits":[],"keyHits":[]}
+      ADMIN /api/proposals/cmufg5emu002dfc7dynkg6kgp 200: margin=margin 69.7% cogsHits= keys=5
+PASS  REP /api/proposals 200: no margin figure / COGS value / cost keys  -- {"margin":null,"cogsHits":[],"keyHits":[]}
+      ADMIN /api/proposals 200: margin=null cogsHits= keys=0
+PASS  REP /api/approvals 200: no margin figure / COGS value / cost keys  -- {"margin":null,"cogsHits":[],"keyHits":[]}
+      ADMIN /api/approvals 200: margin=null cogsHits= keys=0
+PASS  REP /api/accounts/cmufg5elt002cfc7dhn2zn9l8 200: no margin figure / COGS value / cost keys  -- {"margin":null,"cogsHits":[],"keyHits":[]}
+      ADMIN /api/accounts/cmufg5elt002cfc7dhn2zn9l8 200: margin=null cogsHits= keys=0
+PASS  REP /api/catalog 404: no margin figure / COGS value / cost keys  -- {"margin":null,"cogsHits":[],"keyHits":[]}
+      ADMIN /api/catalog 404: margin=null cogsHits= keys=0
+PASS  REP /api/analytics/pricing 403: no margin figure / COGS value / cost keys  -- {"margin":null,"cogsHits":[],"keyHits":[]}
+      ADMIN /api/analytics/pricing 200: margin=null cogsHits=212 keys=1
+PASS  REP export type=xref&format=xlsx -> 200 xlsx  -- 200
+PASS    xlsx (type=xref&format=xlsx) has no 'margin N%' cell  -- []
+PASS    xlsx (type=xref&format=xlsx) has no cell equal to a COGS value  -- []
+      sheets=Competitor Usage Xref|All Candidates|Unresolved|Run Info cells=528 cost/margin-ish headers=["COGS Fit","Margin Fit"]
+      ADMIN xlsx (type=xref&format=xlsx): COGS cells=0 margin cells=0 e.g. [] []
+PASS    csv (type=xref&format=csv) no margin figure / COGS
+PASS  REP export type=offer&format=xlsx -> 200 xlsx  -- 200
+PASS    xlsx (type=offer&format=xlsx) has no 'margin N%' cell  -- []
+PASS    xlsx (type=offer&format=xlsx) has no cell equal to a COGS value  -- []
+      sheets=Proposal cells=76 cost/margin-ish headers=[]
+      ADMIN xlsx (type=offer&format=xlsx): COGS cells=0 margin cells=0 e.g. [] []
+PASS    csv (type=offer&format=csv) no margin figure / COGS
+      REP proposal export format=xlsx: 200 7676 bytes
+PASS    quote format=xlsx: no margin/COGS
+      REP proposal export format=csv: 200 676 bytes
+PASS    quote format=csv: no margin/COGS
+      REP proposal export format=pdf: 200 4106 bytes
+
+# 19 passed, 3 failed

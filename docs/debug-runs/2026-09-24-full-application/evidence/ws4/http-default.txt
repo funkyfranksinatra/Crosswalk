@@ -1,0 +1,83 @@
+PASS  GET /api/requests without a cookie → 401
+PASS  POST /api/requests without a cookie → 401
+PASS  GET /api/webhooks/salesforce without a cookie → 401 (only POST is open)
+PASS  POST /api/webhooks/sap without a cookie → 401 (prefix not open)
+PASS  POST /api/webhooks/salesforce/ (trailing slash) without a cookie → 401 or 308, never the handler
+PASS  GET /api/health → 200, keys only ok/status/checks/ms, no names/counts  [{"ok":true,"status":"ready","checks":{"database":{"ok":true,"ms":7},"jobs":{"ok":true}},"ms":10}]
+PASS  x-sso-subject alone is not a session outside proxy mode
+PASS  signed webhook, no cookie → 200 applied  [200 {"ok":true,"jobId":"cmufc8cze000e4q7d2r4u31r7","applied":1,"status":"SUCCEEDED"}]
+PASS  replay of the same event → deduplicated  [{"ok":true,"duplicate":true}]
+PASS  invalid signature → 401  [{"error":"signature invalid"}]
+PASS  body > 256 KB → 413  [413]
+PASS  declared content-length > 256 KB: 413 at the gate, or the runtime waits for the body (never applied)  [-1]
+PASS  no webhook secret configured → 403  [{"error":"webhook not configured"}]
+PASS  integration disabled → 404  [{"error":"Salesforce integration is not enabled"}]
+PASS  dev cookie flags for dr.clinical@crosswalk.dev  [crosswalk_dev_user=…; Path=/; HttpOnly; SameSite=lax]
+PASS  dev cookie flags for alex.rep@crosswalk.dev  [crosswalk_dev_user=…; Path=/; HttpOnly; SameSite=lax]
+PASS  dev cookie flags for admin@crosswalk.dev  [crosswalk_dev_user=…; Path=/; HttpOnly; SameSite=lax]
+PASS  dev cookie flags for priya.analyst@crosswalk.dev  [crosswalk_dev_user=…; Path=/; HttpOnly; SameSite=lax]
+PASS  tampered dev cookie → 401
+PASS  bare user id as cookie → 401
+PASS  unknown user id (bad sign-in) → 400
+PASS  CLINICAL_REVIEWER GET /api/crosses → 200  [200]
+PASS  CLINICAL_REVIEWER GET /api/crosswalk/versions → 200  [200]
+PASS  no price/cost/margin keys in either payload
+PASS  CLINICAL_REVIEWER GET /api/proposals → 403 (still no view_pricing)
+PASS  CLINICAL_REVIEWER GET /api/catalog/enrich → 403 (KN-07)
+PASS  ADMIN GET /api/catalog/enrich → 200
+PASS  dev cookie flags for ws4http.mufc8k57@test.local  [crosswalk_dev_user=…; Path=/; HttpOnly; SameSite=lax]
+PASS  owner rep GET /api/accounts/{id} → 200
+PASS  stranger rep GET /api/accounts/{id} → 404  [404]
+PASS  spoofed x-crosswalk-path / x-crosswalk-route are overwritten by the proxy → still 404  [404]
+PASS  percent-encoded id: owner 200
+PASS  percent-encoded id: stranger 404
+PASS  double-encoded id: 404 for the owner too (not a valid id)  [404]
+PASS  duplicate slashes: stranger never reaches the record  [308]
+PASS  trailing slash: stranger never reaches the record  [308]
+PASS  HEAD as stranger → 404  [404]
+PASS  OPTIONS as stranger → not 200 with a body  [204]
+PASS  NUL byte in path → 400
+PASS  undecodable path → 400
+PASS  stranger POST memberships → 403 (permission first; same answer for any id)  [403]
+PASS  stranger GET /api/audit for the account → 404  [404]
+PASS  cookie mutation with a foreign Origin → 403  [403 {"error":"Cross-site request refused","reason":"origin mismatch"}]
+PASS  cookie mutation with Sec-Fetch-Site: cross-site → 403  [403]
+PASS  same-origin mutation → 200  [200]
+PASS  script client (no Origin, no Sec-Fetch-Site) with a cookie → 200  [200]
+PASS  cross-site GET is not blocked (reads are not forgeable)
+PASS  no CORS headers on responses
+PASS  preflight gets no CORS grant  [401]
+PASS  21st /api/auth/* call from one client in a minute → 429 with Retry-After and x-ratelimit-*  [429 retry-after=60 limit=20]
+PASS  another client address is unaffected
+PASS  TRUST_PROXY_HOPS=1: the LAST forwarded entry is the client, so a spoofed first entry gets its own bucket, not the victim's  [200]
+PASS  every /api response carries x-ratelimit-limit/remaining/reset
+PASS  valid x-request-id echoed  [trace-abc:123]
+PASS  malformed x-request-id replaced  [124a272ca6c94f369388]
+PASS  API header x-content-type-options: nosniff  [nosniff]
+PASS  API header x-frame-options: DENY  [DENY]
+PASS  API header referrer-policy: strict-origin-when-cross-origin  [strict-origin-when-cross-origin]
+PASS  API header cross-origin-opener-policy: same-origin  [same-origin]
+PASS  API header x-dns-prefetch-control: off  [off]
+PASS  API header cache-control: private, no-store  [private, no-store]
+PASS  no HSTS over plain http
+PASS  HSTS when x-forwarded-proto: https
+PASS  page response carries a nonce CSP with strict-dynamic (next dev adds 'unsafe-eval')  [default-src 'self'; script-src 'self' 'nonce-pEsJBLRsDpe1Vcr7GNA7pA==' 'strict-dynamic' 'unsafe-eval'; style-src 'self' ]
+PASS  the nonce appears on the page's script tags
+PASS  a second page load gets a different nonce
+PASS  API JSON carries no CSP (no script context)
+PASS  x-powered-by absent
+PASS  GET /api/metrics with no credential → 401
+PASS  wrong bearer → 401
+PASS  bearer of the wrong length → 401
+PASS  right bearer → 200 text/plain prometheus  [200]
+PASS  ADMIN session → 200
+PASS  SALES_REP session → 401
+PASS  metrics body carries no secrets / connection strings
+PASS  xref export of an unknown request → 404 JSON (was an unhandled 500)  [404 {"error":"not found"}]
+PASS  POST /api/requests with a JSON body → 400 (was an unhandled TypeError)  [400 {"error":"Expected a multipart/form-data body"}]
+PASS  POST /api/catalog/add {} → 400 validation message  [400 {"error":"skus is required (text or a list of catalog number]
+PASS  GET /api/contracts/renewals?days=abc → 400 (was a 500 from NaN)  [400]
+PASS  NUL in a search parameter → 400 (was a 500)  [400]
+PASS  malformed JSON → 400  [400 {"error":"requestId is required"}]
+
+ALL CHECKS PASSED

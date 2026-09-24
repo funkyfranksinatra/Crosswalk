@@ -1,0 +1,5 @@
+
+Model eval gate: FAILED
+  - BIN_VERSION is 8 but the accepted baseline measured version 6 — re-measure grading on the new bins and accept it
+  - LLM_MODEL is gpt-5.6-astra but the accepted baseline measured gpt-6-astra — measure the new model and accept it
+EXIT=1

@@ -8,7 +8,8 @@
 import type { ERPAdapter, ConnectionTestResult, Page, PullOptions } from "../core/contracts";
 import type { ProductImportRecord, StandardCostImportRecord, PriceEntryImportRecord, BillingImportRecord } from "../types";
 import { applyMapping, mergeMapping, type FieldMap, type MappingBundle } from "../core/mapping";
-import { ConfigurationError, MappingError } from "../core/errors";
+import { ConfigurationError, ValidationError } from "../core/errors";
+import { money } from "@/lib/money";
 import { ODataClient, odataDateTime, type ODataConfig } from "./odata";
 import { MATERIAL_SPEC, COST_SPEC, PRICE_SPEC, BILLING_SPEC, SAP_DEFAULT_MAPPING } from "./mapping";
 
@@ -67,14 +68,19 @@ export class SapAdapter implements ERPAdapter {
     if (opts?.since && svc.changeDateField) filters.push(`${svc.changeDateField} gt ${odataDateTime(this.cfg.odata.version, opts.since)}`);
     const page = opts?.cursor?.startsWith("link:") ? await this.client.get(opts.cursor.slice(5), {}, `${name}.next`) : await this.client.get(`${svc.service}/${svc.entitySet}`, { $filter: filters.join(" and ") || undefined, $top: svc.pageSize ?? opts?.limit ?? 500 }, `${name}.list`);
     const records: T[] = [];
+    // A row that does not map (missing required field, bad number, zero price unit…) is rejected on
+    // its own — recorded as a row error by the runner, the job ends PARTIAL — instead of failing the
+    // whole page: one bad material must not stop the other 499 from landing.
+    const rejected: { externalId: string | null; message: string }[] = [];
     for (const raw of page.records) {
+      const id = String((raw as Record<string, unknown>)[map.sku?.source ?? "Product"] ?? (raw as Record<string, unknown>)[map.externalId?.source ?? "BillingDocument"] ?? "?");
       const m = applyMapping<Record<string, unknown>>(raw, map, spec);
       const errors = m.issues.filter((i) => i.level === "error");
-      if (errors.length) throw new MappingError(`${ENTITY[name]} ${String((raw as Record<string, unknown>)[map.sku?.source ?? "Product"] ?? "?")}: ${errors.map((e) => e.message).join("; ")}`, { retryable: false });
-      const out = finish(m.record, raw as Record<string, unknown>);
-      if (out) records.push(out);
+      if (errors.length) { rejected.push({ externalId: id, message: `${ENTITY[name]} ${id}: ${errors.map((e) => e.message).join("; ")}` }); continue; }
+      try { const out = finish(m.record, raw as Record<string, unknown>); if (out) records.push(out); }
+      catch (e) { rejected.push({ externalId: id, message: `${ENTITY[name]} ${id}: ${e instanceof Error ? e.message : String(e)}` }); }
     }
-    return { records, nextCursor: page.next ? `link:${page.next}` : null };
+    return { records, nextCursor: page.next ? `link:${page.next}` : null, rejected };
   }
 
   fetchMaterials(opts?: PullOptions) {
@@ -82,8 +88,12 @@ export class SapAdapter implements ERPAdapter {
   }
   fetchStandardCosts(opts?: PullOptions) {
     return this.pull<StandardCostImportRecord>("costs", COST_SPEC, opts, (r) => {
-      const unit = Number(r.priceUnit ?? 1) || 1;
-      const cost = (Number(r.cost) / unit).toFixed(6);
+      // SAP keeps the cost per price unit (PEINH): a unit of 0 or a non-numeric one is a bad record, not "1".
+      const unit = r.priceUnit === undefined || r.priceUnit === null || r.priceUnit === "" ? 1 : Number(r.priceUnit);
+      if (!Number.isFinite(unit) || unit <= 0) throw new ValidationError(`price unit "${String(r.priceUnit)}" must be a positive number`, { retryable: false });
+      const total = money(String(r.cost));
+      if (!total) throw new ValidationError(`cost "${String(r.cost)}" is not a number`, { retryable: false });
+      const cost = total.div(unit).toFixed(6);
       const plant = (r.plant as string | undefined) ?? null;
       return { sku: String(r.sku), plant, region: plant ? this.cfg.plantRegions[plant] ?? this.cfg.plantRegions["*"] ?? null : null, currency: (r.currency as string) ?? "USD", costType: (r.costType as string) ?? "STANDARD", cost, effectiveFrom: String(r.effectiveFrom), effectiveTo: (r.effectiveTo as string) ?? null, provenance: { provider: PROVIDER, sourceSystem: "sap", sourceRecordId: `${r.sku}|${plant ?? ""}|${r.effectiveFrom}`, meta: { entitySet: this.cfg.services.costs?.entitySet, priceUnit: unit } } };
     });
@@ -99,8 +109,11 @@ export class SapAdapter implements ERPAdapter {
     return this.pull<BillingImportRecord>("billing", BILLING_SPEC, opts, (r, raw) => {
       const item = raw.BillingDocumentItem ?? raw.Item ?? "";
       const qty = Number(r.quantity);
+      if (!Number.isFinite(qty) || qty <= 0) throw new ValidationError(`quantity "${String(r.quantity)}" must be a positive number`, { retryable: false });
+      const net = money(String(r.netPrice));
+      if (!net) throw new ValidationError(`net price "${String(r.netPrice)}" is not a number`, { retryable: false });
       // NetAmount is the item's net value; per-unit is what the purchase record stores
-      const perUnit = qty > 0 && raw.NetAmount !== undefined && Number(r.netPrice) === Number(raw.NetAmount) ? (Number(r.netPrice) / qty).toFixed(6) : String(r.netPrice);
+      const perUnit = raw.NetAmount !== undefined && net.eq(money(String(raw.NetAmount)) ?? -1) ? net.div(qty).toFixed(6) : net.toString();
       return { externalId: `${r.externalId}${item ? `-${item}` : ""}`, accountExternalId: (r.accountExternalId as string) ?? null, accountNumber: (r.accountNumber as string) ?? null, sku: String(r.sku), quantity: String(qty), netPrice: perUnit, currency: (r.currency as string) ?? "USD", invoiceDate: String(r.invoiceDate), contractNumber: (r.contractNumber as string) ?? null, provenance: { provider: PROVIDER, sourceSystem: "sap", sourceRecordId: `${r.externalId}${item ? `-${item}` : ""}`, meta: { entitySet: this.cfg.services.billing?.entitySet } } };
     });
   }

@@ -33,3 +33,14 @@ export async function report() {
   for (const f of failures) console.log(`  ✗ ${f}`);
   if (failures.length) process.exit(1);
 }
+
+/**
+ * Release everything a database-backed script may have started so the process can exit on its
+ * own: the pg-boss instance (its pool and timers keep the event loop alive whenever a step
+ * enqueued a job with inline workers) and the Prisma client. Safe to call when neither was
+ * started; imports lazily so the pure check suites never touch the database modules.
+ */
+export async function releaseResources(): Promise<void> {
+  try { const { stopBoss } = await import("../../src/lib/jobs/boss"); await stopBoss(); } catch { /* not started, or already stopped */ }
+  try { const { prisma } = await import("../../src/lib/db"); await prisma.$disconnect(); } catch { /* not connected */ }
+}

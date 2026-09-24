@@ -15,7 +15,15 @@ import type { Grade } from "./constraints";
 export type Weights = { bin: number; price: number; cogs: number; margin: number };
 export const DEFAULT_WEIGHTS: Weights = { bin: 0.5, price: 0.2, cogs: 0.15, margin: 0.15 };
 
-export const MATCH_ORDER: Record<string, number> = { "Exact Match": 0, "Close Match": 1, "Alternative Match": 2, "US Downsell Match": 2, "No Match": 3 };
+/**
+ * The one grade ordering (docs/MATCH_QUALITY_MODEL.md §5.1): Exact > Close > Alternative > US Downsell > No Match.
+ * A downsell is a partial substitute — a weaker recommendation than an Alternative (its curated floor is
+ * lower and its equivalence level is PARTIAL_SUBSTITUTE), never its equal. line.ts `betterCross` and the
+ * candidate sort below both read this table; nothing else may define its own.
+ */
+export const MATCH_ORDER: Record<string, number> = { "Exact Match": 0, "Close Match": 1, "Alternative Match": 2, "US Downsell Match": 3, "No Match": 4 };
+/** Rank of a grade string; unknown grades sort last. */
+export const gradeRank = (grade: string): number => MATCH_ORDER[grade] ?? MATCH_ORDER["No Match"] + 1;
 
 /** Curated crosses are strong evidence; give them a bin-score floor. */
 export const KNOWN_CROSS_FLOOR: Record<string, number> = { "Exact Match": 0.95, "Close Match": 0.8, "Alternative Match": 0.62, "US Downsell Match": 0.6 };
@@ -191,7 +199,7 @@ export function scoreCandidates(
   // model); families without a profile keep the curated-first, then score order.
   const accessAware = (c: ScoredCandidate) => Boolean(c.factors.evidence?.length);
   scored.sort((a, b) => {
-    const m = (MATCH_ORDER[a.matchType] ?? 3) - (MATCH_ORDER[b.matchType] ?? 3);
+    const m = gradeRank(a.matchType) - gradeRank(b.matchType);
     if (m !== 0) return m;
     const ident = Number(b.source === "identity") - Number(a.source === "identity");
     if (ident !== 0) return ident;
@@ -204,7 +212,11 @@ export function scoreCandidates(
     if (so !== 0) return so;
     if (Math.abs(a.score - b.score) > 1e-6) return b.score - a.score;
     // Equal on every attribute (two platforms' same-spec SKUs): the one this customer has a price for is the offer.
-    return Number(b.unitPrice != null) - Number(a.unitPrice != null);
+    const priced = Number(b.unitPrice != null) - Number(a.unitPrice != null);
+    if (priced !== 0) return priced;
+    // Still tied: order by SKU so the result never depends on the order rows came out of the database
+    // (a re-run, an export and the evaluation harness must all see the same ranking).
+    return a.sku.localeCompare(b.sku);
   });
   // A near tie inside the top grade (two platforms' same-spec SKUs) is not doubt about the grade; the
   // explanation names the runner-up so the rep can pick the platform the customer prefers.

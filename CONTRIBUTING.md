@@ -38,15 +38,53 @@ branches are the cheap way to get an isolated database for a risky change.
 | `npm run check:enterprise` | deterministic checks of the commercial engines (waterfall, cost, FX, confidence, recommendation, authority, rebates, bundles, clauses, economics) — no DB |
 | `npm run test:enterprise` | end-to-end commercial workflow against the database; idempotent, cleans up after itself |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint rules-of-hooks over `src/` (a hook after an early return crashes the page on the next render) |
 | `npm run build` | production build (Turbopack) |
 | `npm run eval -- --n 80 --seed 7 --no-crosses` | matcher accuracy against the curated crosses (needs the reference sheet) |
 | `npx tsx scripts/run-sample.ts [intake.xlsx]` | headless run + both exports into `./out` |
 | `npm run db:seed:enterprise -- --no-demo` | users, roles and default policy only (what CI seeds) |
 | `npm run db:studio` | browse the database |
 
-CI (GitHub Actions, Postgres 17 service) runs migrations, `typecheck`,
-`check`, `check:enterprise`, `build`, and both seeds with no reference data on
-every push and pull request.
+## CI (`.github/workflows/ci.yml`)
+
+Runs on every push to `main` and on every pull request; two jobs.
+
+**check** — Ubuntu, a `pgvector/pgvector:pg17` service database
+(`DATABASE_URL=postgresql://crosswalk:crosswalk@localhost:5432/crosswalk`,
+`DATABASE_ADAPTER=pg`, `COMPANY_NAME=Medtronic`), Node 22 with the npm cache. In
+order: `npm ci` → `npx prisma migrate deploy` → `npm run typecheck` → `npm run lint` → `npm run
+check` (pure cross-reference checks) → `npm run check:enterprise` (pure
+commercial checks) → `npm run build` → `npx tsx prisma/seed.ts && npx tsx
+prisma/seed-enterprise.ts` (seeds with no reference data, so an empty catalog
+plus the dev users and demo commercial data — must not fail) → `npm run
+test:adversarial` (with `SESSION_SECRET=ci-only-secret`) → `npm test` (Vitest:
+pure checks, unit suites, the recorded openFDA replay and every database suite,
+same `SESSION_SECRET`) → `npm run eval:gate` (the model-evaluation gate: the
+code's prompt / bin / model versions against `data/eval/model-baseline.json`;
+without a model key a model-name mismatch is a warning, a prompt or bin bump
+without an accepted baseline fails the job).
+
+**image** — needs `check`. Buildx builds the container image as `crosswalk:ci`
+(GitHub Actions cache), then boots it: a `cw` network, a pgvector database
+container, the web container with `JOBS_WORKER=external` and a strong
+`SESSION_SECRET`; polls `/api/health` (60 × 2 s) and fails if it never answers;
+asserts a `content-security-policy` header on `/`; runs the image's `check` role
+with the strong secret (must pass) and again with `SESSION_SECRET=short` (must
+fail, or the job fails).
+
+To mirror the `check` job locally: a fresh database, then the same commands in
+the same order (`npm ci` is optional when `node_modules` is current; `npm run
+build` needs no database). Docker is required for the `image` job.
+
+## Versioning
+
+`package.json` carries the **feature version** of the code on `main` — the same
+number `docs/FEATURES.md` describes (`0.7.0` = the v0.7 feature set: enterprise
+platform, integrations, match quality). Git tags lag behind it: a tag is cut
+when the project owner pushes a build (`v0.6.0` is the last one, the base of the
+`mac-demo` branch), so `main` is normally ahead of the newest tag. Bump the
+package version in the same change that updates `docs/FEATURES.md`; do not
+create tags from a working tree — the owner tags after the push.
 
 ## How the code is laid out
 

@@ -1,0 +1,6 @@
+
+> crosswalk@0.4.0 check:enterprise
+> tsx scripts/check-enterprise.ts
+
+21 passed, 0 failed
+EXIT=0

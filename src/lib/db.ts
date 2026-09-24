@@ -38,23 +38,44 @@ export function strictSsl(connectionString: string): string {
   return connectionString;
 }
 
+/** DATABASE_POOL_MAX (5): a whole number 1–200; anything else is the default rather than a NaN pool size. */
+export function poolMax(env: Record<string, string | undefined> = process.env): number {
+  const raw = env.DATABASE_POOL_MAX?.trim();
+  if (!raw) return 5;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 && n <= 200 ? n : 5;
+}
+
+/** DATABASE_ADAPTER (pg): pg | neon-ws | neon-http; an unknown value is refused at load, not silently "pg". */
+export function adapterKind(env: Record<string, string | undefined> = process.env): "pg" | "neon-ws" | "neon-http" {
+  const kind = (env.DATABASE_ADAPTER ?? "pg").trim().toLowerCase();
+  if (kind === "pg" || kind === "neon-ws" || kind === "neon-http") return kind;
+  throw new Error(`DATABASE_ADAPTER must be pg, neon-ws or neon-http (got "${kind}")`);
+}
+
 function makeAdapter() {
-  const kind = (process.env.DATABASE_ADAPTER ?? "pg").toLowerCase();
+  const kind = adapterKind();
   if (kind === "neon-http") return new PrismaNeonHttp(url!, {});
   if (kind === "neon-ws") {
     neonConfig.webSocketConstructor = ws;
-    return new PrismaNeon({ connectionString: url, max: Number(process.env.DATABASE_POOL_MAX ?? 5) });
+    return new PrismaNeon({ connectionString: url, max: poolMax() });
   }
-  return new PrismaPg({ connectionString: strictSsl(url!), max: Number(process.env.DATABASE_POOL_MAX ?? 5) });
+  return new PrismaPg({ connectionString: strictSsl(url!), max: poolMax() });
 }
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 export const prisma =
   globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter: makeAdapter(),
-    log: process.env.PRISMA_LOG ? ["query", "warn", "error"] : ["warn", "error"],
-  });
+  (() => {
+    // Errors are routed through an event so an expected "record not found" (P2025 — every
+    // `findUniqueOrThrow` behind a 404) is not printed as a stack at error level on every miss.
+    const client = new PrismaClient({
+      adapter: makeAdapter(),
+      log: process.env.PRISMA_LOG ? [{ level: "query", emit: "stdout" }, { level: "warn", emit: "stdout" }, { level: "error", emit: "event" }] : [{ level: "warn", emit: "stdout" }, { level: "error", emit: "event" }],
+    });
+    client.$on("error", (e) => { if (!/No record was found|P2025/.test(e.message)) console.error("prisma:error", e.message); });
+    return client;
+  })();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

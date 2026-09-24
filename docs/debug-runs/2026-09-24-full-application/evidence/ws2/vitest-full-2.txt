@@ -1,0 +1,13 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+
+ Test Files  30 passed (30)
+      Tests  553 passed (553)
+   Start at  08:49:13
+   Duration  72.05s (tests 77%, setup 11%, import 8%, transform 4%)
+
+    Isolate  30 workers spawned · ~131ms startup each (spawn + environment, per file)
+             at least ~3.79s faster with isolate: false — reuses workers across files instead of one per file
+
+EXIT 0

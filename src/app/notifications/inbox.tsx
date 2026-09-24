@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, Chip, Empty, relTime } from "@/components/ui";
 
 type Item = { id: string; kind: string; title: string; body: string | null; link: string | null; readAt: string | null; createdAt: string; deliveriesJson: string | null };
@@ -19,23 +19,35 @@ export function Inbox() {
   const [items, setItems] = useState<Item[] | null>(null);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [prefs, setPrefs] = useState<PrefData | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const seq = useRef(0);
   const load = useCallback(async () => {
-    const r = await fetch(`/api/notifications?take=100${unreadOnly ? "&unread=1" : ""}`, { cache: "no-store" });
-    if (r.ok) setItems((await r.json()).items);
+    const mine = ++seq.current;
+    try {
+      const r = await fetch(`/api/notifications?take=100${unreadOnly ? "&unread=1" : ""}`, { cache: "no-store" });
+      const j = await r.json().catch(() => ({}));
+      if (mine !== seq.current) return;
+      if (r.ok) { setItems(j.items ?? []); setErr(null); } else { setItems([]); setErr(j.error ?? `Could not load notifications (${r.status})`); }
+    } catch { if (mine === seq.current) { setItems([]); setErr("Could not reach the server"); } }
   }, [unreadOnly]);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { fetch("/api/notifications/preferences", { cache: "no-store" }).then((r) => r.json()).then(setPrefs).catch(() => undefined); }, []);
-  async function markAll() { await fetch("/api/notifications", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ all: true }) }); load(); }
-  async function markOne(id: string) { await fetch("/api/notifications", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids: [id] }) }); load(); }
+  useEffect(() => { let stop = false; fetch("/api/notifications/preferences", { cache: "no-store" }).then(async (r) => { if (stop) return; if (r.ok) setPrefs(await r.json()); else setErr((await r.json().catch(() => ({}))).error ?? `Could not load preferences (${r.status})`); }).catch(() => { if (!stop) setErr("Could not reach the server"); }); return () => { stop = true; }; }, []);
+  async function post(body: unknown) { try { const r = await fetch("/api/notifications", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); if (!r.ok) setErr((await r.json().catch(() => ({}))).error ?? `Could not update (${r.status})`); } catch { setErr("Could not reach the server"); } load(); }
+  async function markAll() { await post({ all: true }); }
+  async function markOne(id: string) { await post({ ids: [id] }); }
   async function setPref(kind: string, patch: Partial<Pref>) {
-    const r = await fetch("/api/notifications/preferences", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, ...patch }) });
-    if (r.ok) { const p = await fetch("/api/notifications/preferences", { cache: "no-store" }); setPrefs(await p.json()); }
+    try {
+      const r = await fetch("/api/notifications/preferences", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, ...patch }) });
+      if (!r.ok) { setErr((await r.json().catch(() => ({}))).error ?? `Could not save the preference (${r.status})`); return; }
+      const p = await fetch("/api/notifications/preferences", { cache: "no-store" }); if (p.ok) setPrefs(await p.json());
+    } catch { setErr("Could not reach the server"); }
   }
   const prefFor = (kind: string): Pref => prefs?.preferences.find((p) => p.kind === kind) ?? prefs?.preferences.find((p) => p.kind === "*") ?? { kind, inApp: true, email: true, teams: ["ALERT", "FEED_FAILED", "JOB_FAILED"].includes(kind) };
   return (
-    <div className="grid grid-cols-[1fr_360px] gap-4 items-start">
-      <Card title="Inbox" actions={<div className="flex items-center gap-2"><label className="flex items-center gap-1.5 text-[12.5px]"><input type="checkbox" checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)} /> Unread only</label><button className="btn-ghost !py-1 !text-[12px]" onClick={markAll}>Mark all read</button></div>} padded={false}>
-        {!items ? <div className="p-5 text-muted text-[13px]">Loading…</div> : items.length === 0 ? <div className="p-6"><Empty title="Nothing here">{unreadOnly ? "No unread notifications." : "You have no notifications yet."}</Empty></div> : (
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 items-start [&>*]:min-w-0">
+      <Card title="Inbox" actions={<div className="flex items-center gap-2"><label className="flex items-center gap-1.5 text-[12.5px]"><input type="checkbox" checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)} /> Unread only</label><button type="button" className="btn-ghost !py-1 !text-[12px]" disabled={!items || !items.some((n) => !n.readAt)} onClick={markAll}>Mark all read</button></div>} padded={false}>
+        {err && <div role="alert" className="px-5 py-3 text-[12.5px] text-none border-b border-line-2">{err}</div>}
+        {!items ? <div className="p-5 text-muted text-[13px]" aria-busy="true">Loading…</div> : items.length === 0 ? <div className="p-6"><Empty title="Nothing here">{unreadOnly ? "No unread notifications." : "You have no notifications yet."}</Empty></div> : (
           <ul className="divide-y divide-line">
             {items.map((n) => {
               const path = toPath(n.link);
@@ -47,7 +59,7 @@ export function Inbox() {
                     <div className="text-[13.5px] mt-1">{path ? <Link href={path} className="hover:underline" onClick={() => { if (!n.readAt) markOne(n.id); }}>{n.title}</Link> : n.title}</div>
                     {n.body && <div className="text-[12.5px] text-ink-2 mt-0.5 whitespace-pre-wrap">{n.body}</div>}
                   </div>
-                  {!n.readAt && <button className="btn-ghost !py-0.5 !text-[11px] self-start" onClick={() => markOne(n.id)}>Read</button>}
+                  {!n.readAt && <button type="button" className="btn-ghost !py-0.5 !text-[11px] self-start" aria-label={`Mark "${n.title}" read`} onClick={() => markOne(n.id)}>Read</button>}
                 </li>
               );
             })}
@@ -62,9 +74,9 @@ export function Inbox() {
               {prefs.kinds.map((k) => { const p = prefFor(k); return (
                 <tr key={k}>
                   <td>{LABEL[k] ?? k}</td>
-                  <td className="text-center"><input type="checkbox" checked={p.inApp} onChange={(e) => setPref(k, { inApp: e.target.checked })} /></td>
-                  <td className="text-center"><input type="checkbox" checked={p.email} disabled={!prefs.channels.email} onChange={(e) => setPref(k, { email: e.target.checked })} /></td>
-                  <td className="text-center"><input type="checkbox" checked={p.teams} disabled={!prefs.channels.teams} onChange={(e) => setPref(k, { teams: e.target.checked })} /></td>
+                  <td className="text-center"><input type="checkbox" aria-label={`${LABEL[k] ?? k} in-app`} checked={p.inApp} onChange={(e) => setPref(k, { inApp: e.target.checked })} /></td>
+                  <td className="text-center"><input type="checkbox" aria-label={`${LABEL[k] ?? k} by e-mail`} checked={p.email} disabled={!prefs.channels.email} title={prefs.channels.email ? undefined : "E-mail delivery is not configured on this server"} onChange={(e) => setPref(k, { email: e.target.checked })} /></td>
+                  <td className="text-center"><input type="checkbox" aria-label={`${LABEL[k] ?? k} by Teams`} checked={p.teams} disabled={!prefs.channels.teams} title={prefs.channels.teams ? undefined : "Teams delivery is not configured on this server"} onChange={(e) => setPref(k, { teams: e.target.checked })} /></td>
                 </tr>
               ); })}
             </tbody>

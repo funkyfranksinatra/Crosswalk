@@ -13,8 +13,9 @@
 import { PgBoss } from "pg-boss";
 
 type IDatabase = { executeSql(text: string, values?: unknown[]): Promise<{ rows: unknown[] }> };
-import { prisma, strictSsl } from "@/lib/db";
+import { prisma, strictSsl, adapterKind } from "@/lib/db";
 import { log, withRequestContext } from "@/lib/log";
+import { intEnv, enumEnv } from "@/lib/env";
 import { QUEUES, type QueueName, type JobData } from "./queues";
 
 const schemaEnv = process.env.JOBS_SCHEMA ?? "pgboss";
@@ -25,16 +26,26 @@ type Db = IDatabase & { end(): Promise<void> };
 type G = typeof globalThis & { __crosswalkBoss?: Promise<PgBoss> | null; __crosswalkBossStopped?: boolean; __crosswalkBossDb?: Db | null };
 const g = globalThis as G;
 
+export type JobsMode = "inline" | "external" | "off";
+/**
+ * JOBS_WORKER, validated: inline (default — this process enqueues and runs jobs), external (this
+ * process only enqueues; `npm run worker` runs them) or off (no queue). Anything else — "on",
+ * "yes", "true" — is NOT a mode: it is logged (env.invalid) and read as the default, inline, so a
+ * typo leaves the queue processed rather than silently filling up with nobody working it.
+ */
+export function jobsMode(): JobsMode {
+  return enumEnv("JOBS_WORKER", ["inline", "external", "off"] as const, "inline");
+}
 export function jobsEnabled(): boolean {
-  return (process.env.JOBS_WORKER ?? "inline") !== "off";
+  return jobsMode() !== "off";
 }
 
 /** A pg-compatible pool for pg-boss, chosen like the Prisma adapter is (src/lib/db.ts). */
 async function makeDb(): Promise<IDatabase & { end(): Promise<void> }> {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
-  const max = Number(process.env.JOBS_POOL_MAX ?? 3);
-  if ((process.env.DATABASE_ADAPTER ?? "pg").toLowerCase() === "neon-ws") {
+  const max = intEnv("JOBS_POOL_MAX", 3, { min: 1, max: 100 });
+  if (adapterKind() === "neon-ws") {
     const { Pool, neonConfig } = await import("@neondatabase/serverless");
     const ws = (await import("ws")).default;
     neonConfig.webSocketConstructor = ws;
@@ -58,7 +69,7 @@ export function getBoss(): Promise<PgBoss> {
         db: g.__crosswalkBossDb,
         schema: JOBS_SCHEMA,
         // Maintenance (expiring dead jobs, archiving) runs in every process; cheap and idempotent.
-        maintenanceIntervalSeconds: Number(process.env.JOBS_MAINTENANCE_SECONDS ?? 60),
+        maintenanceIntervalSeconds: intEnv("JOBS_MAINTENANCE_SECONDS", 60, { min: 1, max: 86_400 }),
         // pg-boss's own supervision loop — required for expired-job retries.
         supervise: true,
         schedule: true,
@@ -125,20 +136,19 @@ export async function jobById(name: QueueName, id: string) {
 
 export type QueueHealth = { name: string; queued: number; ready: number; active: number; failed: number; oldestReadySeconds: number | null };
 
-/** Counts per queue plus the age of the oldest job that is ready but not picked up — the "stalled" signal. */
+/**
+ * Counts per queue plus the age of the oldest job that is ready but not picked up — the "stalled"
+ * signal. The counts come from pg-boss's queue statistics, which it refreshes at most once per
+ * minute (and less often under vacuum back-off); the stalled signal is read live from the job
+ * table in one grouped query so /api/health and the alert never depend on a stale counter.
+ */
 export async function queueHealth(): Promise<QueueHealth[]> {
   const boss = await getBoss();
   const queues = await boss.getQueues(Object.keys(QUEUES));
-  const out: QueueHealth[] = [];
-  for (const q of queues) {
-    let oldest: number | null = null;
-    if (q.readyCount > 0) {
-      const rows = await prisma.$queryRawUnsafe<{ age: number | null }[]>(`SELECT EXTRACT(EPOCH FROM (now() - min(created_on)))::float AS age FROM ${JOBS_SCHEMA}.job WHERE name = $1 AND state IN ('created','retry') AND start_after <= now()`, q.name).catch(() => [{ age: null }]);
-      oldest = rows[0]?.age == null ? null : Math.round(Number(rows[0].age));
-    }
-    out.push({ name: q.name, queued: q.queuedCount, ready: q.readyCount, active: q.activeCount, failed: q.failedCount, oldestReadySeconds: oldest });
-  }
-  return out;
+  // Not caught: a failing query here must surface (health → degraded, alert rule → "could not run") rather than read as "nothing stalled".
+  const ages = await prisma.$queryRawUnsafe<{ name: string; age: number | null }[]>(`SELECT name, EXTRACT(EPOCH FROM (now() - min(created_on)))::float AS age FROM ${JOBS_SCHEMA}.job WHERE state IN ('created','retry') AND start_after <= now() GROUP BY name`);
+  const oldestBy = new Map(ages.map((r) => [r.name, r.age == null ? null : Math.round(Number(r.age))]));
+  return queues.map((q) => ({ name: q.name, queued: q.queuedCount, ready: q.readyCount, active: q.activeCount, failed: q.failedCount, oldestReadySeconds: oldestBy.get(q.name) ?? null }));
 }
 
 /** Recent failures across queues (for the Settings → System panel and the alerts). */

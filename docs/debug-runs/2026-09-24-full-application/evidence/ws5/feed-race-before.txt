@@ -1,0 +1,6 @@
+round 1: fulfilled=2 rejected=0
+round 2: fulfilled=2 rejected=0
+round 3: fulfilled=2 rejected=0
+round 4: fulfilled=2 rejected=0
+round 5: fulfilled=2 rejected=0
+rounds where BOTH ran concurrently: 5/5

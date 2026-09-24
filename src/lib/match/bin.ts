@@ -32,7 +32,7 @@ export const DimensionSchema = z.object({
  * Model bins record the heuristic version they were drafted from (`hv`); a bump rebuilds those
  * too, because the model corrects the heuristic first pass rather than starting from nothing.
  */
-export const BIN_VERSION = 7;
+export const BIN_VERSION = 8;
 
 export const BinSchema = z.object({
   v: z.number().optional().describe("internal: binner rule version"),
@@ -95,10 +95,10 @@ const FEATURES: [RegExp, string][] = [
   [/articulat/i, "articulating"],
   [/roticulat/i, "articulating"],
   [/bladeless|non[\s-]?bladed|blunt/i, "bladeless"],
-  [/\bbladed\b|shielded blade/i, "bladed"],
-  [/optical|visiport|clear tip/i, "optical"],
-  [/fixation cannula|fixation|threaded|z-thread/i, "fixation cannula"],
-  [/smooth cannula|non-threaded/i, "smooth cannula"],
+  [/(?<!non[\s-])\bbladed\b|shielded blade/i, "bladed"],
+  [/(?<!non[\s-])(?<!without\s)optical|visiport|clear tip/i, "optical"],
+  [/(?<!without\s)fixation cannula|(?<!without\s)fixation|(?<!non[\s-])(?<!un)threaded|z-thread/i, "fixation cannula"],
+  [/smooth cannula|non-?threaded|unthreaded|without fixation/i, "smooth cannula"],
   [/curved tip/i, "curved tip"],
   [/reinforced|buttress|reinforcement/i, "reinforced"],
   [/(?:bio)?(?:ab|re)sorbable/i, "absorbable"],

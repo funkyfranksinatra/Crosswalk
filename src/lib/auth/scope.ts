@@ -111,6 +111,8 @@ export async function enforceScopeForPath(actor: Actor, pathname: string | null)
   if (!pathname) return;
   let decoded = pathname;
   try { decoded = decodeURIComponent(pathname); } catch { throw notFound(); }
+  // "/api/proposals//<id>": duplicate slashes must not push the id out of the slot the pattern checks.
+  decoded = decoded.replace(/\/{2,}/g, "/");
   const m = decoded.match(PATH_ENTITY);
   if (!m) return;
   const id = m[2];

@@ -8,10 +8,15 @@ import { heuristicBin } from "@/lib/match/bin";
 /** Add own SKUs by catalog number; each is looked up in GUDID under our labelers. */
 export async function POST(req: Request) {
   return handle("manage_catalog", async () => {
-  const body = (await req.json()) as { skus: string; category?: string };
+  const body = (await req.json().catch(() => ({}))) as { skus?: unknown; category?: unknown };
+  const rawSkus = Array.isArray(body.skus) ? body.skus.filter((x): x is string => typeof x === "string").join(" ") : body.skus;
+  if (typeof rawSkus !== "string" || !rawSkus.trim()) throw new Error("skus is required (text or a list of catalog numbers)");
+  if (rawSkus.length > 20_000) throw new Error("skus is too long");
+  if (body.category !== undefined && body.category !== null && (typeof body.category !== "string" || body.category.length > 120)) throw new Error("category must be text (max 120)");
+  const category = typeof body.category === "string" && body.category.trim() ? body.category.trim() : undefined;
   const company = await getCompany();
   const prefer = JSON.parse(company.labelers || "[]") as string[];
-  const skus = [...new Set(body.skus.split(/[\s,;]+/).map(normalizeCfn).filter(Boolean))].slice(0, 100);
+  const skus = [...new Set(rawSkus.split(/[\s,;]+/).map(normalizeCfn).filter(Boolean))].slice(0, 100);
   const results: { sku: string; status: "added" | "exists" | "not-found" | "added-unverified" | "invalid"; description?: string }[] = [];
   for (const sku of skus) {
     if (isPlaceholderSku(sku)) { results.push({ sku, status: "invalid", description: "not a catalog number" }); continue; }
@@ -25,9 +30,9 @@ export async function POST(req: Request) {
       continue;
     }
     const s = summarizeRecord(best);
-    const bin = heuristicBin({ sku, manufacturer: s.manufacturer, brand: s.brand, description: s.description, category: body.category, gmdnName: s.gmdnName, specialties: s.specialties, sizes: s.sizes, singleUse: s.singleUse, sterile: s.sterile, implantable: s.implantable });
+    const bin = heuristicBin({ sku, manufacturer: s.manufacturer, brand: s.brand, description: s.description, category, gmdnName: s.gmdnName, specialties: s.specialties, sizes: s.sizes, singleUse: s.singleUse, sterile: s.sterile, implantable: s.implantable });
     await prisma.ownProduct.create({
-      data: { companyId: company.id, sku, description: s.description ?? sku, category: body.category || bin.family, brand: s.brand, labeler: s.manufacturer, status: s.status, gudidDi: s.gudidDi, gmdnName: s.gmdnName, gmdnCode: s.gmdnCode, fdaProductCode: s.fdaProductCode, gudidJson: JSON.stringify(best), gudidSyncedAt: new Date(), binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date() },
+      data: { companyId: company.id, sku, description: s.description ?? sku, category: category || bin.family, brand: s.brand, labeler: s.manufacturer, status: s.status, gudidDi: s.gudidDi, gmdnName: s.gmdnName, gmdnCode: s.gmdnCode, fdaProductCode: s.fdaProductCode, gudidJson: JSON.stringify(best), gudidSyncedAt: new Date(), binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date() },
     });
     results.push({ sku, status: "added", description: s.description ?? undefined });
     await new Promise((res) => setTimeout(res, 260));

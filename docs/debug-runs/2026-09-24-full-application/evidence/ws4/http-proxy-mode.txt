@@ -1,0 +1,12 @@
+PASS  dev sign-in is disabled once SSO is configured
+PASS  /api/auth/me with x-sso-subject only → actor null  [{"actor":null,"sso":true,"ssoMode":"proxy"}]
+PASS  GET /api/requests with x-sso-subject only → 401
+PASS  GET /api/requests with subject + wrong secret → 401
+PASS  subject + right secret → the admin actor  [{"actor":{"id":"cmuf6hhnk0009ks7d9izncxsa","name":"Crosswalk Admin","email":"admin@crosswalk.dev","r]
+PASS  GET /api/requests with subject + right secret → 200
+PASS  unknown subject with the right secret → 401
+PASS  a dev cookie is not a session in proxy mode
+PASS  CSP_REPORT_ONLY=true → content-security-policy-report-only on pages  [default-src 'self'; script-src 'self' 'nonce-Do2eqmiC3+q+Y4A]
+PASS  proxy-asserted (header) sessions are not cookie sessions: no CSRF check applies, the proxy hop is the credential  [200]
+
+ALL CHECKS PASSED

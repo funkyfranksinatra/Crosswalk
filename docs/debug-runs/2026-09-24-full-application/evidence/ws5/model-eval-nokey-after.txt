@@ -1,0 +1,2 @@
+Model eval: OPENAI_API_KEY is not set — the model evaluation needs the model
+exit=1

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { plain } from "@/lib/serialize";
 import { prisma } from "@/lib/db";
 import { authorize } from "@/lib/api";
-import { can } from "@/lib/auth";
+import { redactCandidateForActor } from "@/lib/auth";
 import { recordLineDecision } from "@/lib/xref/learning";
 import { audit } from "@/lib/audit";
 
@@ -42,6 +42,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // Learning loop: an override becomes a rep-proposed cross for review; a confirmed top pick is ground truth.
   let learned: Awaited<ReturnType<typeof recordLineDecision>> = {};
   if ("selectedCandidateId" in body || body.reviewed) learned = await recordLineDecision(actor, lineId, { ...("selectedCandidateId" in body ? { selectedCandidateId: body.selectedCandidateId ?? null } : {}), reviewed: body.reviewed, overrideNote: body.overrideNote }).catch((e) => { console.error("[learning]", e); return {}; });
-  if (!can(actor, "view_cost") || !can(actor, "view_margin")) for (const c of updated.candidates) { if (!can(actor, "view_cost")) { c.ownProduct.cogs = null; c.scoreCogs = null; } if (!can(actor, "view_margin")) c.scoreMargin = null; }
+  for (const c of updated.candidates) redactCandidateForActor(actor, c);
   return NextResponse.json({ ...plain(updated), learned });
 }

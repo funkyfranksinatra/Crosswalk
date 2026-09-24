@@ -2,13 +2,13 @@ import type { ReactNode } from "react";
 
 export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: ReactNode; title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-6 mb-6">
+    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-6 mb-6">
       <div className="min-w-0">
         {eyebrow && <div className="eyebrow mb-1.5">{eyebrow}</div>}
         <h1 className="text-[22px] font-semibold tracking-tight text-ink leading-tight">{title}</h1>
         {description && <p className="text-muted mt-1.5 max-w-2xl">{description}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+      {actions && <div className="flex items-center gap-2 flex-wrap md:justify-end">{actions}</div>}
     </div>
   );
 }

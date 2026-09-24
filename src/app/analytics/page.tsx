@@ -22,7 +22,7 @@ export default async function AnalyticsPage() {
     <>
       <PageHeader eyebrow="Analytics" title="Commercial feedback loop" description="Win/loss, pricing effectiveness, conversion after the win, and cross-reference acceptance. Rep acceptance is reported separately from validated accuracy — they are not the same number." />
       <RefreshAnalytics asOf={oldest.asOf} stale={oldest.stale} source={oldest.source} />
-      <div className="grid grid-cols-6 gap-3 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
         <Stat label="Decided deals" value={wl.deals} hint={`${wl.won} won · ${wl.lost} lost`} />
         <Stat label="Win rate" value={pct(wl.winRate)} tone="exact" />
         <Stat label="Median discount to win" value={pe.medianDiscountToWin ? fmtPct(pe.medianDiscountToWin) : "—"} hint={`avg ${pe.avgDiscountToWin ? fmtPct(pe.avgDiscountToWin) : "—"}`} />
@@ -30,7 +30,7 @@ export default async function AnalyticsPage() {
         <Stat label="Post-win conversion" value={pct(cv.conversionRate)} hint={`${cv.converted} of ${cv.won} won lines shipped`} />
         <Stat label="Top-1 acceptance" value={pct(acc.top1AcceptanceRate)} hint={`validated accuracy ${acc.validatedCount ? pct(acc.validatedAccuracy) : "n/a (no ground truth yet)"}`} tone="close" />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 [&>*]:min-w-0">
         <Card title="Win / loss by competitor" padded={false}><Table cols={["Competitor", "Deals", "Won", "Win rate", "Value"]} rows={wl.byCompetitor.map((r) => [String(r.competitor), r.deals, r.won, pct(r.winRate), fmtMoney(r.value as string, "USD", { compact: true })])} /></Card>
         <Card title="Win / loss by product family" padded={false}><Table cols={["Family", "Deals", "Won", "Win rate"]} rows={wl.byFamily.map((r) => [r.family, r.deals, r.won, pct(r.winRate)])} /></Card>
         <Card title="Win / loss by discount band" padded={false}><Table cols={["Discount from list", "Deals", "Won", "Win rate"]} rows={wl.byDiscountBand.map((r) => [String(r.band), r.deals, r.won, pct(r.winRate)])} /></Card>

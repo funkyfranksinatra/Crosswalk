@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { handle, body } from "@/lib/api";
+import { redactJsonForActor } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { scenarioEconomics, setScenarioPrice } from "@/lib/proposals/service";
 async function scoped(id: string, sid: string) {
@@ -8,7 +9,7 @@ async function scoped(id: string, sid: string) {
 }
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string; sid: string }> }) {
   const { id, sid } = await params;
-  return handle("view_pricing", async () => { await scoped(id, sid); return scenarioEconomics(sid); });
+  return handle("view_pricing", async (actor) => { await scoped(id, sid); return redactJsonForActor(actor, await scenarioEconomics(sid)); });
 }
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string; sid: string }> }) {
   const { id, sid } = await params;
@@ -20,7 +21,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (!clear && price === null) throw new Error("proposedPrice is not a number");
     if (price !== null && price.lte(0)) throw new Error("price must be positive");
     await setScenarioPrice(actor, sid, b.lineId, price, b.included);
-    return scenarioEconomics(sid);
+    return redactJsonForActor(actor, await scenarioEconomics(sid));
   });
 }
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string; sid: string }> }) {

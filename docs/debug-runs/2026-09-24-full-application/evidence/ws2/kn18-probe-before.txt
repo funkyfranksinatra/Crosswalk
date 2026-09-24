@@ -1,0 +1,7 @@
+before: ACTIVE:90, ACTIVE:90, ACTIVE:90
+status: 400 {"error":"injected failure on entry 2"}
+KN18MUF92AAG-A → SUPERSEDED:90, ACTIVE:80
+KN18MUF92AAG-B → SUPERSEDED:90
+KN18MUF92AAG-C → ACTIVE:90
+audit events: 0
+ACTIVE entries after failed batch: 2 (expected 3 if atomic — A has a new ACTIVE 80 while B and C still have the old 90 → partial write)

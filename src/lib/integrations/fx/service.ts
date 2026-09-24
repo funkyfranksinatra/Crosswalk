@@ -14,7 +14,38 @@ import { ConfigurationError, IntegrationError } from "../core/errors";
 import { assertCurrency } from "./providers";
 
 export type FxPolicy = { fallback: "fail" | "previous-business-day"; maxLookbackDays: number };
-export const DEFAULT_FX_POLICY: FxPolicy = { fallback: "fail", maxLookbackDays: 5 };
+
+/**
+ * CANONICAL missing-rate policy (docs/INTEGRATION_SETUP.md § FX). One definition, read by the
+ * registry's field defaults and by every conversion:
+ *   fallback          `fail` — a date with no rate is an error, never a substituted current rate.
+ *   maxLookbackDays   5 — when `previous-business-day` is chosen, walk back at most 5 calendar days:
+ *                     a weekend (2) plus a holiday on either side of it (Fri or Mon) with one to spare,
+ *                     e.g. Tue 29 Dec → Mon 28 (holiday) → weekend → Thu 24 (holiday) → Wed 23.
+ * Anything an operator sets under Settings → Integrations → FX overrides it (`fxPolicyFrom`);
+ * the value is clamped to 0–30 days because a longer walk is no longer "the previous business day".
+ */
+export const FX_MAX_LOOKBACK_DEFAULT = 5;
+export const FX_MAX_LOOKBACK_CAP = 30;
+export const DEFAULT_FX_POLICY: FxPolicy = { fallback: "fail", maxLookbackDays: FX_MAX_LOOKBACK_DEFAULT };
+
+/** The policy from an FX IntegrationConfig's non-secret settings (missing or malformed values → the canonical default). */
+export function fxPolicyFrom(config: Record<string, unknown> | null | undefined): FxPolicy {
+  const fb = String(config?.fallback ?? "").trim();
+  const raw = config?.maxLookbackDays;
+  const n = raw === undefined || raw === null || raw === "" ? NaN : Number(raw);
+  const days = Number.isFinite(n) ? Math.min(FX_MAX_LOOKBACK_CAP, Math.max(0, Math.floor(n))) : FX_MAX_LOOKBACK_DEFAULT;
+  return { fallback: fb === "previous-business-day" ? "previous-business-day" : "fail", maxLookbackDays: days };
+}
+
+/** The policy the deployment has configured (Settings → Integrations → FX), or the canonical default when there is none. */
+export async function configuredFxPolicy(): Promise<FxPolicy> {
+  const { readConfig } = await import("../core/config");
+  // An unreadable FX configuration (wrong encryption key, corrupt row) must not quietly become
+  // the default policy (review REV-11): it is logged as an error and the default is used with that on record.
+  const cfg = await readConfig("fx").catch((e: unknown) => { log.error("fx.config_unreadable", { error: e instanceof Error ? e.message : String(e) }); return null; });
+  return fxPolicyFrom(cfg?.config);
+}
 
 export async function storeRate(r: FxRateRecord, syncJobId: string | null = null, enteredByUserId: string | null = null) {
   const asOf = new Date(`${r.date}T00:00:00.000Z`);
@@ -43,7 +74,7 @@ export async function rateFor(provider: FxRateProvider | null, base: string, quo
     if (provider && provider.provider !== "manual") {
       let fetched: FxRateRecord | null = null;
       try { fetched = await provider.getRate(b, q, d); } catch (e) { if (i === days) throw e instanceof IntegrationError ? e : new IntegrationError("PROVIDER_UNAVAILABLE", `FX provider failed: ${(e as Error).message}`); log.warn("fx.provider_error", { provider: provider.provider, error: (e as Error).message }); }
-      if (fetched) { const row = await storeRate(fetched); return { rateId: row.id, rate: fetched.rate, base: b, quote: q, date: d, provider: fetched.provider, note: i ? `no ${b}/${q} rate on ${date}; used ${d} per the fallback policy` : null }; }
+      if (fetched) { const row = await storeRate(fetched); return { rateId: row.id, rate: fetched.rate, base: b, quote: q, date: d, provider: fetched.provider, note: i ? `no ${b}/${q} rate on ${date}; used ${d} (${i} day${i > 1 ? "s" : ""} earlier) per the fallback policy` : null }; }
     }
   }
   throw new IntegrationError("NOT_FOUND", `No ${b}→${q} exchange rate for ${date}${days ? ` or the ${days} days before it` : ""}. ${provider && provider.provider !== "manual" ? `The ${provider.provider} provider has none for that date` : "Enter one under Settings → Exchange rates or configure an FX provider"}; a current rate is never substituted for a historical one.`, { retryable: false });

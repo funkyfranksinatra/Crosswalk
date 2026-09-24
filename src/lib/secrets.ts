@@ -162,6 +162,12 @@ export function checkSecrets(env: Env, production: boolean): SecretProblem[] {
   const ssoMode = sso ? (val("SSO_MODE").toLowerCase() === "proxy" ? "proxy" : "oidc") : "none";
   if (!production) return out;
   if (sso && !val("SSO_MODE")) out.push({ key: "SSO_MODE", problem: "not set — SSO_ISSUER now means the built-in OIDC client; set SSO_MODE=oidc, or SSO_MODE=proxy to keep the x-sso-subject header contract" });
+  if (ssoMode === "proxy") {
+    const shared = val("SSO_PROXY_SHARED_SECRET");
+    if (!shared) out.push({ key: "SSO_PROXY_SHARED_SECRET", problem: "not set — SSO_MODE=proxy refuses every x-sso-subject header without the shared secret the proxy must send in x-sso-proxy-secret" });
+    else if (shared.length < 16) out.push({ key: "SSO_PROXY_SHARED_SECRET", problem: "shorter than 16 characters" });
+    else if (PLACEHOLDERS.test(shared) || /^(changeme|replace[-_ ]?me|placeholder|example|secret)[-_ ]/i.test(shared)) out.push({ key: "SSO_PROXY_SHARED_SECRET", problem: "is a placeholder" });
+  }
   const session = val("SESSION_SECRET");
   if (!session) {
     if (ssoMode === "oidc" || val("ALLOW_DEV_SIGNIN") === "true") out.push({ key: "SESSION_SECRET", problem: "not set — sessions cannot be signed" });

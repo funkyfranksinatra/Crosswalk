@@ -8,7 +8,7 @@ import { scopeFor, proposalWhere, assertProposalVisible } from "@/lib/auth/scope
 import { type Actor, requirePermission, hasAuthority, AuthError } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { proposalStatusFrom, canFinalize } from "./rules";
-import { recomputeAllLines, refreshEconomics } from "@/lib/proposals/service";
+import { recomputeAllLines, refreshEconomics, type Db } from "@/lib/proposals/service";
 import { authorityFor, effectiveAuthority } from "./delegation";
 
 /**
@@ -20,55 +20,59 @@ export async function submitForApproval(actor: Actor, proposalId: string, notes?
   requirePermission(actor, "edit_proposed_pricing");
   const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { lines: true, account: true } });
   if (!["DRAFT", "CHANGES_REQUESTED"].includes(p.status)) throw new Error(`Proposal is ${p.status}; only drafts can be submitted`);
-  const econ = await refreshEconomics(proposalId);
   const included = p.lines.filter((l) => l.included);
   if (!included.length) throw new Error("Nothing to submit: no included lines");
   if (included.some((l) => money(l.proposedPrice) === null)) throw new Error("Every included line needs a proposed price before submission");
 
-  // Claim the proposal atomically: two concurrent submissions must not both route requests.
-  const claimed = await prisma.proposal.updateMany({ where: { id: proposalId, status: { in: ["DRAFT", "CHANGES_REQUESTED"] }, lockedAt: null }, data: { lockedAt: new Date(), status: "SUBMITTED" } });
-  if (claimed.count !== 1) throw new Error("Proposal is already being submitted");
+  // One transaction: claim + lock, withdraw earlier requests, recompute every line, decide each
+  // line's route, create the requests, set the status, audit. A failure anywhere rolls all of it
+  // back — the proposal is never left locked, half-routed, or with its earlier requests withdrawn.
+  const result = await prisma.$transaction(async (tx) => {
+    // Claim the proposal atomically: two concurrent submissions must not both route requests. The
+    // second waits on the row lock, re-evaluates `lockedAt IS NULL` after the first commits, and fails.
+    const claimed = await tx.proposal.updateMany({ where: { id: proposalId, status: { in: ["DRAFT", "CHANGES_REQUESTED"] }, lockedAt: null }, data: { lockedAt: new Date(), status: "SUBMITTED" } });
+    if (claimed.count !== 1) throw new Error("Proposal is already being submitted");
+    // Every request from a previous submission is superseded — lines are re-evaluated below, so an
+    // old REJECTED / CHANGES_REQUESTED / APPROVED decision must not keep deciding this proposal's status.
+    await tx.approvalRequest.updateMany({ where: { proposalId, status: { in: ["PENDING", "APPROVED", "REJECTED", "CHANGES_REQUESTED"] } }, data: { status: "WITHDRAWN" } });
+    const econ = await refreshEconomics(proposalId, undefined, tx);
+    const recomputed = (await recomputeAllLines(proposalId, { dealValue: econ.revenue, strategicAccount: p.account.isStrategic }, tx)).filter((l) => l.included);
+    let routed = 0, auto = 0;
+    const notRequired: string[] = [], autoIds: string[] = [];
+    const autoEvents: Parameters<typeof audit>[0][] = [];
+    const toRoute: { line: (typeof recomputed)[number]; snapshot: Record<string, unknown> }[] = [];
+    for (const line of recomputed) {
+      if (!line.requiredAuthority) { notRequired.push(line.id); continue; }
+      const str = (v: unknown) => (v === null || v === undefined ? null : String(v));
+      const snapshot = { proposedPrice: str(line.proposedPrice), recommendedPrice: str(line.recommendedPrice), floorPrice: str(line.floorPrice), marginPct: line.marginPct === null ? null : money(line.marginPct)!.toString(), discountFromListPct: line.discountFromListPct === null ? null : money(line.discountFromListPct)!.toString(), discountFromContractPct: line.discountFromContractPct === null ? null : money(line.discountFromContractPct)!.toString(), policyId: line.policyId, dealRevenue: econ.revenue.toString() };
+      if (hasAuthority(actor, line.requiredAuthority)) {
+        auto++; autoIds.push(line.id);
+        autoEvents.push({ actorUserId: actor.id, entityType: "ProposalLine", entityId: line.id, action: "AUTO_APPROVED", reason: `submitter holds ${line.requiredAuthority} authority`, context: snapshot });
+      } else { routed++; toRoute.push({ line, snapshot }); }
+    }
+    if (notRequired.length) await tx.proposalLine.updateMany({ where: { id: { in: notRequired } }, data: { approvalState: "NOT_REQUIRED" } });
+    if (autoIds.length) await tx.proposalLine.updateMany({ where: { id: { in: autoIds } }, data: { approvalState: "APPROVED" } });
+    for (const e of autoEvents) await auditIn(tx, e);
+    for (const { line, snapshot } of toRoute) {
+      const req = await tx.approvalRequest.create({ data: { proposalId, proposalLineId: line.id, requiredRole: line.requiredAuthority!, reason: reasonFor({ ...line, proposedPrice: line.proposedPrice, floorPrice: line.floorPrice }), notes: notes ?? null, requestedByUserId: actor.id, snapshotJson: JSON.stringify(snapshot), policyId: line.policyId } });
+      await auditIn(tx, { actorUserId: actor.id, entityType: "ApprovalRequest", entityId: req.id, action: "REQUESTED", context: { line: line.id, requiredRole: line.requiredAuthority, ...snapshot } });
+    }
+    if (toRoute.length) await tx.proposalLine.updateMany({ where: { id: { in: toRoute.map((r) => r.line.id) } }, data: { approvalState: "PENDING" } });
+    const requests = await tx.approvalRequest.findMany({ where: { proposalId, status: { notIn: ["WITHDRAWN", "EXPIRED"] } } });
+    const status = routed === 0 ? "APPROVED" : proposalStatusFrom(requests);
+    await tx.proposal.update({ where: { id: proposalId }, data: { status, submittedAt: new Date(), lockedAt: new Date(), decidedAt: status === "APPROVED" ? new Date() : null } });
+    // The stored rollup carries approval counts: re-roll after the line states moved (REQUIRED → PENDING / APPROVED).
+    await refreshEconomics(proposalId, undefined, tx);
+    await auditIn(tx, { actorUserId: actor.id, entityType: "Proposal", entityId: proposalId, action: "SUBMITTED", after: { status }, context: { routed, autoApproved: auto, revenue: econ.revenue.toString(), blendedMarginPct: econ.blendedMarginPct?.toString() ?? null } });
+    return { status, routed, autoApproved: auto };
+  }, { timeout: 60_000, maxWait: 15_000 });
+  if (result.routed > 0) { const { notifyApprovalRequested } = await import("@/lib/notifications"); await notifyApprovalRequested(proposalId).catch(() => undefined); }
+  return result;
+}
 
-  // Every request from a previous submission is superseded — lines are re-evaluated below, so an
-  // old REJECTED / CHANGES_REQUESTED / APPROVED decision must not keep deciding this proposal's status.
-  await prisma.approvalRequest.updateMany({ where: { proposalId, status: { in: ["PENDING", "APPROVED", "REJECTED", "CHANGES_REQUESTED"] } }, data: { status: "WITHDRAWN" } });
-
-  let routed = 0, auto = 0;
-  try {
-  const recomputed = (await recomputeAllLines(proposalId, { dealValue: econ.revenue, strategicAccount: p.account.isStrategic })).filter((l) => l.included);
-  const notRequired: string[] = [], autoIds: string[] = [];
-  const autoEvents: Parameters<typeof audit>[0][] = [];
-  const toRoute: { line: (typeof recomputed)[number]; snapshot: Record<string, unknown> }[] = [];
-  for (const line of recomputed) {
-    if (!line.requiredAuthority) { notRequired.push(line.id); continue; }
-    const str = (v: unknown) => (v === null || v === undefined ? null : String(v));
-    const snapshot = { proposedPrice: str(line.proposedPrice), recommendedPrice: str(line.recommendedPrice), floorPrice: str(line.floorPrice), marginPct: line.marginPct === null ? null : money(line.marginPct)!.toString(), discountFromListPct: line.discountFromListPct === null ? null : money(line.discountFromListPct)!.toString(), discountFromContractPct: line.discountFromContractPct === null ? null : money(line.discountFromContractPct)!.toString(), policyId: line.policyId, dealRevenue: econ.revenue.toString() };
-    if (hasAuthority(actor, line.requiredAuthority)) {
-      auto++; autoIds.push(line.id);
-      autoEvents.push({ actorUserId: actor.id, entityType: "ProposalLine", entityId: line.id, action: "AUTO_APPROVED", reason: `submitter holds ${line.requiredAuthority} authority`, context: snapshot });
-    } else { routed++; toRoute.push({ line, snapshot }); }
-  }
-  if (notRequired.length) await prisma.proposalLine.updateMany({ where: { id: { in: notRequired } }, data: { approvalState: "NOT_REQUIRED" } });
-  if (autoIds.length) await prisma.proposalLine.updateMany({ where: { id: { in: autoIds } }, data: { approvalState: "APPROVED" } });
-  for (const e of autoEvents) await audit(e);
-  for (const { line, snapshot } of toRoute) {
-    const req = await prisma.approvalRequest.create({ data: { proposalId, proposalLineId: line.id, requiredRole: line.requiredAuthority!, reason: reasonFor({ ...line, proposedPrice: line.proposedPrice, floorPrice: line.floorPrice }), notes: notes ?? null, requestedByUserId: actor.id, snapshotJson: JSON.stringify(snapshot), policyId: line.policyId } });
-    await audit({ actorUserId: actor.id, entityType: "ApprovalRequest", entityId: req.id, action: "REQUESTED", context: { line: line.id, requiredRole: line.requiredAuthority, ...snapshot } });
-  }
-  if (toRoute.length) await prisma.proposalLine.updateMany({ where: { id: { in: toRoute.map((r) => r.line.id) } }, data: { approvalState: "PENDING" } });
-  const requests = await prisma.approvalRequest.findMany({ where: { proposalId, status: { notIn: ["WITHDRAWN", "EXPIRED"] } } });
-  const status = routed === 0 ? "APPROVED" : proposalStatusFrom(requests);
-  await prisma.proposal.update({ where: { id: proposalId }, data: { status, submittedAt: new Date(), lockedAt: new Date(), decidedAt: status === "APPROVED" ? new Date() : null } });
-  await audit({ actorUserId: actor.id, entityType: "Proposal", entityId: proposalId, action: "SUBMITTED", after: { status }, context: { routed, autoApproved: auto, revenue: econ.revenue.toString(), blendedMarginPct: econ.blendedMarginPct?.toString() ?? null } });
-  if (routed > 0) { const { notifyApprovalRequested } = await import("@/lib/notifications"); await notifyApprovalRequested(proposalId).catch(() => undefined); }
-  return { status, routed, autoApproved: auto };
-  } catch (e) {
-    // A half-routed submission must not leave the proposal locked with a partial set of requests.
-    await prisma.approvalRequest.updateMany({ where: { proposalId, status: "PENDING" }, data: { status: "WITHDRAWN", decisionComments: "submission failed" } });
-    await prisma.proposalLine.updateMany({ where: { proposalId, approvalState: { in: ["PENDING", "APPROVED"] } }, data: { approvalState: "REQUIRED" } });
-    await prisma.proposal.update({ where: { id: proposalId }, data: { status: p.status, lockedAt: null } });
-    throw e;
-  }
+/** `audit()` on a transaction client (the audit module writes through the shared client). */
+async function auditIn(tx: Db, e: Parameters<typeof audit>[0]) {
+  return tx.auditEvent.create({ data: { actorUserId: e.actorUserId ?? null, entityType: e.entityType, entityId: e.entityId, action: e.action, beforeJson: e.before === undefined ? null : JSON.stringify(e.before), afterJson: e.after === undefined ? null : JSON.stringify(e.after), reason: e.reason ?? null, contextJson: e.context === undefined ? null : JSON.stringify(e.context) } });
 }
 
 function reasonFor(line: { discountFromListPct: unknown; floorPrice: unknown; proposedPrice: unknown; marginPct: unknown; requiredAuthority: string | null }): string {
@@ -85,9 +89,10 @@ export const BREAK_GLASS_MIN_REASON = 20;
 
 export async function decide(actor: Actor, requestId: string, decision: "APPROVED" | "REJECTED" | "CHANGES_REQUESTED", comments?: string) {
   if (!["APPROVED", "REJECTED", "CHANGES_REQUESTED"].includes(decision)) throw new Error("decision must be APPROVED, REJECTED or CHANGES_REQUESTED");
-  const req = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: requestId }, include: { proposalLine: true, proposal: { select: { reference: true } } } });
+  const req = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: requestId }, include: { proposalLine: true, proposal: { select: { reference: true, status: true } } } });
   await assertProposalVisible(actor, req.proposalId); // a scoped approver decides only inside their book of business
   if (req.status !== "PENDING") throw new Error(`Request already ${req.status.toLowerCase()}`);
+  if (["DRAFT", "WON", "LOST"].includes(req.proposal.status)) throw new Error(`Proposal ${req.proposal.reference} is ${req.proposal.status.toLowerCase()}; this request is no longer open for decision`);
   const belowFloor = req.proposalLine && money(req.proposalLine.floorPrice) && money(req.proposalLine.proposedPrice)?.lt(money(req.proposalLine.floorPrice)!);
   // Authority may be the actor's own or lent by an active delegation (out-of-office); the request records which.
   const perm = belowFloor ? "approve_below_floor" : "approve_discount";
@@ -116,15 +121,28 @@ export async function decide(actor: Actor, requestId: string, decision: "APPROVE
     throw new Error(`The line's price changed from ${snap.proposedPrice} to ${current ?? "none"} after this request was made; the proposal must be resubmitted`);
   }
 
-  // Claim the request atomically — two approvers deciding at once must yield one decision.
-  const claimed = await prisma.approvalRequest.updateMany({ where: { id: requestId, status: "PENDING" }, data: { status: decision, decidedByUserId: actor.id, onBehalfOfUserId: onBehalfOf, decidedAt: new Date(), decisionComments: comments ?? null, breakGlass } });
-  if (claimed.count !== 1) throw new Error("Request was decided by someone else a moment ago");
-  if (req.proposalLineId) await prisma.proposalLine.update({ where: { id: req.proposalLineId }, data: { approvalState: decision === "APPROVED" ? "APPROVED" : decision === "REJECTED" ? "REJECTED" : "REQUIRED" } });
-  const all = await prisma.approvalRequest.findMany({ where: { proposalId: req.proposalId, status: { notIn: ["WITHDRAWN", "EXPIRED"] } } });
-  const status = proposalStatusFrom(all);
-  await prisma.proposal.update({ where: { id: req.proposalId }, data: { status, decidedAt: status === "APPROVED" || status === "REJECTED" ? new Date() : null, ...(status === "CHANGES_REQUESTED" ? { lockedAt: null } : {}) } });
-  await audit({ actorUserId: actor.id, entityType: "ApprovalRequest", entityId: requestId, action: decision, reason: comments ?? null, context: { proposalId: req.proposalId, line: req.proposalLineId, requiredRole: req.requiredRole, onBehalfOfUserId: onBehalfOf, breakGlass, snapshot: req.snapshotJson ? JSON.parse(req.snapshotJson) : null } });
-  if (breakGlass) await audit({ actorUserId: actor.id, entityType: "Proposal", entityId: req.proposalId, action: "BREAK_GLASS_APPROVAL", reason: comments ?? null, context: { approvalRequestId: requestId, line: req.proposalLineId, requiredRole: req.requiredRole, reference: req.proposal.reference } });
+  // Claim the request atomically — two approvers deciding at once must yield one decision — and
+  // write the decision, the line state, the proposal status and the audit events together.
+  const status = await prisma.$transaction(async (tx) => {
+    // Serialise decisions per proposal: two approvers deciding two lines at the same moment each
+    // derived the proposal status from a snapshot that did not yet see the other's claim and left
+    // the proposal PARTIALLY_APPROVED for ever (review REV-01). The row lock makes the second
+    // decision wait for the first and see it.
+    await tx.$queryRawUnsafe(`SELECT "id" FROM "Proposal" WHERE "id" = $1 FOR UPDATE`, req.proposalId);
+    const claimed = await tx.approvalRequest.updateMany({ where: { id: requestId, status: "PENDING" }, data: { status: decision, decidedByUserId: actor.id, onBehalfOfUserId: onBehalfOf, decidedAt: new Date(), decisionComments: comments ?? null, breakGlass } });
+    if (claimed.count !== 1) throw new Error("Request was decided by someone else a moment ago");
+    if (req.proposalLineId) await tx.proposalLine.update({ where: { id: req.proposalLineId }, data: { approvalState: decision === "APPROVED" ? "APPROVED" : decision === "REJECTED" ? "REJECTED" : "REQUIRED" } });
+    const all = await tx.approvalRequest.findMany({ where: { proposalId: req.proposalId, status: { notIn: ["WITHDRAWN", "EXPIRED"] } } });
+    const status = proposalStatusFrom(all);
+    // Re-derive the status only while the proposal is still in the approval cycle: a proposal that was
+    // reopened (DRAFT) or closed (WON / LOST) between the claim and this write keeps its state.
+    await tx.proposal.updateMany({ where: { id: req.proposalId, status: { in: ["SUBMITTED", "PARTIALLY_APPROVED", "APPROVED", "REJECTED", "CHANGES_REQUESTED"] } }, data: { status, decidedAt: status === "APPROVED" || status === "REJECTED" ? new Date() : null, ...(status === "CHANGES_REQUESTED" ? { lockedAt: null } : {}) } });
+    // The stored rollup carries approval counts: re-roll after the line state moved.
+    await refreshEconomics(req.proposalId, undefined, tx);
+    await auditIn(tx, { actorUserId: actor.id, entityType: "ApprovalRequest", entityId: requestId, action: decision, reason: comments ?? null, context: { proposalId: req.proposalId, line: req.proposalLineId, requiredRole: req.requiredRole, onBehalfOfUserId: onBehalfOf, breakGlass, snapshot: req.snapshotJson ? JSON.parse(req.snapshotJson) : null } });
+    if (breakGlass) await auditIn(tx, { actorUserId: actor.id, entityType: "Proposal", entityId: req.proposalId, action: "BREAK_GLASS_APPROVAL", reason: comments ?? null, context: { approvalRequestId: requestId, line: req.proposalLineId, requiredRole: req.requiredRole, reference: req.proposal.reference } });
+    return status;
+  }, { timeout: 30_000, maxWait: 15_000 });
   { const { notifyApprovalDecided, notifyBreakGlass } = await import("@/lib/notifications"); await notifyApprovalDecided(requestId).catch(() => undefined); if (breakGlass) await notifyBreakGlass(requestId).catch(() => undefined); }
   if (status === "APPROVED" || status === "REJECTED") { const { requestAnalyticsRefresh } = await import("@/lib/analytics/snapshots"); await requestAnalyticsRefresh(["pricing"]); }
   return { status };
@@ -135,10 +153,19 @@ export async function reopen(actor: Actor, proposalId: string, reason?: string) 
   requirePermission(actor, "edit_proposed_pricing");
   const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId } });
   if (["WON", "LOST"].includes(p.status)) throw new Error("Closed proposals cannot be reopened; create a new version");
-  await prisma.approvalRequest.updateMany({ where: { proposalId, status: { in: ["PENDING", "APPROVED", "REJECTED", "CHANGES_REQUESTED"] } }, data: { status: "WITHDRAWN" } });
-  await prisma.proposalLine.updateMany({ where: { proposalId, approvalState: { in: ["PENDING", "APPROVED", "REJECTED"] } }, data: { approvalState: "REQUIRED" } });
-  await prisma.proposal.update({ where: { id: proposalId }, data: { status: "DRAFT", lockedAt: null, submittedAt: null, decidedAt: null } });
-  await audit({ actorUserId: actor.id, entityType: "Proposal", entityId: proposalId, action: "REOPENED", reason: reason ?? null, before: { status: p.status } });
+  // One transaction, with the proposal row locked so a decision or an outcome in flight waits and
+  // then sees DRAFT (review REV-12): a failure half-way used to leave requests withdrawn and lines
+  // REQUIRED under the old status and lock.
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRawUnsafe(`SELECT "id" FROM "Proposal" WHERE "id" = $1 FOR UPDATE`, proposalId);
+    const fresh = await tx.proposal.findUniqueOrThrow({ where: { id: proposalId }, select: { status: true } });
+    if (["WON", "LOST"].includes(fresh.status)) throw new Error("Closed proposals cannot be reopened; create a new version");
+    await tx.approvalRequest.updateMany({ where: { proposalId, status: { in: ["PENDING", "APPROVED", "REJECTED", "CHANGES_REQUESTED"] } }, data: { status: "WITHDRAWN" } });
+    await tx.proposalLine.updateMany({ where: { proposalId, approvalState: { in: ["PENDING", "APPROVED", "REJECTED"] } }, data: { approvalState: "REQUIRED" } });
+    await tx.proposal.update({ where: { id: proposalId }, data: { status: "DRAFT", lockedAt: null, submittedAt: null, decidedAt: null } });
+    await refreshEconomics(proposalId, undefined, tx);
+    await auditIn(tx, { actorUserId: actor.id, entityType: "Proposal", entityId: proposalId, action: "REOPENED", reason: reason ?? null, before: { status: fresh.status } });
+  }, { timeout: 30_000, maxWait: 15_000 });
 }
 
 export async function finalizeCheck(proposalId: string) {

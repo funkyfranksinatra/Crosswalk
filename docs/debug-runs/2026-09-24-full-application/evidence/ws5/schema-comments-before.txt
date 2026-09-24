@@ -1,0 +1,21 @@
+NO COMMENT  Notification.kind: constraint allows RUN_COMPLETE | RUN_FAILED | APPROVAL_REQUESTED | APPROVAL_DECIDED | PROPOSAL_APPROVED | CROSS_PROPOSED | FEED_FAILED | ALERT | JOB_FAILED | BREAK_GLASS
+MISMATCH    NotificationPreference.kind: comment "a Notification.kind or "*""
+              constraint RUN_COMPLETE | RUN_FAILED | APPROVAL_REQUESTED | APPROVAL_DECIDED | PROPOSAL_APPROVED | CROSS_PROPOSED | FEED_FAILED | ALERT | JOB_FAILED | BREAK_GLASS | *
+              missing from comment: RUN_COMPLETE, RUN_FAILED, APPROVAL_REQUESTED, APPROVAL_DECIDED, PROPOSAL_APPROVED, CROSS_PROPOSED, FEED_FAILED, ALERT, JOB_FAILED, BREAK_GLASS, *
+MISMATCH    Request.status: comment "draft | queued | running | complete | failed"
+              constraint draft | queued | running | complete | failed | cancelled
+              missing from comment: cancelled
+NO COMMENT  RequestLine.resolutionStatus: constraint allows pending | resolved | not-found | error
+NO COMMENT  RequestLine.matchStatus: constraint allows pending | matched | no-match | error
+MISMATCH    Account.type: comment "SOLD_TO | SHIP_TO | IDN | HEALTH_SYSTEM | GROUP"
+              constraint SOLD_TO | SHIP_TO | BILL_TO | IDN | HEALTH_SYSTEM | GROUP | GPO_MEMBER
+              missing from comment: BILL_TO, GPO_MEMBER
+NO COMMENT  CompetitorPriceObservation.sourceType: constraint allows CUSTOMER_INVOICE | CUSTOMER_PO | CUSTOMER_BID_FILE | GPO_CONTRACT_FILE | WIN_LOSS_RECORD | INTERNAL_VERIFIED | PUBLIC_BID_DB | REP_OBSERVED | ANECDOTAL
+MISMATCH    ProposalLine.contractPriceSource: comment "LIST | GPO | IDN | LOCAL"
+              constraint LIST | GPO | IDN | LOCAL | NATIONAL
+              missing from comment: NATIONAL
+NO COMMENT  GudidImport.status: constraint allows QUEUED | RUNNING | DONE | FAILED | CANCELLED
+MISMATCH    IntegrationReviewItem.kind: comment "UNMATCHED_ACCOUNT | MEMBERSHIP_CONFLICT | DUPLICATE | LOW_CONFIDENCE_EXTRACTION | PRICE_EXCEPTION | UNKNOWN_COMPETITOR | MAPPING_ERROR"
+              constraint UNMATCHED_ACCOUNT | MEMBERSHIP_CONFLICT | DUPLICATE | LOW_CONFIDENCE_EXTRACTION | PRICE_EXCEPTION | UNKNOWN_COMPETITOR | MAPPING_ERROR | OVERLAP
+              missing from comment: OVERLAP
+5 mismatching comment(s)

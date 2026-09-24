@@ -1,0 +1,75 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+ ❯ tests/unit/ws2-policy.test.ts (36 tests | 3 failed) 47ms
+   ❯ WS2 recommendation — floors, authority, rules (5)
+     × authorityForDiscount: the lowest role whose allowance covers the discount; SALES_REP → null; none → committee; ≤ 0 → null 16ms
+   ❯ WS2 recommendation — clamping, confidence, explanations (7)
+     × inconsistent inputs: floor above the reference — the reference wins, the line is flagged below floor for the committee, and the explanation says why 1ms
+     × explanationPublic never contains cost, floor or margin figures (sentinel values), while the internal explanation does 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/ws2-policy.test.ts > WS2 recommendation — floors, authority, rules > authorityForDiscount: the lowest role whose allowance covers the discount; SALES_REP → null; none → committee; ≤ 0 → null
+AssertionError: expected null to be 'REGIONAL_MANAGER' // Object.is equality
+
+- Expected:
+"REGIONAL_MANAGER"
+
++ Received:
+null
+
+ ❯ tests/unit/ws2-policy.test.ts:68:55
+     66|     expect(authorityForDiscount(p, D("-0.1"))).toBeNull(); // above re…
+     67|     expect(authorityForDiscount(p, D("0.15"))).toBeNull(); // exactly …
+     68|     expect(authorityForDiscount(p, D("0.150000001"))).toBe("REGIONAL_M…
+       |                                                       ^
+     69|     expect(authorityForDiscount(p, D("0.25"))).toBe("REGIONAL_MANAGER"…
+     70|     expect(authorityForDiscount(p, D("0.3"))).toBe("CONTRACTING_MANAGE…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/unit/ws2-policy.test.ts > WS2 recommendation — clamping, confidence, explanations > inconsistent inputs: floor above the reference — the reference wins, the line is flagged below floor for the committee, and the explanation says why
+AssertionError: expected 'Recommend $1000.00: no competitor pri…' to match /floor \$1142\.86 is above list \$1000…/
+
+- Expected:
+/floor \$1142\.86 is above list \$1000\.00; capped at list and flagged below floor/
+
++ Received:
+"Recommend $1000.00: no competitor price; priced at target margin; capped at list $1000.00. Gross margin 20.0% ($200.00/unit), $142.86 BELOW the Trocar Products floor $1142.86, 0.0% off list. Needs pricing committee approval (below floor)."
+
+ ❯ tests/unit/ws2-policy.test.ts:207:27
+    205|     expect(r.belowFloor).toBe(true);
+    206|     expect(r.requiredAuthority).toBe("PRICING_COMMITTEE");
+    207|     expect(r.explanation).toMatch(/floor \$1142\.86 is above list \$10…
+       |                           ^
+    208|     expect(r.explanation).not.toMatch(/raised to the floor/);
+    209|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/unit/ws2-policy.test.ts > WS2 recommendation — clamping, confidence, explanations > explanationPublic never contains cost, floor or margin figures (sentinel values), while the internal explanation does
+AssertionError: Recommend $224.47: no competitor price; priced at target margin. 77.6% off list. Needs pricing committee approval (77.6% below list exceeds rep authority).: expected 'Recommend $224.47: no competitor pric…' not to match /margin/i
+
+- Expected:
+/margin/i
+
++ Received:
+"Recommend $224.47: no competitor price; priced at target margin. 77.6% off list. Needs pricing committee approval (77.6% below list exceeds rep authority)."
+
+ ❯ tests/unit/ws2-policy.test.ts:248:28
+    246|       expect(pub, pub).not.toContain("12345.68");
+    247|       expect(pub, pub).not.toContain("12,345.68");
+    248|       expect(pub, pub).not.toMatch(/margin/i);
+       |                            ^
+    249|       if (floor && r.recommendedPrice && !r.recommendedPrice.eq(new De…
+    250|       expect(pub, pub).not.toMatch(/floor \$/); // a floor may be ment…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 33 passed (36)
+   Start at  08:21:00
+   Duration  1.01s (transform 50%, setup 35%, import 8%, tests 6%)
+

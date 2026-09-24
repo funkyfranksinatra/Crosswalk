@@ -1,0 +1,61 @@
+### M1 revert src/lib/match/grading.ts (WS1-F11) -> ws1-ranking 'sibling floor'
+     × the sibling floor never lifts a hard-capped No Match (a cannula stays No Match for the trocar sibling) 37ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/ws1-ranking.test.ts > ws1 ranking: the model grader is bound by the cap > the sibling floor never lifts a hard-capped No Match (a cannula stays No Match for the trocar sibling)
+AssertionError: expected 'Alternative Match' to be 'No Match' // Object.is equality
+      Tests  1 failed | 21 skipped (22)
+exit=1
+### M2 revert brands.ts+component.ts (WS1-F02/F03) -> ws1-access Versaport
+     × Versaport: 'Bladeless … with fixation cannula' is a complete trocar; 'Fixation Cannula' / 'Sleeve' SKUs are cannulas; 'for use with … trocar' is a cannula 15ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/ws1-access.test.ts > ws1 access: brand rules — negations and confusing substrings > Versaport: 'Bladeless … with fixation cannula' is a complete trocar; 'Fixation Cannula' / 'Sleeve' SKUs are cannulas; 'for use with … trocar' is a cannula
+AssertionError: expected 'cannula' to be 'trocar' // Object.is equality
+      Tests  1 failed | 29 skipped (30)
+exit=1
+### M3 revert src/lib/money.ts (WS2-F04) -> ws2-money
+     × money(): null vs zero, NaN, ±Infinity (number and string), overflow strings, Prisma-like objects 7ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/ws2-money.test.ts > WS2 money oracle > money(): null vs zero, NaN, ±Infinity (number and string), overflow strings, Prisma-like objects
+AssertionError: expected NaN to be null
+      Tests  1 failed | 7 passed (8)
+exit=1
+### M4 revert src/lib/pricing/policy.ts (WS2-F06) -> ws2-policy db 'activation race'
+     × activation race: two drafts for the same family activated concurrently → exactly one ACTIVE, every time 117ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/db/ws2-policy.test.ts > WS2 policy — repository > activation race: two drafts for the same family activated concurrently → exactly one ACTIVE, every time
+AssertionError: round 1: A1,B1: expected 2 to be 1 // Object.is equality
+      Tests  1 failed | 2 skipped (3)
+exit=1
+### M5 remove CSRF gate block in src/proxy.ts (WS4-F10) -> ws4-proxy CSRF
+     × the gate refuses a cross-site POST that carries the cookie, and never touches GET, open routes or cookie-less calls 19ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/ws4-proxy.test.ts > WS4 proxy gate — CSRF posture for cookie-authenticated mutations > the gate refuses a cross-site POST that carries the cookie, and never touches GET, open routes or cookie-less calls
+AssertionError: expected 200 to be 403 // Object.is equality
+      Tests  1 failed | 13 skipped (14)
+exit=1
+### M6 remove feed advisory lock (WS5-F03) -> ws5-platform 'two concurrent ingestions'
+      Tests  1 passed | 24 skipped (25)
+exit=0
+### M7 revert src/lib/auth/index.ts (WS4-F01) -> tier0-units proxy mode
+     × proxy mode: x-sso-subject is believed only with the shared-secret header (constant-time), never without a configured secret 10ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/tier0-units.test.ts > WS4 — development session cookie and proxy-mode subject trust > proxy mode: x-sso-subject is believed only with the shared-secret header (constant-time), never without a configured secret
+TypeError: proxySubjectFromHeaders is not a function
+      Tests  1 failed | 40 skipped (41)
+exit=1
+### M6.1 feed lock removed, repeat
+      Tests  1 passed | 24 skipped (25)
+exit=0
+### M6.2 feed lock removed, repeat
+      Tests  1 passed | 24 skipped (25)
+exit=0
+### M6.3 feed lock removed, repeat
+      Tests  1 passed | 24 skipped (25)
+exit=0
+### M7b subject header trusted without secret (WS4-F01 original behaviour) -> tier0-units + ws4-proxy
+     × proxy mode: x-sso-subject is believed only with the shared-secret header (constant-time), never without a configured secret 17ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/tier0-units.test.ts > WS4 — development session cookie and proxy-mode subject trust > proxy mode: x-sso-subject is believed only with the shared-secret header (constant-time), never without a configured secret
+AssertionError: expected 'u@x' to be null
+      Tests  1 failed | 2 passed | 52 skipped (55)
+exit=1

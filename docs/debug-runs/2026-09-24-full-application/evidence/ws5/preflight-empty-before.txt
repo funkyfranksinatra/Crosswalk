@@ -1,0 +1,410 @@
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "UserRole" does not exist`
+  skip  chk_UserRole_role: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Notification" does not exist`
+  skip  chk_Notification_kind: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "NotificationPreference" does not exist`
+  skip  chk_NotificationPreference_kind: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "KnownCross" does not exist`
+  skip  chk_KnownCross_approvalStatus: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "KnownCross" does not exist`
+  skip  chk_KnownCross_clinicalReviewStatus: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "KnownCross" does not exist`
+  skip  chk_KnownCross_equivalenceLevel: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "ProposalLine" does not exist`
+  skip  chk_ProposalLine_equivalenceLevel: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "PriceEntry" does not exist`
+  skip  chk_PriceEntry_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "PriceEntry" does not exist`
+  skip  chk_PriceEntry_approvalState: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Request" does not exist`
+  skip  chk_Request_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "RequestLine" does not exist`
+  skip  chk_RequestLine_resolutionStatus: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "RequestLine" does not exist`
+  skip  chk_RequestLine_matchStatus: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Account" does not exist`
+  skip  chk_Account_type: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Contract" does not exist`
+  skip  chk_Contract_type: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Contract" does not exist`
+  skip  chk_Contract_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "RebateSchedule" does not exist`
+  skip  chk_RebateSchedule_type: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "RebateSchedule" does not exist`
+  skip  chk_RebateSchedule_basis: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "StandardCost" does not exist`
+  skip  chk_StandardCost_costType: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Document" does not exist`
+  skip  chk_Document_kind: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "CompetitorPriceObservation" does not exist`
+  skip  chk_CompetitorPriceObservation_sourceType: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "CompetitorPriceObservation" does not exist`
+  skip  chk_CompetitorPriceObservation_verificationStatus: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "PricingPolicy" does not exist`
+  skip  chk_PricingPolicy_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "PricingPolicy" does not exist`
+  skip  chk_PricingPolicy_floorMethod: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "PricingPolicy" does not exist`
+  skip  chk_PricingPolicy_defaultStrategy: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "PricingPolicy" does not exist`
+  skip  chk_PricingPolicy_classification: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Proposal" does not exist`
+  skip  chk_Proposal_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Proposal" does not exist`
+  skip  chk_Proposal_freightMode: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Proposal" does not exist`
+  skip  chk_Proposal_taxMode: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "ProposalLine" does not exist`
+  skip  chk_ProposalLine_contractPriceSource: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "ProposalLine" does not exist`
+  skip  chk_ProposalLine_competitorPriceBasis: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "ProposalLine" does not exist`
+  skip  chk_ProposalLine_approvalState: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Scenario" does not exist`
+  skip  chk_Scenario_kind: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "ApprovalRequest" does not exist`
+  skip  chk_ApprovalRequest_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "CrosswalkVersion" does not exist`
+  skip  chk_CrosswalkVersion_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "SyncLog" does not exist`
+  skip  chk_SyncLog_direction: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "SyncLog" does not exist`
+  skip  chk_SyncLog_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "DealOutcome" does not exist`
+  skip  chk_DealOutcome_outcome: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "MatchDecision" does not exist`
+  skip  chk_MatchDecision_groundTruth: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "GudidImport" does not exist`
+  skip  chk_GudidImport_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Alert" does not exist`
+  skip  chk_Alert_severity: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "FeedRun" does not exist`
+  skip  chk_FeedRun_trigger: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "FeedRun" does not exist`
+  skip  chk_FeedRun_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "AnalyticsSnapshot" does not exist`
+  skip  chk_AnalyticsSnapshot_trigger: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "PublicAward" does not exist`
+  skip  chk_PublicAward_source: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "IntegrationConfig" does not exist`
+  skip  chk_IntegrationConfig_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "IntegrationSyncJob" does not exist`
+  skip  chk_IntegrationSyncJob_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "IntegrationSyncJob" does not exist`
+  skip  chk_IntegrationSyncJob_trigger: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "IntegrationReviewItem" does not exist`
+  skip  chk_IntegrationReviewItem_kind: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "IntegrationReviewItem" does not exist`
+  skip  chk_IntegrationReviewItem_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "DocumentExtraction" does not exist`
+  skip  chk_DocumentExtraction_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "ExtractedField" does not exist`
+  skip  chk_ExtractedField_scope: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "ExtractedField" does not exist`
+  skip  chk_ExtractedField_verificationStatus: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "IntegrationInboundEvent" does not exist`
+  skip  chk_IntegrationInboundEvent_status: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "RequestLine" does not exist`
+  skip  chk_RequestLine_quantity_nonneg: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "ProposalLine" does not exist`
+  skip  chk_ProposalLine_quantity_nonneg: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "ProposalLine" does not exist`
+  skip  chk_ProposalLine_prices_nonneg: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "PriceEntry" does not exist`
+  skip  chk_PriceEntry_price_nonneg: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "PriceEntry" does not exist`
+  skip  chk_PriceEntry_qty_band: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "PurchaseRecord" does not exist`
+  skip  chk_PurchaseRecord_netprice_nonneg: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "CompetitorPriceObservation" does not exist`
+  skip  chk_CompetitorPriceObservation_price_nonneg: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "StandardCost" does not exist`
+  skip  chk_StandardCost_cost_nonneg: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "PricingPolicy" does not exist`
+  skip  chk_PricingPolicy_margin_fraction: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Proposal" does not exist`
+  skip  chk_Proposal_freight_value: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Proposal" does not exist`
+  skip  chk_Proposal_tax_amount_nonneg: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "Contract" does not exist`
+  skip  chk_Contract_term_order: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "GpoMembership" does not exist`
+  skip  chk_GpoMembership_term_order: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "PriceEntry" does not exist`
+  skip  chk_PriceEntry_term_order: table or column not present yet (run migrations first)
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "ApprovalDelegation" does not exist`
+  skip  chk_ApprovalDelegation_window_order: table or column not present yet (run migrations first)
+No rows violate the CHECK constraints.
+exit=0

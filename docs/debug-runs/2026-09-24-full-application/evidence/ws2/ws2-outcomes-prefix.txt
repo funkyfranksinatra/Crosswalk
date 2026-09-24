@@ -1,0 +1,167 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+stdout | tests/db/ws2-outcomes.test.ts > WS2 outcomes — database > simultaneous closes (WON + WON, WON + LOST) → exactly one wins; one contract, one outcome
+prisma:error 
+Invalid `prisma.contract.create()` invocation:
+
+
+Unique constraint failed on the constraint: `Contract_contractNumber_key`
+
+ ❯ tests/db/ws2-outcomes.test.ts (11 tests | 5 failed) 1731ms
+   ❯ WS2 outcomes — database (7)
+     × WON: refused until finalisable; then one transaction creates the LOCAL contract (ACTIVE/APPROVED entries, commitments), the outcome and the status; the waterfall now resolves to the won prices 539ms
+     × WON is atomic: a failure after the contract is created rolls the contract, its entries and the status back 177ms
+     × simultaneous closes (WON + WON, WON + LOST) → exactly one wins; one contract, one outcome 147ms
+     × LOST records the competitor's winning prices as WIN_LOSS_RECORD observations and withdraws pending requests; NO_DECISION leaves the proposal open; one outcome row per proposal 242ms
+     × rebates in performance: highest satisfied tier per basis (UNITS, VALUE, COMPLIANCE_PCT); 'within 10 %' flag; renewal within 90 days flag vs the 180-day pipeline 20ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/db/ws2-outcomes.test.ts > WS2 outcomes — database > WON: refused until finalisable; then one transaction creates the LOCAL contract (ACTIVE/APPROVED entries, commitments), the outcome and the status; the waterfall now resolves to the won prices
+AssertionError: promise resolved "{ outcome: { …(11) }, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "contract": {
++     "accountId": "cmufa6t3f00035k7d4n0600rg",
++     "committedValue": null,
++     "committedVolume": null,
++     "contractNumber": "LOC-ws2mufa6svg-outcomeacct-PRP-0002",
++     "createdAt": 2026-09-24T08:39:47.099Z,
++     "createdByUserId": "cmufa6t2p00005k7dcxeofjkg",
++     "currency": "USD",
++     "effectiveFrom": 2026-09-24T08:39:47.096Z,
++     "effectiveTo": 2027-09-24T08:39:47.096Z,
++     "escalationJson": null,
++     "externalId": "cmufa6tb9000j5k7dvjonh3re",
++     "gpoId": null,
++     "id": "cmufa6tgb000t5k7dxeigf2zl",
++     "name": "ws2mufa6svg outcome acct — PRP-0002",
++     "notes": "Created from won proposal PRP-0002",
++     "ownerUserId": "cmufa6t2v00015k7dps222ap8",
++     "parentAccountId": null,
++     "performanceJson": null,
++     "precedence": 0,
++     "priceProtectionJson": null,
++     "renewalJson": null,
++     "sourceSystem": "crosswalk",
++     "status": "ACTIVE",
++     "tier": null,
++     "type": "LOCAL",
++     "updatedAt": 2026-09-24T08:39:47.099Z,
++   },
++   "outcome": {
++     "commercialReason": null,
++     "competitorId": null,
++     "currency": "USD",
++     "decidedAt": 2026-09-24T08:39:47.116Z,
++     "finalValue": null,
++     "id": "cmufa6tgs000z5k7d99kfiae5",
++     "notes": null,
++     "outcome": "WON",
++     "priceReason": null,
++     "proposalId": "cmufa6tb9000j5k7dvjonh3re",
++     "recordedByUserId": "cmufa6t2p00005k7dcxeofjkg",
++   },
+  }
+
+ ❯ tests/db/ws2-outcomes.test.ts:135:98
+    133|     await expect(recordOutcome(rep.actor, fx.proposal.id, { outcome: "…
+    134|     await expect(recordOutcome(rep.actor, fx.proposal.id, { outcome: "…
+    135|     await expect(recordOutcome(rep.actor, fx.proposal.id, { outcome: "…
+       |                                                                                                  ^
+    136|     await expect(recordOutcome(rep.actor, fx.proposal.id, { outcome: "…
+    137|     expect(await prisma.contract.count({ where: { externalId: fx.propo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/db/ws2-outcomes.test.ts > WS2 outcomes — database > WON is atomic: a failure after the contract is created rolls the contract, its entries and the status back
+TypeError: .toMatch() expects to receive a string, but got undefined
+ ❯ tests/db/ws2-outcomes.test.ts:171:30
+    169|     const fx = await approved();
+    170|     const r = await withTxFailure({ model: "dealOutcome", method: "ups…
+    171|     expect(r.error?.message).toMatch(/injected failure/);
+       |                              ^
+    172|     expect(r.calls).toBe(1);
+    173|     expect(await prisma.contract.count({ where: { externalId: fx.propo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/db/ws2-outcomes.test.ts > WS2 outcomes — database > simultaneous closes (WON + WON, WON + LOST) → exactly one wins; one contract, one outcome
+AssertionError: expected '\nInvalid `prisma.contract.create()` …' to match /already (won|lost|closed)/
+
+- Expected:
+/already (won|lost|closed)/
+
++ Received:
+"
+Invalid `prisma.contract.create()` invocation:
+
+
+Unique constraint failed on the constraint: `Contract_contractNumber_key`"
+
+ ❯ tests/db/ws2-outcomes.test.ts:193:36
+    191|       expect(results.filter((x) => x.status === "fulfilled").length, s…
+    192|       const loser = results.find((x) => x.status === "rejected") as Pr…
+    193|       expect(loser.reason.message).toMatch(/already (won|lost|closed)/…
+       |                                    ^
+    194|       const p = await prisma.proposal.findUniqueOrThrow({ where: { id:…
+    195|       expect(["WON", "LOST"]).toContain(p.status);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  tests/db/ws2-outcomes.test.ts > WS2 outcomes — database > LOST records the competitor's winning prices as WIN_LOSS_RECORD observations and withdraws pending requests; NO_DECISION leaves the proposal open; one outcome row per proposal
+AssertionError: expected [ 'PENDING' ] to deeply equal [ 'WITHDRAWN' ]
+
+- Expected
++ Received
+
+  [
+-   "WITHDRAWN",
++   "PENDING",
+  ]
+
+ ❯ tests/db/ws2-outcomes.test.ts:220:46
+    218|     expect(p.outcome!.outcome).toBe("LOST"); // the NO_DECISION row wa…
+    219|     expect(await prisma.dealOutcome.count({ where: { proposalId: fx.pr…
+    220|     expect(p.approvals.map((a) => a.status)).toEqual(["WITHDRAWN"]);
+       |                                              ^
+    221|     const obs = await prisma.competitorPriceObservation.findMany({ whe…
+    222|     expect(obs.length - before).toBe(2);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  tests/db/ws2-outcomes.test.ts > WS2 outcomes — database > rebates in performance: highest satisfied tier per basis (UNITS, VALUE, COMPLIANCE_PCT); 'within 10 %' flag; renewal within 90 days flag vs the 180-day pipeline
+AssertionError: expected { …(9) } to match object { measured: '0.48', rebate: '0' }
+(9 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "measured": "0.48",
++   "measured": "0",
+    "rebate": "0",
+  }
+
+ ❯ tests/db/ws2-outcomes.test.ts:271:31
+    269|     expect(perf.flags.some((f) => f.startsWith("Rebate tier approachin…
+    270|     expect(by(value.id)).toMatchObject({ measured: "43200", rebate: "4…
+    271|     expect(by(compliance.id)).toMatchObject({ measured: "0.48", rebate…
+       |                               ^
+    272|     expect(by(growth.id)).toMatchObject({ measured: "0", rebate: "0" }…
+    273|     await buy("950");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 6 passed (11)
+   Start at  08:39:45
+   Duration  3.03s (tests 61%, transform 25%, setup 9%, import 4%)
+

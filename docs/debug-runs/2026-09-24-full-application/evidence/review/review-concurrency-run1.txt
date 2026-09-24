@@ -1,0 +1,40 @@
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/db/review-concurrency.test.ts > REVIEW — concurrent decisions on two lines of one proposal > after two simultaneous approvals every request is APPROVED and the proposal status / rollup agree with the requests
+AssertionError: round 0: proposal.status=PARTIALLY_APPROVED derived=APPROVED decidedAt=null approvalsPending=0 lineStates=APPROVED,APPROVED
+round 1: proposal.status=PARTIALLY_APPROVED derived=APPROVED decidedAt=null approvalsPending=0 lineStates=APPROVED,APPROVED
+round 2: proposal.status=PARTIALLY_APPROVED derived=APPROVED decidedAt=null approvalsPending=0 lineStates=APPROVED,APPROVED
+round 3: proposal.status=PARTIALLY_APPROVED derived=APPROVED decidedAt=null approvalsPending=0 lineStates=APPROVED,APPROVED
+round 4: proposal.status=PARTIALLY_APPROVED derived=APPROVED decidedAt=null approvalsPending=0 lineStates=APPROVED,APPROVED
+round 5: proposal.status=PARTIALLY_APPROVED derived=APPROVED decidedAt=null approvalsPending=0 lineStates=APPROVED,APPROVED: expected [ …(6) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "round 0: proposal.status=PARTIALLY_APPROVED derived=APPROVED decidedAt=null approvalsPending=0 lineStates=APPROVED,APPROVED",
++   "round 1: proposal.status=PARTIALLY_APPROVED derived=APPROVED decidedAt=null approvalsPending=0 lineStates=APPROVED,APPROVED",
++   "round 2: proposal.status=PARTIALLY_APPROVED derived=APPROVED decidedAt=null approvalsPending=0 lineStates=APPROVED,APPROVED",
++   "round 3: proposal.status=PARTIALLY_APPROVED derived=APPROVED decidedAt=null approvalsPending=0 lineStates=APPROVED,APPROVED",
++   "round 4: proposal.status=PARTIALLY_APPROVED derived=APPROVED decidedAt=null approvalsPending=0 lineStates=APPROVED,APPROVED",
++   "round 5: proposal.status=PARTIALLY_APPROVED derived=APPROVED decidedAt=null approvalsPending=0 lineStates=APPROVED,APPROVED",
++ ]
+
+ ❯ tests/db/review-concurrency.test.ts:67:47
+     65|     }
+     66|     // Every round must agree; the message lists the rounds that did n…
+     67|     expect(mismatches, mismatches.join("\n")).toEqual([]);
+       |                                               ^
+     68|   });
+     69| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  12:11:23
+   Duration  2.98s (tests 65%, transform 22%, setup 9%, import 4%)
+

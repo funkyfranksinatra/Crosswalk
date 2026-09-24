@@ -1,0 +1,29 @@
+
+> crosswalk@0.7.0 test:enterprise
+> tsx scripts/test-enterprise.ts
+
+Request REQ-0001: 33 lines — running cross-reference (openFDA)…
+  ✓ cross-reference resolves the list and matches the stapler/trocar lines through the published crosswalk
+  ✓ proposal pins the published crosswalk version and the policy versions it used
+  ✓ waterfall: local override beats GPO tier beats list, with explanation; volume tier applies to the stapler quantity
+  ✓ competitor intelligence: MSK's own bid file → KNOWN_ACCOUNT; three-hospital invoices → MARKET_ESTIMATE; 9-month anecdote → WEAK
+  ✓ cost basis and recommendation are snapshotted and explainable on every priced line
+  ✓ deal economics rollup exists with blended margin, savings and share of wallet
+  ✓ pricing a stapler line below floor requires the pricing committee; a deep mesh discount needs the director; a 10% trocar discount is within rep authority; every change is audited
+  ✓ what-if scenario changes the numbers without touching the proposal's prices
+  ✓ submission routes below-authority lines, locks the proposal, and blocks export
+  ✓ a regional manager cannot decide director- or committee-level lines; the director and committee can; approval unlocks export
+  ✓ CRITICAL SCENARIO: the exported quote equals the approved prices, totals equal the line sum, history reconstructs every price, nothing moved after approval
+  ✓ approved quote pushes to CRM idempotently (dev adapter) and syncs are logged
+  ✓ won deal becomes a LOCAL contract; the waterfall now resolves to the approved price; conversion is measured from purchases
+  ✓ a new version of a closed proposal is an editable draft carrying every snapshot
+  ✓ a rep-proposed cross is DRAFT, invisible to reps until reviewed and published; older proposals keep their version
+  ✓ analytics read models produce win/loss, pricing, conversion and acceptance figures
+  ✓ file feed: CSV exports in INTEGRATION_FEED_DIR sync accounts and GPO memberships through the same idempotent path; existing accounts are linked, not duplicated
+  ✓ GUDID library: a bulk-imported labeler catalog resolves codes without openFDA, and library records can join our catalog
+
+18 passed, 0 failed
+
+real	0m6.210s
+user	0m4.716s
+sys	0m0.382s

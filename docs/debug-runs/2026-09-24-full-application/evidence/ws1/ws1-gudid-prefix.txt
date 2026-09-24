@@ -1,0 +1,12 @@
+     × 429 with Retry-After pauses every caller in the process for that window, then the retry succeeds 1013ms
+     × a non-JSON 200 is retried and then succeeds; after OPENFDA_MAX_ATTEMPTS it is an OpenFdaError, never a JSON parse leak 1806ms
+     × a hung request times out (OPENFDA_TIMEOUT_MS), is retried, and fails as unreachable on the last attempt 1ms
+     × 404 is an empty result, not an error; other 4xx are errors without retry 935ms
+     × memo: identical searches are fetched once (in-flight and cached), expire after OPENFDA_MEMO_SECONDS, and the refresh path bypasses the memo 625ms
+     × adoption: 'Other' family and placeholder SKUs are never adopted; a real surgical record is, once; prune dry-run equals the applied result 92ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/db/ws1-gudid.test.ts > WS1 openFDA client (no database) > a non-JSON 200 is retried and then succeeds; after OPENFDA_MAX_ATTEMPTS it is an OpenFdaError, never a JSON parse leak
+TypeError: setOpenFdaMemoMsForTests is not a function
+TypeError: timeoutMs is not a function
+TypeError: setOpenFdaMemoMsForTests is not a function
+AssertionError: expected { kept: 1, rebinned: +0, …(2) } to match object { deleted: +0, deactivated: +0 }

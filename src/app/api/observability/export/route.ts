@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authorize } from "@/lib/api";
 import { prisma } from "@/lib/db";
+import { redactRecord } from "@/lib/observability/redact";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,6 @@ export async function GET(req: Request) {
     case "jobs": { const { recentFailures } = await import("@/lib/jobs/boss"); rows = await recentFailures(limit); break; }
     default: return NextResponse.json({ error: "kind must be llm, runs, sync, feeds, alerts or jobs" }, { status: 400 });
   }
-  const body = rows.map((r) => JSON.stringify(r, (_k, v) => (typeof v === "bigint" ? Number(v) : v))).join("\n") + (rows.length ? "\n" : "");
+  const body = rows.map((r) => JSON.stringify(redactRecord(r as Record<string, unknown>), (_k, v) => (typeof v === "bigint" ? Number(v) : v))).join("\n") + (rows.length ? "\n" : "");
   return new NextResponse(body, { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store", "content-disposition": `attachment; filename="crosswalk-${kind}-${since.toISOString().slice(0, 10)}.ndjson"` } });
 }

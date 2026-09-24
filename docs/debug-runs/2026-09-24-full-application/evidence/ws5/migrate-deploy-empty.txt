@@ -1,0 +1,63 @@
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "crosswalk_ws5_empty", schema "public" at "localhost:5432"
+
+15 migrations found in prisma/migrations
+
+Applying migration `20260914200000_postgres_baseline`
+Applying migration `20260914210000_enterprise_platform`
+Applying migration `20260915020000_gudid_library`
+Applying migration `20260915210000_widen_pct_columns`
+Applying migration `20260915220000_purchase_external_index`
+Applying migration `20260917060000_tier1_platform`
+Applying migration `20260917120000_tier1_fixes`
+Applying migration `20260918000000_tier3_product_scale`
+Applying migration `20260918000100_tier3_line_flags`
+Applying migration `20260919000000_tier0_break_glass`
+Applying migration `20260919000100_tier0_check_constraints`
+Applying migration `20260923000000_tier2_integrations`
+Applying migration `20260923000001_tier2_account_contacts`
+Applying migration `20260923000002_tier2_check_constraints`
+Applying migration `20260924000000_match_quality`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20260914200000_postgres_baseline/
+    └─ migration.sql
+  └─ 20260914210000_enterprise_platform/
+    └─ migration.sql
+  └─ 20260915020000_gudid_library/
+    └─ migration.sql
+  └─ 20260915210000_widen_pct_columns/
+    └─ migration.sql
+  └─ 20260915220000_purchase_external_index/
+    └─ migration.sql
+  └─ 20260917060000_tier1_platform/
+    └─ migration.sql
+  └─ 20260917120000_tier1_fixes/
+    └─ migration.sql
+  └─ 20260918000000_tier3_product_scale/
+    └─ migration.sql
+  └─ 20260918000100_tier3_line_flags/
+    └─ migration.sql
+  └─ 20260919000000_tier0_break_glass/
+    └─ migration.sql
+  └─ 20260919000100_tier0_check_constraints/
+    └─ migration.sql
+  └─ 20260923000000_tier2_integrations/
+    └─ migration.sql
+  └─ 20260923000001_tier2_account_contacts/
+    └─ migration.sql
+  └─ 20260923000002_tier2_check_constraints/
+    └─ migration.sql
+  └─ 20260924000000_match_quality/
+    └─ migration.sql
+
+All migrations have been successfully applied.
+
+real	0m2.019s
+user	0m1.696s
+sys	0m0.279s
+exit=0

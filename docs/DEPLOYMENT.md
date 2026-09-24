@@ -19,8 +19,22 @@ browser ──TLS──► reverse proxy / load balancer ──► web (next sta
 - **web** serves pages and the API. With `JOBS_WORKER=inline` (the default) it also runs the
   job queue in-process — fine for a single instance. With `JOBS_WORKER=external` it leaves
   jobs to one or more **worker** containers, which is what the compose stack does.
-- Every instance is stateless: sessions are signed cookies, uploads go to the database, the
-  rate limiter is per instance (put a shared one at the proxy when you run several).
+- **Supported topology: one web instance plus one worker** (or one web with `JOBS_WORKER=inline`).
+  Sessions are signed cookies and uploads go to the database, but some state is deliberately
+  process-local and is not shared between instances:
+  - *security / correctness state* — the API rate limiter (per-client and per-instance
+    ceilings: `RATE_LIMIT_*`); the catalog enrichment job's progress (`GET /api/catalog/enrich`
+    reports the job of the process it reached). Two web instances behind one load balancer
+    give each client two rate-limit budgets and may show "no enrichment running" while the
+    other instance is enriching. Run one web instance, or put the rate limit at the proxy and
+    route `/api/catalog/enrich` to one instance.
+  - *acceptable caches* — the openFDA search memo (`OPENFDA_MEMO_SECONDS`, per process, only
+    saves repeat calls) and the openFDA token bucket (`OPENFDA_RPM` is per process: several
+    processes sharing one key must each be given a share of the limit); the in-process metrics
+    counters (`/api/metrics` scrapes each process; the database-derived gauges are consistent).
+  Nothing in the job queue, feeds, alerts, notifications, integration sync jobs or analytics
+  depends on the process that runs it — those live in the database — so a web + worker split
+  is safe, and several workers only add throughput. Distributed rate limiting is not built.
 - **TLS is required for anything beyond localhost.** `APP_BASE_URL` decides: with an `https://`
   URL the session and sign-in cookies are `Secure` and pages carry HSTS; served over plain
   HTTP on a LAN address, sign-in cannot complete. Terminate TLS at the proxy.
@@ -28,6 +42,13 @@ browser ──TLS──► reverse proxy / load balancer ──► web (next sta
   `pgvector/pgvector:pg17` image has it). The migration creates it.
 
 ## The image
+
+`deploy/entrypoint.sh` execs the local binaries (`node_modules/.bin/next`, `node_modules/.bin/tsx`)
+directly — never through `npx`, which does not forward `SIGTERM` to the process it starts. With
+`tini` as PID 1 a `docker stop` therefore reaches the server or the worker itself, the in-process
+queue stops gracefully (`stopBoss`: active jobs are handed back to the queue for the next process)
+and the container exits 0. Roles: `web` (default), `worker`, `migrate`, `check`; anything else is
+executed as given. The script can also be run from a checkout (`sh deploy/entrypoint.sh check`).
 
 ```sh
 docker build -t crosswalk .
@@ -72,9 +93,10 @@ The full list with comments is `.env.example`. What a deployment must decide:
 | `APP_BASE_URL` | Public URL (`https://crosswalk.example.com`): links in notifications and the OIDC redirect URI. |
 | `SSO_ISSUER`, `SSO_CLIENT_ID`, `SSO_CLIENT_SECRET`, `SSO_ROLE_CLAIM`, `SSO_ROLE_MAP` | Identity — see below. |
 | `OPENAI_API_KEY` | Matching model; without it runs are heuristic. `OPENFDA_API_KEY` raises the GUDID rate limit. |
-| `JOBS_WORKER` | `inline` (default) or `external` with worker containers. |
+| `JOBS_WORKER` | `inline` (default), `external` with worker containers, or `off`. Only these three words: anything else (`on`, `yes`) is logged as invalid and read as `inline`. |
+| `COMPANY_NAME`, `OWN_LABELERS`, `TENANCY_STRICT` | The company the deployment serves and the openFDA labeler names that count as "ours" — read when the `Company` row is first created (seed or first start); the stored row is the truth afterwards (rename in Settings). One `Company` row per database: a second one refuses start-up (`TENANCY_STRICT=false` only warns and serves the named / oldest one). A company that is not Medtronic sets both `COMPANY_NAME` and `OWN_LABELERS` before the first seed. |
 | `SECRETS_PROVIDER` | `env` (default), `aws`, `vault`, `doppler`, `file` — see Secrets. |
-| `TRUST_PROXY_HOPS` | Which `X-Forwarded-For` entry is the client (default 1: appended by the nearest proxy). The proxy must set the header or every user shares one rate-limit bucket. |
+| `TRUST_PROXY_HOPS` | Which `X-Forwarded-For` entry is the client (default 1: appended by the nearest proxy). The proxy must set the header or every user shares one rate-limit bucket. Set it (> 0) only behind a balancer that overwrites or appends the forwarding headers: with it set, `X-Forwarded-Host` (CSRF origin check) and `x-request-id` (log correlation) are also honoured; a directly exposed instance must leave it unset, or a client can choose another client's rate-limit bucket, its own request id, or the host the origin check compares against. |
 | `RATE_LIMIT_*`, `CSP_REPORT_ONLY` | Request security (defaults are sensible; see `.env.example`). |
 | `RETENTION_*` | Off until `RETENTION_ENABLED=true`; see BACKUPS.md. |
 | `NODE_ENV=production` | Set by the image. A production build refuses weak configuration (below). |
@@ -107,7 +129,12 @@ rather than through the provider.
 **Upgrading from the header contract:** before Tier 0, `SSO_ISSUER` + `SSO_CLIENT_ID` meant
 "trust `x-sso-subject` from the proxy". The same variables now select the built-in client,
 so set `SSO_MODE=proxy` to keep an authenticating reverse proxy in front (a production start
-warns while `SSO_MODE` is unset).
+warns while `SSO_MODE` is unset). In proxy mode the subject header is trusted **only** when the
+same request carries `x-sso-proxy-secret` equal to `SSO_PROXY_SHARED_SECRET` (≥ 16 characters,
+compared in constant time); the app strips both headers in every other mode, refuses every
+subject while the secret is unset, and a production start fails without it. The proxy must be
+the only route to the app (a client that can reach the app directly could otherwise set the
+subject header itself).
 
 ## Secrets
 

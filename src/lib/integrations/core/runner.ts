@@ -55,7 +55,7 @@ export async function runSync(k: IntegrationKey, syncType: string, trigger: Sync
       default: throw new ConfigurationError(`${def.label} has nothing to sync`);
     }
     // the watermark moves only after a run that reached the end (partial rows are retried by hash on the next run)
-    if (!opts.upload && !opts.maxPages) { ctx.cursorAfter = JSON.stringify({ since: startedAt.toISOString() }); await setCursor(k, syncType, ctx.cursorAfter); }
+    if (!opts.upload && !opts.maxPages && !ctx.capped) { ctx.cursorAfter = JSON.stringify({ since: startedAt.toISOString() }); await setCursor(k, syncType, ctx.cursorAfter); }
     const status = await finishJob(ctx, report);
     await recordSyncOutcome(k, status === "PARTIAL" ? "PARTIAL" : "SUCCEEDED", status === "PARTIAL" ? { message: `${ctx.counters.errored} rows could not be applied`, category: "VALIDATION", retryable: false } : null);
     await audit({ actorUserId, entityType: "Integration", entityId: k, action: "SYNC", context: { syncType, trigger, jobId: ctx.jobId, status, ...ctx.counters } });
@@ -87,6 +87,9 @@ async function eachPage<T>(ctx: JobContext, entity: string, read: (o: PullOption
     cursor = page.nextCursor;
     if (maxPages && pages >= maxPages) break;
   } while (cursor && pages < MAX_PAGES);
+  // A reader that still had a next cursor at MAX_PAGES did not reach the end: the caller must not
+  // advance the since-watermark, or the tail would be skipped on the next incremental run.
+  if (cursor && pages >= MAX_PAGES) ctx.capped = true;
   return pages;
 }
 

@@ -1,0 +1,8 @@
+
+> crosswalk@0.7.0 typecheck
+> tsc --noEmit
+
+
+real	0m4.555s
+user	0m5.755s
+sys	0m0.504s

@@ -76,12 +76,26 @@ export function isFeedName(name: unknown): name is FeedName {
   return typeof name === "string" && Object.hasOwn(FEEDS, name);
 }
 
-/** Where a feed's data comes from right now, and a content hash so unchanged drops are skipped. `ref` names files, never server paths. */
-export function feedSource(name: FeedName): { kind: "api" | "file" | "none"; ref: string | null; hash: string | null; present: string[] } {
+export type FeedSource = { kind: "api" | "file" | "none"; ref: string | null; hash: string | null; present: string[] };
+
+/**
+ * Where a feed's data comes from right now, and a content hash so unchanged drops are skipped.
+ * `ref` names files or the integration, never server paths. The crm / erp / gpo feeds are served by
+ * an enabled Tier 2 integration (Settings → Integrations) when there is one — those pull from the
+ * provider, so they carry no hash and are never "unchanged". The retired SF_* / SAP_* variables still
+ * count as an API source so the ingestion runs and fails with the truthful message (sync.ts).
+ */
+export async function feedSource(name: FeedName): Promise<FeedSource> {
   const dir = feedDir();
   const present = dir ? FEEDS[name].files.filter((f) => fs.existsSync(path.join(dir, f))) : [];
-  if (name === "crm" && process.env.SF_CLIENT_ID) return { kind: "api", ref: "Salesforce", hash: null, present };
-  if (name === "erp" && process.env.SAP_ODATA_BASE_URL) return { kind: "api", ref: "SAP OData", hash: null, present };
+  if (name === "crm" || name === "erp" || name === "gpo") {
+    const { tier2Status, legacyEnvPresent } = await import("@/lib/integrations/sync");
+    const t2 = await tier2Status();
+    const on = t2.filter((t) => t.enabled && (name === "gpo" ? t.family === "gpo" : t.key === (name === "crm" ? "salesforce" : "sap")));
+    if (on.length) return { kind: "api", ref: on.map((t) => `${t.label} (${t.provider})`).join(", "), hash: null, present };
+    if (name === "crm" && legacyEnvPresent("crm")) return { kind: "api", ref: "Salesforce (legacy SF_* variables — not used)", hash: null, present };
+    if (name === "erp" && legacyEnvPresent("erp")) return { kind: "api", ref: "SAP OData (legacy SAP_* variables — not used)", hash: null, present };
+  }
   if (!dir || !present.length) return { kind: "none", ref: null, hash: null, present };
   const h = createHash("sha256");
   for (const f of present) { h.update(f); h.update(fileHash(path.join(dir, f))); }
@@ -151,24 +165,36 @@ export type IngestOptions = { trigger: "schedule" | "manual" | "startup"; actorU
 export async function ingestFeed(name: string, opts: IngestOptions) {
   if (!isFeedName(name)) throw new Error(`unknown feed "${name}"`);
   const feed = name;
-  // One ingestion of a feed at a time, whichever door it came through (queue or "Sync now").
-  const active = await prisma.feedRun.findFirst({ where: { feed, status: "RUNNING", startedAt: { gt: new Date(Date.now() - RUNNING_STALE_MS) } }, select: { id: true, startedAt: true } });
-  if (active) throw new Error(`Feed "${feed}" is already being ingested (started ${active.startedAt.toISOString()})`);
-  const source = feedSource(feed);
-  if (source.kind === "none") {
-    const run = await prisma.feedRun.create({ data: { feed, trigger: opts.trigger, status: "SKIPPED", sourceRef: source.ref, error: `no source configured (set INTEGRATION_FEED_DIR with ${FEEDS[feed].files.join(" / ")}, or the API credentials)`, finishedAt: new Date(), jobId: opts.jobId ?? null } });
-    return { status: "SKIPPED" as const, runId: run.id, reason: run.error };
-  }
-  if (source.hash && !opts.force) {
-    // Only a fully clean run "consumes" a file: one with rejected rows (an ERP SKU file that landed
-    // after the pricing file) is tried again on the next schedule, not skipped forever.
-    const last = await prisma.feedRun.findFirst({ where: { feed, status: "OK", sourceHash: source.hash, failed: 0 }, orderBy: { startedAt: "desc" }, select: { id: true, startedAt: true } });
-    if (last) {
-      const run = await prisma.feedRun.create({ data: { feed, trigger: opts.trigger, status: "SKIPPED", sourceRef: source.ref, sourceHash: source.hash, error: `unchanged since ${last.startedAt.toISOString()}`, finishedAt: new Date(), jobId: opts.jobId ?? null } });
-      return { status: "SKIPPED" as const, runId: run.id, reason: run.error };
+  const source = await feedSource(feed);
+  // One ingestion of a feed at a time, whichever door it came through (queue or "Sync now"). The
+  // check and the RUNNING row are written under a per-feed advisory lock: two callers arriving
+  // together (a schedule and a "Sync now", two worker processes) would otherwise both pass a plain
+  // find-then-create and ingest the same file twice. A RUNNING row from a process that died is
+  // closed as FAILED here rather than blocking the feed for ever.
+  const opened = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`feed:${feed}`}))::text`;
+    await tx.feedRun.updateMany({ where: { feed, status: "RUNNING", startedAt: { lt: new Date(Date.now() - RUNNING_STALE_MS) } }, data: { status: "FAILED", finishedAt: new Date(), error: "the process running this ingestion stopped before it finished" } });
+    const active = await tx.feedRun.findFirst({ where: { feed, status: "RUNNING" }, select: { id: true, startedAt: true } });
+    if (active) return { kind: "active" as const, startedAt: active.startedAt };
+    if (source.kind === "none") {
+      const run = await tx.feedRun.create({ data: { feed, trigger: opts.trigger, status: "SKIPPED", sourceRef: source.ref, error: `no source configured (set INTEGRATION_FEED_DIR with ${FEEDS[feed].files.join(" / ")}, or enable the integration under Settings → Integrations)`, finishedAt: new Date(), jobId: opts.jobId ?? null } });
+      return { kind: "skipped" as const, run };
     }
-  }
-  const run = await prisma.feedRun.create({ data: { feed, trigger: opts.trigger, sourceRef: source.ref, sourceHash: source.hash, jobId: opts.jobId ?? null } });
+    if (source.hash && !opts.force) {
+      // Only a fully clean run "consumes" a file: one with rejected rows (an ERP SKU file that landed
+      // after the pricing file) is tried again on the next schedule, not skipped forever.
+      const last = await tx.feedRun.findFirst({ where: { feed, status: "OK", sourceHash: source.hash, failed: 0 }, orderBy: { startedAt: "desc" }, select: { id: true, startedAt: true } });
+      if (last) {
+        const run = await tx.feedRun.create({ data: { feed, trigger: opts.trigger, status: "SKIPPED", sourceRef: source.ref, sourceHash: source.hash, error: `unchanged since ${last.startedAt.toISOString()}`, finishedAt: new Date(), jobId: opts.jobId ?? null } });
+        return { kind: "skipped" as const, run };
+      }
+    }
+    const run = await tx.feedRun.create({ data: { feed, trigger: opts.trigger, sourceRef: source.ref, sourceHash: source.hash, jobId: opts.jobId ?? null } });
+    return { kind: "running" as const, run };
+  });
+  if (opened.kind === "active") throw new Error(`Feed "${feed}" is already being ingested (started ${opened.startedAt.toISOString()})`);
+  if (opened.kind === "skipped") return { status: "SKIPPED" as const, runId: opened.run.id, reason: opened.run.error };
+  const run = opened.run;
   const t0 = Date.now();
   try {
     const c = await runFeed(feed, opts.actorUserId ?? null);
@@ -182,7 +208,7 @@ export async function ingestFeed(name: string, opts: IngestOptions) {
     await prisma.feedRun.update({ where: { id: run.id }, data: { status: "FAILED", finishedAt: new Date(), error: error.slice(0, 2000) } });
     log.error("feed.failed", { feed, trigger: opts.trigger, ms: Date.now() - t0, error });
     const { notifyFeedFailed } = await import("@/lib/notifications");
-    await notifyFeedFailed(feed, error, run.id).catch(() => undefined);
+    await notifyFeedFailed(feed, error, run.id).catch((ne) => log.warn("feed.notify_failed", { feed, error: ne instanceof Error ? ne.message : String(ne) }));
     throw e;
   }
 }
@@ -208,7 +234,7 @@ export async function requestIngest(feed: FeedName, actorUserId: string | null, 
   return { jobId, alreadyQueued: deduplicated };
 }
 
-export type FeedStatus = { name: FeedName; title: string; description: string; cron: string | null; source: ReturnType<typeof feedSource>; lastOk: Date | null; lastRun: { status: string; startedAt: Date; error: string | null; rows: number; created: number; updated: number; skipped: number; failed: number } | null; ageHours: number | null; maxAgeHours: number; stale: boolean };
+export type FeedStatus = { name: FeedName; title: string; description: string; cron: string | null; source: FeedSource; lastOk: Date | null; lastRun: { status: string; startedAt: Date; error: string | null; rows: number; created: number; updated: number; skipped: number; failed: number } | null; ageHours: number | null; maxAgeHours: number; stale: boolean };
 
 /** Everything the Settings page and the alert rules need, in one shape. */
 export async function feedStatuses(): Promise<FeedStatus[]> {
@@ -220,7 +246,7 @@ export async function feedStatuses(): Promise<FeedStatus[]> {
     ]);
     // A RUNNING row whose process died is a failure, not "in progress".
     const lastRun = lastRunRaw && lastRunRaw.status === "RUNNING" && Date.now() - lastRunRaw.startedAt.getTime() > RUNNING_STALE_MS ? { ...lastRunRaw, status: "FAILED", error: lastRunRaw.error ?? "the process running this ingestion stopped before it finished" } : lastRunRaw;
-    const source = feedSource(def.name);
+    const source = await feedSource(def.name);
     const cron = feedCron(def.name);
     const ageHours = lastOk ? (Date.now() - lastOk.startedAt.getTime()) / 3600_000 : null;
     const maxAgeHours = feedMaxAgeHours(def.name);

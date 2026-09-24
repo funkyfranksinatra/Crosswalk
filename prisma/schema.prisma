@@ -226,7 +226,7 @@ model Request {
   sourceUrl      String? // Google Sheets link when the intake came from one
   xrefSheetUrl   String? // Drive write-back links (when a service account is configured)
   offerSheetUrl  String?
-  status         String        @default("draft") // draft | queued | running | complete | failed
+  status         String        @default("draft") // draft | queued | running | complete | failed | cancelled
   stage          String? // human-readable current stage
   progress       Int           @default(0) // 0..100
   error          String?
@@ -264,10 +264,10 @@ model RequestLine {
   competitorProductId String?
   competitorProduct   CompetitorProduct? @relation(fields: [competitorProductId], references: [id])
   /// pending | resolved | not-found | error
-  resolutionStatus    String             @default("pending")
+  resolutionStatus    String             @default("pending") // pending | resolved | not-found | error
   resolutionNote      String?
   /// pending | matched | no-match | error
-  matchStatus         String             @default("pending")
+  matchStatus         String             @default("pending") // pending | matched | no-match | error
   selectedCandidateId String?
   overrideNote        String?
   /// Note written FOR the customer (carried onto the proposal / quote); overrideNote stays internal.
@@ -378,7 +378,7 @@ model Account {
   id              String                       @id @default(cuid())
   name            String
   accountNumber   String?                      @unique
-  type            String                       @default("SOLD_TO") // SOLD_TO | SHIP_TO | IDN | HEALTH_SYSTEM | GROUP
+  type            String                       @default("SOLD_TO") // SOLD_TO | SHIP_TO | BILL_TO | IDN | HEALTH_SYSTEM | GROUP | GPO_MEMBER
   parentAccountId String?
   parent          Account?                     @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
   children        Account[]                    @relation("AccountHierarchy")
@@ -660,7 +660,7 @@ model CompetitorPriceObservation {
   observedAt          DateTime
   effectiveAt         DateTime?
   /// CUSTOMER_INVOICE | CUSTOMER_PO | CUSTOMER_BID_FILE | GPO_CONTRACT_FILE | WIN_LOSS_RECORD | INTERNAL_VERIFIED | REP_OBSERVED | ANECDOTAL
-  sourceType          String
+  sourceType          String // CUSTOMER_INVOICE | CUSTOMER_PO | CUSTOMER_BID_FILE | GPO_CONTRACT_FILE | WIN_LOSS_RECORD | INTERNAL_VERIFIED | PUBLIC_BID_DB | REP_OBSERVED | ANECDOTAL
   sourceRef           String?
   documentId          String?
   document            Document?  @relation(fields: [documentId], references: [id])
@@ -797,7 +797,7 @@ model ProposalLine {
   uom                       String            @default("EA")
   listPrice                 Decimal?          @db.Decimal(18, 4)
   contractPrice             Decimal?          @db.Decimal(18, 4)
-  contractPriceSource       String? // LIST | GPO | IDN | LOCAL
+  contractPriceSource       String? // LIST | NATIONAL | GPO | IDN | LOCAL
   waterfallJson             String?
   competitorPrice           Decimal?          @db.Decimal(18, 4)
   competitorPriceConfidence Float?
@@ -1074,7 +1074,7 @@ model GudidImport {
   productCodesJson   String? // FDA product-code filter (null = all)
   inDistributionOnly Boolean       @default(true)
   /// QUEUED | RUNNING | DONE | FAILED | CANCELLED
-  status             String        @default("QUEUED")
+  status             String        @default("QUEUED") // QUEUED | RUNNING | DONE | FAILED | CANCELLED
   expected           Int?
   fetched            Int           @default(0)
   created            Int           @default(0)
@@ -1106,7 +1106,7 @@ model Notification {
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// RUN_COMPLETE | RUN_FAILED | APPROVAL_REQUESTED | APPROVAL_DECIDED | PROPOSAL_APPROVED | CROSS_PROPOSED | FEED_FAILED | ALERT | JOB_FAILED | BREAK_GLASS
-  kind          String
+  kind          String // RUN_COMPLETE | RUN_FAILED | APPROVAL_REQUESTED | APPROVAL_DECIDED | PROPOSAL_APPROVED | CROSS_PROPOSED | FEED_FAILED | ALERT | JOB_FAILED | BREAK_GLASS
   title         String
   body          String?
   link          String?
@@ -1127,7 +1127,7 @@ model Notification {
 model NotificationPreference {
   userId String
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind   String // a Notification.kind or "*"
+  kind   String // RUN_COMPLETE | RUN_FAILED | APPROVAL_REQUESTED | APPROVAL_DECIDED | PROPOSAL_APPROVED | CROSS_PROPOSED | FEED_FAILED | ALERT | JOB_FAILED | BREAK_GLASS | * (a Notification.kind or "*")
   inApp  Boolean @default(true)
   email  Boolean @default(true)
   teams  Boolean @default(false)
@@ -1367,7 +1367,7 @@ model IntegrationSyncError {
 model IntegrationReviewItem {
   id              String    @id @default(cuid())
   integrationKey  String
-  kind            String // UNMATCHED_ACCOUNT | MEMBERSHIP_CONFLICT | DUPLICATE | LOW_CONFIDENCE_EXTRACTION | PRICE_EXCEPTION | UNKNOWN_COMPETITOR | MAPPING_ERROR
+  kind            String // UNMATCHED_ACCOUNT | MEMBERSHIP_CONFLICT | DUPLICATE | LOW_CONFIDENCE_EXTRACTION | PRICE_EXCEPTION | UNKNOWN_COMPETITOR | MAPPING_ERROR | OVERLAP
   status          String    @default("OPEN") // OPEN | RESOLVED | DISMISSED
   syncJobId       String?
   externalId      String?

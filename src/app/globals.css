@@ -11,8 +11,8 @@
   --panel-2: #fbfaf7;
   --ink: #16181d;
   --ink-2: #3d4149;
-  --muted: #6b7079;
-  --faint: #9aa0a8;
+  --muted: #5f646d; /* 5.1:1 on --line-2, 5.4:1 on paper (WCAG AA for 11–12 px text) */
+  --faint: #6f757e; /* 4.6:1 on white (was #9aa0a8 at 2.6:1) — placeholders and secondary notes stay readable */
   --line: #e4e2dc;
   --line-2: #efede8;
   --accent: #0e6b6b;
@@ -23,7 +23,7 @@
   --exact-soft: #e2f3e8;
   --close: #0e6b6b;
   --close-soft: #e3f1ef;
-  --alt: #a16207;
+  --alt: #8a5305; /* 5.6:1 on --alt-soft (was #a16207 at 4.35:1) */
   --alt-soft: #fbf0d6;
   --none: #b42318;
   --none-soft: #fce8e6;
@@ -31,7 +31,7 @@
   --info-soft: #e6edfb;
   --sidebar: #16181d;
   --sidebar-ink: #d7d9de;
-  --sidebar-muted: #8b909a;
+  --sidebar-muted: #9ca1ab; /* 6.9:1 on the sidebar, also when used at reduced opacity */
   --radius: 10px;
   --shadow: 0 1px 2px rgba(22, 24, 29, 0.05), 0 1px 1px rgba(22, 24, 29, 0.03);
   --shadow-lg: 0 12px 32px rgba(22, 24, 29, 0.12), 0 2px 6px rgba(22, 24, 29, 0.06);
@@ -190,3 +190,42 @@ body {
   50% { opacity: 0.4; transform: scale(0.8); }
 }
 .pulse-dot { animation: pulse-dot 1.2s ease-in-out infinite; }
+
+/* Accessibility ---------------------------------------------------------- */
+/* Keyboard users need to see where they are: a visible ring on every focusable element. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 100;
+  background: var(--accent);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
+/* Responsive tables: below the desktop breakpoint a wide table scrolls inside its card
+   instead of forcing the whole page to scroll sideways. */
+@media (max-width: 1023px) {
+  .card {
+    overflow-x: auto !important;
+  }
+  .table {
+    min-width: max-content;
+  }
+}
+
+/* Inline links must not rely on colour alone (WCAG 1.4.1): every text link in the page body is
+   underlined; button-styled links keep their button look. */
+main a.text-accent:not([class*="btn"]) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

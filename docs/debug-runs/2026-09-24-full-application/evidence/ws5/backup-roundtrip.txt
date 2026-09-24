@@ -1,0 +1,37 @@
+== pg_dump (custom, --no-owner --no-privileges) of crosswalk_ws5
+
+real	0m0.289s
+user	0m0.179s
+sys	0m0.027s
+exit=0
+size: 1199922
+== restore into crosswalk_ws5_restore
+NOTICE:  database "crosswalk_ws5_restore" does not exist, skipping
+
+real	0m0.662s
+user	0m0.044s
+sys	0m0.013s
+restore exit=0
+== row counts per table (source vs restore), differences only
+(no DIFF lines above = identical)
+== totals
+source tables: 74
+restored tables: 74
+== sequences
+sequences: 0
+(ids are cuids; the app defines no sequences — nothing to reset)
+== pgvector column and HNSW index
+extension: vector 0.6.0
+OwnProduct.embedding: vector(1536)
+hnsw indexes: 1
+embedded rows source/restore: 352
+embedded rows in source: 352
+== migrations table
+applied migrations: 15
+== document bytes on disk are NOT in the dump
+DOCUMENT_STORAGE_DIR default: ./.data/documents
+total 8
+drwxr-xr-x 2 root root 4096 Sep 24 09:44 .
+drwxr-xr-x 3 root root 4096 Sep 24 09:22 ..
+10
+^ entries in the dump mentioning Document (the table rows only; no file contents are in a database dump)

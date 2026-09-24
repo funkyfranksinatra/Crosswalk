@@ -96,6 +96,42 @@ discrepancy can be resolved by a reviewer. Curated rows are never modified.
 Exact is never easier than before: the size condition, the dimension threshold and the curated
 requirement are unchanged; the caps only remove Exact where evidence contradicts it.
 
+### 5.1 Grade ordering (one table)
+
+Exact > Close > Alternative > **US Downsell** > No Match. A downsell is a partial substitute
+(equivalence `PARTIAL_SUBSTITUTE`, curated floor 0.60 against the Alternative's 0.62): a weaker
+recommendation than an Alternative, never its equal. `MATCH_ORDER` / `gradeRank` in
+`src/lib/match/score.ts` is the only definition; `betterCross` (`line.ts`, which curated row wins per
+SKU), the candidate sort and every export/UI ordering read it. A curated Downsell row is *classified*
+Alternative (the classification enum has four values) but ranks after a same-grade Alternative on its
+lower floor, and a curated Alternative row for the same SKU beats a Downsell row.
+
+### 5.2 Ranking weights are a per-run snapshot
+
+`scoreCandidates` composes bin / price / COGS / margin with the Settings weights. A run carries the
+weights and `maxCandidates` it was started with in `Request.optionsJson` (`enqueueRun` writes the
+snapshot; `runRequestInner` reads only the snapshot). A retry or an orphan resume of the same run keeps
+its snapshot, so every attempt ranks the same way; a fresh Re-run of a finished request takes a new
+snapshot of the Settings current at that moment. Weights never change a grade, a cap or the identity
+/ provenance / preferred precedence — they order candidates *inside* a grade only (§4, §5).
+
+### 5.3 Re-runs and reviewed work
+
+A re-run replaces every line's candidates (the previous result stays visible until the new one is
+complete; lines are swapped in chunks of 50, each chunk one transaction). A line the rep marked
+**reviewed** keeps the SKU they chose when that SKU is still among the new candidates — the selection
+follows the SKU, not the old candidate row, and that candidate is the selected one even when it is no
+longer rank 1. When the chosen SKU is no longer offered, the line takes the new top pick and its review
+is cleared (a review of a choice that no longer exists is void); the run log names those lines. Notes,
+flags and customer notes are never touched by a run. Ties inside a grade are broken by the SKU that has
+a price for the customer, then by SKU, so a re-run on unchanged data reproduces the same order.
+
+### 5.4 Curated rows are never modified — and reviewer notes are not SKUs
+
+The reviewer's *preferred* column redirects a curated row to another SKU only when that value is a
+SKU in our catalog. The same column carries notes (DUPLICATE, DISCONT, HAND, REPEAT, …); a note never
+makes the row vanish from matching and is never published as an own SKU in a crosswalk version.
+
 ## 6. Confidence
 
 `confidence = base(source) × (0.6 + 0.4 × evidenceCoverage) × (1 − contradictionPenalty)`

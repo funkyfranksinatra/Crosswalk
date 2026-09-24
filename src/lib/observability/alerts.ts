@@ -113,9 +113,11 @@ export async function evaluateAlerts(rules: typeof RULES = RULES): Promise<{ fir
     const due = renewed || !row.lastNotifiedAt || now.getTime() - row.lastNotifiedAt.getTime() > renotifyMs;
     if (due) {
       try {
-        await notifyAlert({ fingerprint: row.fingerprint, severity: row.severity, title: row.title, detail: row.detail, id: row.id });
-        await prisma.alert.update({ where: { id: row.id }, data: { lastNotifiedAt: now } }); // only a delivered notification counts
-        notified++;
+        // Only a notification that was actually created counts: `notify` dedupes a repeat of the same
+        // fingerprint to the same people within an hour (a condition that resolves and re-fires), and
+        // that must neither inflate `notified` nor restart the ALERT_RENOTIFY_HOURS clock.
+        const { created } = await notifyAlert({ fingerprint: row.fingerprint, severity: row.severity, title: row.title, detail: row.detail, id: row.id });
+        if (created > 0) { await prisma.alert.update({ where: { id: row.id }, data: { lastNotifiedAt: now } }); notified++; }
       } catch (e) {
         log.warn("alerts.notify_failed", { fingerprint: c.fingerprint, error: e instanceof Error ? e.message : String(e) });
       }

@@ -1,0 +1,84 @@
+== check, strong SESSION_SECRET, NODE_ENV=production
+exit=0
+== check, SESSION_SECRET=short, NODE_ENV=production
+Refusing to start: SESSION_SECRET shorter than 16 characters. See docs/DEPLOYMENT.md#secrets.
+exit=1
+== check, SESSION_SECRET=short, NODE_ENV unset (dev rules)
+exit=0
+== check, production + remote DB without sslmode + placeholder METRICS_TOKEN
+Refusing to start: DATABASE_URL uses a default or placeholder password; DATABASE_URL has no sslmode for a remote database; METRICS_TOKEN is a placeholder. See docs/DEPLOYMENT.md#secrets.
+exit=1
+== migrate role against crosswalk_ws5_empty (already migrated)
+[entrypoint] db preflight (CHECK constraints)
+No rows violate the CHECK constraints.
+[entrypoint] prisma migrate deploy
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "crosswalk_ws5_empty", schema "public" at "localhost:5432"
+
+15 migrations found in prisma/migrations
+
+
+No pending migrations to apply.
+exit=0
+== migrate role, PREFLIGHT_ON_START=false
+[entrypoint] prisma migrate deploy
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "crosswalk_ws5_empty", schema "public" at "localhost:5432"
+
+15 migrations found in prisma/migrations
+
+
+No pending migrations to apply.
+exit=0
+== web role with npx stubbed (no server started): default MIGRATE_ON_START
+[entrypoint] db preflight (CHECK constraints)
+[stub npx] tsx scripts/db-preflight.ts
+[entrypoint] prisma migrate deploy
+[stub npx] tsx scripts/with-secrets.ts --check -- npx prisma migrate deploy
+[entrypoint] next start on :3000 (JOBS_WORKER=off)
+[stub npx] next start -p 3000 -H 0.0.0.0
+exit=0
+== web role, MIGRATE_ON_START=false
+[entrypoint] next start on :3000 (JOBS_WORKER=off)
+[stub npx] next start -p 3000 -H 0.0.0.0
+exit=0
+== web role, PREFLIGHT_ON_START=false, PORT=3105
+[entrypoint] prisma migrate deploy
+[stub npx] tsx scripts/with-secrets.ts --check -- npx prisma migrate deploy
+[entrypoint] next start on :3105 (JOBS_WORKER=off)
+[stub npx] next start -p 3105 -H 0.0.0.0
+exit=0
+== other command passthrough
+hello from passthrough
+exit=0
+== worker role: start, wait for ready, SIGTERM
+"event":"worker.ready"
+[1]+  Terminated              LOG_SILENT=false LOG_FORMAT=json sh deploy/entrypoint.sh worker > $EV/entrypoint-worker.log 2>&1
+worker exit=143
+== worker role AFTER the fix (no npx): start, wait for ready, SIGTERM
+"event":"worker.ready"
+[1]+  Done                    LOG_SILENT=false LOG_FORMAT=json sh deploy/entrypoint.sh worker > $EV/entrypoint-worker-after.log 2>&1
+worker exit=0
+"event":"worker.stopping"
+(ps grep matched only the evidence-collecting shell itself; no tsx scripts/worker.ts process remained)
+== migrate role after the fix
+[entrypoint] db preflight (CHECK constraints)
+No rows violate the CHECK constraints.
+[entrypoint] prisma migrate deploy
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "crosswalk_ws5_empty", schema "public" at "localhost:5432"
+
+15 migrations found in prisma/migrations
+
+
+No pending migrations to apply.
+exit=0
+== check role after the fix (short secret, production)
+Refusing to start: SESSION_SECRET shorter than 16 characters. See docs/DEPLOYMENT.md#secrets.
+exit=1

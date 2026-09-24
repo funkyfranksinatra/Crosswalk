@@ -34,6 +34,15 @@ rep types into a note.
   (`src/lib/secrets.ts`). It must never be set on an instance that holds customer data.
 - Deactivating a user (`isActive=false`) ends access at their next request, whatever the
   provider says; deleting them from the provider ends it at session expiry.
+- **Authenticating-proxy mode** (`SSO_MODE=proxy`): an upstream SSO proxy terminates OIDC and
+  asserts the signed-in user in `x-sso-subject`. Because the application cannot see which
+  network hop set a header, the proxy must also send `x-sso-proxy-secret` carrying
+  `SSO_PROXY_SHARED_SECRET` (16+ characters, compared in constant time); a subject header
+  without it — or with the secret unset — is ignored and the caller is anonymous
+  (`proxySubjectFromHeaders`, `src/lib/auth/index.ts`). Outside proxy mode both headers are
+  stripped by `src/proxy.ts` before any handler runs. The proxy in front of the application
+  must be the only route to it (network policy), and must overwrite both headers on every
+  request so a client cannot supply them.
 
 ## 3. Authorisation
 
@@ -49,6 +58,25 @@ Two layers, both server-side, both on every request:
   Every other role sees everything. A row outside the caller's scope is a 404, never a 403
   (`src/lib/auth/scope.ts`, enforced centrally for every `/api/{accounts,requests,proposals,
   contracts}/<id>/…` route in `src/lib/api.ts`).
+
+**Shared competitor cache** (`PATCH /api/competitor/{id}`). Competitor products resolved from
+GUDID are cached once per catalog number and shared by every request that names that code, so
+a correction (choose another GUDID record, retype the manufacturer or description) is visible
+company-wide and re-bins / re-embeds the product for every later match. Policy: a user with
+`manage_catalog` (product marketing, pricing analysts, contracting, admin) may correct any
+cached row; a user with only `run_cross_reference` may correct a row only when a request in
+their own scope has a line resolved to it (`requestWhere`), i.e. they are correcting something
+they can see on their own review screen. Anything else is a 404 (the cache is not
+enumerable). Every correction is audited (`CompetitorProduct CORRECTED`, before/after) and
+clears the cached bin and embedding hash. Rationale: the alternative — per-request copies —
+would let the same code carry different identities in different bids, which is worse for
+customers than a rep occasionally fixing a shared record under audit.
+
+**Cross-site requests.** Session cookies are `SameSite=Lax`; in addition `src/proxy.ts`
+refuses any cookie-authenticated non-GET `/api` request whose `Sec-Fetch-Site` is not
+`same-origin`/`none`, or whose `Origin` host is not the host the request was addressed to
+(`X-Forwarded-Host` / `Host` / `APP_BASE_URL`) — `src/lib/security/csrf.ts`. Requests with
+neither header (scripts) pass: they hold the cookie itself. No CORS headers are ever sent.
 
 Roles come from the SSO claim named by `SSO_ROLE_CLAIM` (mapped through `SSO_ROLE_MAP`; with a
 map set, only mapped values count) and are re-synced at every sign-in; when the claim is
@@ -70,7 +98,9 @@ two audit events are written, and every other `ADMIN` and `PRICING_DIRECTOR` is 
 | Encryption at rest | Neon storage (AES-256); dumps are encrypted before leaving the host (BACKUPS.md) |
 | Secrets in a secret manager, never in the image or the repo; placeholder or default secrets refuse to start | `src/lib/secrets.ts` (`SECRETS_PROVIDER`) |
 | Content Security Policy (nonce-based, no third-party script), clickjacking and MIME hardening | `src/proxy.ts` |
-| Rate limits on sign-in, expensive routes and the API | `src/lib/security/ratelimit.ts` |
+| Rate limits on sign-in, expensive routes and the API (`x-ratelimit-*` on every API response, `Retry-After` on 429) | `src/lib/security/ratelimit.ts` |
+| Upload guards: 20 MB intake / imports, 25 MB documents, 256 KB webhook bodies, and a decompression-bomb check on every spreadsheet upload (declared inflated size, per-part size, ratio) | the upload routes, `src/lib/security/archive.ts` |
+| Errors: domain errors answer 400/404/409 with their sentence; database, driver and runtime faults answer 500 with a generic message and go to the server log — never a 400 that hides a bug | `src/lib/api.ts` `errorResponse` |
 | Database CHECK constraints on every state/type column and on money and quantity signs | `src/lib/db/constraints.ts` |
 | Secrets scrubbed from logs; request ids on every log line | `src/lib/log.ts` |
 | Audit trail on every commercial action, with before/after and context, redacted per viewer | `src/lib/audit.ts` |

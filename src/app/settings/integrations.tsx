@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui";
 import { Pill } from "@/components/commercial";
+import { usePermissions } from "@/components/permissions";
 
 type SystemStatus = { adapter: string; configured: boolean; implemented: boolean; note: string; api: { name: string; env: { name: string; set: boolean }[]; implemented: boolean }; feed: { files: { name: string; present: boolean }[] } };
 type Status = { status: Record<"crm" | "erp" | "gpo", SystemStatus> & { feedDir: string | null; tier2?: { key: string; label: string; provider: string | null; enabled: boolean; status: string }[] }; recent: { id: string; system: string; direction: string; entityType: string; status: string; error: string | null; at: string }[]; counts: { system: string; status: string; _count: { _all: number } }[] };
@@ -17,20 +18,24 @@ function summarize(system: string, j: unknown): string {
 }
 
 export function IntegrationsCard({ canSync }: { canSync: boolean }) {
+  const { can } = usePermissions();
+  const canConfigure = can("configure_settings");
   const [s, setS] = useState<Status | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<"crm" | "erp" | "gpo" | null>(null);
-  const load = useCallback(async () => { const r = await fetch("/api/integrations", { cache: "no-store" }); if (r.ok) setS(await r.json()); }, []);
+  const load = useCallback(async () => { try { const r = await fetch("/api/integrations", { cache: "no-store" }); if (r.ok) { setS(await r.json()); setErr(null); } else setErr(r.status === 403 ? "Integration status needs pricing visibility." : `Could not load integration status (${r.status})`); } catch { setErr("Could not reach the server"); } }, []);
   useEffect(() => { load(); }, [load]);
   async function sync(system: string) {
-    setMsg(`Syncing ${system}…`);
-    const r = await fetch("/api/integrations/sync", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ system }) });
-    const j = await r.json();
-    setMsg(r.ok ? summarize(system, j) : j.error);
-    load();
+    if (busy) return;
+    setBusy(true); setMsg(`Syncing ${system}…`);
+    try { const r = await fetch("/api/integrations/sync", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ system }) }); const j = await r.json().catch(() => ({})); setMsg(r.ok ? summarize(system, j) : j.error ?? `Sync failed (${r.status})`); load(); }
+    catch { setMsg("Could not reach the server"); } finally { setBusy(false); }
   }
   return (
-    <Card title="Integrations" subtitle="CRM owns accounts/opportunities, ERP owns SKUs/costs/purchases, the GPO feed owns memberships. Sync is idempotent (external ids + payload hashes) and logged." actions={<Link className="btn-primary" href="/settings/integrations">Configure integrations →</Link>}>
+    <Card title="Integrations" subtitle="CRM owns accounts/opportunities, ERP owns SKUs/costs/purchases, the GPO feed owns memberships. Sync is idempotent (external ids + payload hashes) and logged." actions={canConfigure ? <Link className="btn-primary" href="/settings/integrations">Configure integrations →</Link> : undefined}>
+      {err && <div className="text-[12.5px] text-muted mb-2">{err}</div>}
       {s?.status.tier2?.some((t) => t.enabled) && <div className="mb-2 text-[12px] text-muted">Configured: {s.status.tier2.filter((t) => t.enabled).map((t) => `${t.label} (${t.provider}, ${t.status.toLowerCase()})`).join(" · ")}</div>}
       {s && (
         <div className="space-y-1.5 text-[12.5px]">
@@ -44,8 +49,8 @@ export function IntegrationsCard({ canSync }: { canSync: boolean }) {
                   <span className="w-10 uppercase mono">{k}</span>
                   <Pill value={tone}>{label}</Pill>
                   <span className="text-muted flex-1 truncate">{st.note}</span>
-                  <button className="btn-ghost !py-0.5 !text-[11px]" onClick={() => setOpen(open === k ? null : k)}>{open === k ? "Hide" : "How to connect"}</button>
-                  {canSync && <button className="btn-ghost !py-0.5 !text-[11px]" onClick={() => sync(k)}>Sync now</button>}
+                  <button type="button" className="btn-ghost !py-0.5 !text-[11px]" aria-expanded={open === k} onClick={() => setOpen(open === k ? null : k)}>{open === k ? "Hide" : "How to connect"}</button>
+                  {canSync && <button type="button" className="btn-ghost !py-0.5 !text-[11px]" disabled={busy} onClick={() => sync(k)}>Sync now</button>}
                 </div>
                 {open === k && (
                   <div className="ml-12 mt-1.5 mb-2 rounded-md bg-panel-2 px-3 py-2.5 text-[12px] space-y-2">
@@ -71,8 +76,8 @@ export function IntegrationsCard({ canSync }: { canSync: boolean }) {
               </div>
             );
           })}
-          {msg && <div className="text-accent-ink text-[11.5px] break-words">{msg}</div>}
-          <div className="text-[11.5px] text-muted pt-1">Last sync events: {s.recent.slice(0, 5).map((r) => `${r.system} ${r.direction} ${r.entityType} ${r.status}`).join(" · ") || "none"}. Credentials needed for the real adapters are listed in <Link className="text-accent" href="/docs/INTEGRATIONS.md">docs/INTEGRATIONS.md</Link>.</div>
+          {msg && <div role="status" className="text-accent-ink text-[11.5px] break-words">{msg}</div>}
+          <div className="text-[11.5px] text-muted pt-1">Last sync events: {s.recent.slice(0, 5).map((r) => `${r.system} ${r.direction} ${r.entityType} ${r.status}`).join(" · ") || "none"}.{canConfigure ? <> Credentials needed for the real adapters are listed in <Link className="text-accent underline" href="/docs/INTEGRATIONS.md">docs/INTEGRATIONS.md</Link>.</> : null}</div>
         </div>
       )}
       <div className="mt-3 flex gap-2 text-[12.5px]"><Link className="text-accent" href="/settings/pricing">Pricing policies →</Link><Link className="text-accent" href="/crosses">Crosswalk governance →</Link></div>

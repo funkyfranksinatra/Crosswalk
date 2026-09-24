@@ -1,0 +1,12 @@
+     × one grade ordering everywhere: Exact > Close > Alternative > US Downsell > No Match 11ms
+     × preferred SKU redirection: the preferred column redirects a row and flags the SKU; a note in that column does not 2ms
+     × ties are broken by SKU so the order never depends on input order 2ms
+     × active → itself; not in the catalog → nothing 1ms
+     × discontinued with an active successor → the successor as identity; via a chain of discontinued successors too 0ms
+     × missing, unknown, inactive or invalid successors fall through with an explanation 0ms
+     × a cyclic successor chain (A → B → A) terminates with an explanation, never a loop 0ms
+     × the sibling floor never lifts a hard-capped No Match (a cannula stays No Match for the trocar sibling) 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected { 'Exact Match': +0, …(4) } to deeply equal { 'Exact Match': +0, …(4) }
+AssertionError: expected [ 'a', 'c' ] to deeply equal [ 'a', 'b', 'c' ]
+AssertionError: expected [ 'NONB11STF', 'NB11STF' ] to deeply equal [ 'NB11STF', 'NONB11STF' ]

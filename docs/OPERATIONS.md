@@ -19,6 +19,23 @@ no extra service.
 | `external` | only enqueues | required: `npm run worker` (one or more) |
 | `off` | no queue (scripts, tests) | — |
 
+Only those three words are modes. Any other value (`on`, `yes`, `1`) is logged once as
+`env.invalid` and read as `inline`, so a typo never leaves a queue that nobody works. The same
+reader guards every numeric setting of the queue (`JOBS_POOL_MAX` 1–100,
+`JOBS_MAINTENANCE_SECONDS` 1–86400, `GUDID_REFRESH_BATCH`, `EMBED_REFRESH_BATCH`): out-of-range
+or non-numeric values fall back to the default and are logged. A malformed cron
+(`ALERTS_CRON`, `GUDID_REFRESH_CRON`, `EMBED_REFRESH_CRON`, `ANALYTICS_CRON`, `RETENTION_CRON`,
+`FEED_<NAME>_CRON`) is logged as `jobs.schedule_failed` and leaves only that schedule off; the
+workers, the other schedules and orphan recovery still start.
+
+**Supported topology and process-local state.** One web process plus one worker (or one web
+with inline workers). Everything the queue, feeds, alerts, notifications, integrations and
+analytics need lives in the database, so a web + worker split and extra workers are safe. What
+is *not* shared between processes: the API rate limiter and the catalog-enrichment progress
+(security / correctness state — run a single web instance, or rate-limit at the proxy), and the
+openFDA memo and token bucket and the in-process metrics counters (caches — lower `OPENFDA_RPM`
+per process when several share a key; scrape every process). No distributed limiter is built.
+
 Each queue has a retry policy, a **heartbeat** and an expiry (`src/lib/jobs/queues.ts`).
 The heartbeat is the crash detector: a worker refreshes it every 30 s while a job runs,
 and a job whose process died is failed and retried within a minute or two. Expiry (23 h)
@@ -32,6 +49,15 @@ Cancel is.
 
 A second "run this request" while one is queued or running is a no-op (`exclusive`
 queue policy per key), so a double-click or a retrying client cannot start two runs.
+
+The "final attempt" a handler reports (and the `JOB_FAILED` notification admins get) follows
+the job's own retry limit when a `send()` overrode the queue's, so an exhausted job is always
+reported. On `SIGTERM` the process waits up to 10 s for active handlers, then fails the jobs
+still running as "pg-boss shut down while active" — they are retried by the next process
+instead of sitting active until the heartbeat lapses. The stalled-queue signal on
+`/api/health` and in the `queue_stalled` alert is read live from the job table (the oldest
+job that is ready and not picked up), not from pg-boss's cached counters, which refresh at
+most once a minute.
 
 ## Watching it
 
@@ -96,10 +122,16 @@ Use a deal-desk channel and leave the personal kinds on email or in-app.
 | competitor-sizes | competitor-sizes.csv (Catalog → Competitor sizes layout) | Mondays 04:00 | 8 days |
 | competitor-prices | competitor-prices.csv (Competitor pricing → Import layout) | 02:45 daily | 8 days |
 
-An unchanged file (same hash as the last OK run) is skipped; every run is a `FeedRun`.
-"Sync now" in Settings → Integrations goes through the same path. When the Salesforce /
-SAP adapters are implemented and their credentials set, the crm/erp feeds pull from the
-API instead of the files.
+An unchanged file (same hash as the last OK run with no rejected rows) is skipped; every run
+is a `FeedRun`. "Sync now" in Settings → Integrations goes through the same path. One ingestion
+per feed at a time, whichever door it came through: the check and the RUNNING row are written
+under a per-feed advisory lock, so a schedule and a "Sync now" arriving together (or two worker
+processes) cannot ingest the same file twice; a RUNNING row older than 12 h belongs to a process
+that died and is closed as FAILED by the next run rather than blocking the feed. When the
+Salesforce / SAP / GPO integrations are **enabled under Settings → Integrations** the crm / erp /
+gpo feeds pull from them (no files needed; such runs carry no hash and are never "unchanged").
+The retired `SF_*` / `SAP_*` environment variables select nothing: while they are set without the
+matching integration enabled, the crm / erp feed runs fail with a message saying exactly that.
 
 ## openFDA
 
@@ -183,7 +215,12 @@ run; a browser extension or an injected script shows as a CSP violation in the c
 
 **A migration fails with "violates check constraint".** A row holds a value outside the
 application's own lists (`src/lib/db/constraints.ts`). `npm run db:preflight` names the
-constraint and the count; correct the rows, then migrate again.
+constraint and the count (on an empty database it only reports how many checks it skipped —
+nothing to check yet); correct the rows. Prisma has recorded the migration as failed, and the
+constraint migrations are idempotent (`DROP CONSTRAINT IF EXISTS` before every `ADD`), so the
+recovery is: `npx prisma migrate resolve --rolled-back <migration name>` then
+`npx prisma migrate deploy` again — verified on a database frozen at migration 10 with
+violating rows (the failed deploy changed no rows; the retry applied every constraint).
 
 **Retention.** Nothing is deleted until `RETENTION_ENABLED=true`; `npm run retention --
 --dry-run` shows what the windows would remove; every sweep is a `RETENTION_SWEEP` audit

@@ -1,0 +1,9 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  08:39:29
+   Duration  3.13s (tests 63%, transform 24%, setup 9%, import 3%)
+

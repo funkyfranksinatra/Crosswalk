@@ -27,7 +27,7 @@ export type IntakeResult = {
 
 const CODE_HEADERS = /^(product\s*code|productcode|cfn|catalog(ue)?\s*(no|number|#)?|item\s*(no|number|#|code)?|sku|part\s*(no|number|#)?|competitor\s*product|code|material)$/i;
 const QTY_HEADERS = /^(qty|quantity|annual\s*qty|annual\s*quantity|units|usage|volume|amount|count|qty\s*purchased)$/i;
-const PRICE_HEADERS = /^(price|unit\s*price|est(imated)?\s*(competitor\s*)?price|current\s*price|cost|avg\s*price)$/i;
+const PRICE_HEADERS = /^(price|unit\s*price|est(imated)?\.?\s*(competitor\s*)?price|current\s*price|cost|avg\.?\s*price)$/i;
 const DESC_HEADERS = /^((competitor\s*)?(product\s*|item\s*)?desc(ription)?|product\s*name|name|material\s*description)$/i;
 /** Report footers and section rows that live in the code column but are not products. */
 const SUMMARY_ROW = /^(grand\s*)?(sub)?total(s)?\b|^summary$|^page\s*\d+|^end\s+of\s+report$/i;
@@ -46,13 +46,23 @@ function cellText(v: unknown): string {
   return String(v);
 }
 
+/**
+ * A numeric cell. Blank or non-numeric text → null (the caller's default of 1 applies — the documented
+ * §9.1 behaviour, pinned by scripts/test-adversarial.ts). Text is read as a number when it is one —
+ * "1,200", "$5", " 7 ", "12 EA" (a leading number with a unit). "Infinity" is returned as is so the
+ * caller reports it as not a positive number.
+ */
 function cellNumber(v: Cell): number | null {
-  if (typeof v === "number") return v;
+  if (typeof v === "number") return Number.isNaN(v) ? null : v;
   const t = (v ?? "").replace(/[$,\s]/g, "");
   if (!t) return null;
   const n = Number(t);
-  return Number.isFinite(n) ? n : null;
+  if (Number.isFinite(n)) return n;
+  if (/^[+-]?infinity$/i.test(t)) return n; // ±Infinity: reported as not finite by the caller
+  const lead = t.match(/^([+-]?\d+(?:\.\d+)?)(?:[a-z/]+)?$/i); // "12EA", "6/bx" style: the number with its unit
+  return lead ? Number(lead[1]) : null;
 }
+const isBlank = (v: Cell) => v === null || v === undefined || String(v).trim() === "";
 
 /** Core parser over a plain grid (1-based rows/cols in the result for humans). */
 export function parseIntakeGrid(grid: Cell[][], sheet: string, source: IntakeResult["source"]): IntakeResult {
@@ -62,8 +72,13 @@ export function parseIntakeGrid(grid: Cell[][], sheet: string, source: IntakeRes
   let priceCol: number | null = null;
   let descCol: number | null = null;
 
-  for (let r = 0; r < Math.min(10, grid.length); r++) {
+  // The header is looked for in the first 10 rows that have anything in them: reports open with a title
+  // and blank lines, and a header pushed past a fixed window would otherwise be ingested as a code.
+  let seen = 0;
+  for (let r = 0; r < grid.length && seen < 10; r++) {
     const row = grid[r] ?? [];
+    if (!row.some((cell) => !isBlank(cell))) continue;
+    seen++;
     let c = -1, qc: number | null = null, pc: number | null = null, dc: number | null = null;
     row.forEach((cell, i) => {
       const t = cellText(cell).trim();
@@ -79,8 +94,11 @@ export function parseIntakeGrid(grid: Cell[][], sheet: string, source: IntakeRes
     codeCol = 0;
     qtyCol = 1;
     headerRow = null;
-    const first = cellText(grid[0]?.[0]);
-    if (first && !looksLikeCfn(normalizeCfn(first))) headerRow = 0;
+    // No named header: column 1 = code, column 2 = quantity. A first row that is not a code — or a
+    // multi-word title with no digit ("Hospital list") — is the header, whatever it says.
+    const firstIdx = grid.findIndex((row) => row?.some((cell) => !isBlank(cell)));
+    const first = firstIdx >= 0 ? cellText(grid[firstIdx][0]).trim() : "";
+    if (first && (!looksLikeCfn(normalizeCfn(first)) || (/\s/.test(first) && !/\d/.test(first)))) headerRow = firstIdx;
   }
 
   const byCode = new Map<string, IntakeLine>();
@@ -95,9 +113,11 @@ export function parseIntakeGrid(grid: Cell[][], sheet: string, source: IntakeRes
     if (!raw) continue;
     dataRows++;
     if (SUMMARY_ROW.test(raw)) { ignored.push({ row: r + 1, reason: "summary row, not a product", value: raw }); continue; }
+    // A header line inside the data (a page-break repeat of the column header, or one the 10-row window missed) is not a product.
+    if (CODE_HEADERS.test(raw)) { ignored.push({ row: r + 1, reason: "column header, not a product", value: raw }); continue; }
     const norm = normalizeCfn(typeof rawVal === "number" ? rawVal : raw);
     if (isPlaceholderSku(norm)) { skipped.push({ row: r + 1, reason: "placeholder, not a catalog number", value: raw }); continue; }
-    if (!looksLikeCfn(norm)) { skipped.push({ row: r + 1, reason: norm.length > 42 ? "longer than any catalog number (42+ characters)" : /[^A-Z0-9\-./_]/.test(norm) ? `contains characters no catalog number uses (${[...new Set(norm.replace(/[A-Z0-9\-./_]/g, ""))].join(" ")})` : "does not look like a catalog number", value: raw }); continue; }
+    if (!looksLikeCfn(norm)) { skipped.push({ row: r + 1, reason: norm.length > 42 ? "longer than any catalog number (more than 42 characters)" : /[^A-Z0-9\-./_]/.test(norm) ? `contains characters no catalog number uses (${[...new Set(norm.replace(/[A-Z0-9\-./_]/g, ""))].join(" ")})` : "does not look like a catalog number", value: raw }); continue; }
     const description = descCol != null ? cellText(row[descCol] ?? null).trim().slice(0, 500) || null : null;
     const qty = qtyCol != null ? cellNumber(row[qtyCol] ?? null) : null;
     const priceRaw = priceCol != null ? cellNumber(row[priceCol] ?? null) : null;
@@ -131,7 +151,12 @@ export function parseIntakeGrid(grid: Cell[][], sheet: string, source: IntakeRes
 /** .xlsx upload */
 export async function parseIntake(buffer: ArrayBuffer | Buffer, fileName = "upload.xlsx"): Promise<IntakeResult> {
   const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(buffer as unknown as Parameters<typeof wb.xlsx.load>[0]);
+  try {
+    await wb.xlsx.load(buffer as unknown as Parameters<typeof wb.xlsx.load>[0]);
+  } catch (e) {
+    // ExcelJS's zip/XML errors are not for reps ("Can't find end of central directory…"): say what it means.
+    throw new Error(`${fileName} is not a readable .xlsx workbook (empty, corrupt, or a different format — save it as .xlsx or .csv and try again)${e instanceof Error && e.message ? `: ${e.message.split("\n")[0].slice(0, 80)}` : ""}`);
+  }
   const ws = wb.worksheets.find((w) => w.actualRowCount >= 2) ?? wb.worksheets[0];
   if (!ws) throw new Error("Workbook has no sheets");
   const grid: Cell[][] = [];

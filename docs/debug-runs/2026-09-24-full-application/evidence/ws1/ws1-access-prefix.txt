@@ -1,0 +1,8 @@
+     × cm → mm: text lengths and structured sizes in cm / inches are read in mm; other units are not lengths 13ms
+     × 'non-optical' is non-optical; 'optical' is optical 7ms
+     × 'without fixation' / unthreaded is smooth; 'Non-Threaded' is smooth; 'threaded' is fixation 4ms
+     × 'non-bladed' is bladeless, never bladed 1ms
+     × Versaport: 'Bladeless … with fixation cannula' is a complete trocar; 'Fixation Cannula' / 'Sleeve' SKUs are cannulas; 'for use with … trocar' is a cannula 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  5 failed | 25 passed (30)

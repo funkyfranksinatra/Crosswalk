@@ -22,8 +22,11 @@ import { approvedCross, currentPublishedVersion, equivalenceFromMatchType } from
 import { rollup, economicsToJson, type EconLine } from "./economics";
 import { compactCfn, normalizeCfn } from "@/lib/cfn";
 import { conditionMet, parseBundle, benefitApplies } from "@/lib/contracts/bundles";
+import { getBranding } from "@/lib/branding";
 
 export type LineRow = Awaited<ReturnType<typeof prisma.proposalLine.findMany>>[number];
+/** The client a write runs on: the shared client, or an interactive transaction's (submission, decisions). */
+export type Db = typeof prisma | Prisma.TransactionClient;
 
 export async function nextProposalReference(): Promise<string> {
   const last = await prisma.proposal.findFirst({ orderBy: { createdAt: "desc" }, select: { reference: true } });
@@ -60,13 +63,16 @@ export async function createFromRequest(actor: Actor, requestId: string, opts: {
   const version = await currentPublishedVersion();
   const summaries = await summariesFor(request.lines.map((l) => l.cfnNorm), { accountId: ctx.account.id, gpoId: ctx.primaryGpo?.id ?? null, region: ctx.account.region, asOf, currency: ctx.currency });
   const reference = await nextProposalReference();
+  // Validity: the days given, else the company-wide quote validity from Settings → Branding (the
+  // same number the contract-offer workbook / PDF print), never a second hard-coded default.
+  const validDays = opts.validDays ?? (await getBranding()).validityDays;
 
   const proposal = await prisma.proposal.create({
     data: {
       reference, requestId, accountId: ctx.account.id, opportunityId: opts.opportunityId ?? null,
       gpoIdSnapshot: ctx.primaryGpo?.id ?? null, gpoNameSnapshot: ctx.primaryGpo ? `${ctx.primaryGpo.name}${ctx.primaryGpo.tier ? ` · ${ctx.primaryGpo.tier}` : ""}` : null,
       contractId: ctx.primaryContractId, currency: ctx.currency, status: "DRAFT",
-      validThrough: new Date(asOf.getTime() + (opts.validDays ?? 60) * 86_400_000),
+      validThrough: new Date(asOf.getTime() + validDays * 86_400_000),
       ownerUserId: actor.id, crosswalkVersionId: version?.id ?? null, objectivesJson: opts.objectives ? JSON.stringify({ text: opts.objectives }) : null,
       policyVersionsJson: JSON.stringify(Object.fromEntries([...policies.values()].map((p) => [p.productFamily, p.id]))),
       createdByUserId: actor.id,
@@ -93,7 +99,7 @@ export async function createFromRequest(actor: Actor, requestId: string, opts: {
     const matchType = sel?.matchType ?? null;
 
     // Waterfall + cost + intelligence + recommendation
-    const price = product ? ctx.resolvePrice({ id: product.id, sku: product.sku, category: product.category, listPrice: product.listPrice, currency: product.currency, prices: product.prices.map((e) => ({ ...e, pricebook: e.pricebook ? { name: e.pricebook.name } : null })) }, qty) : null;
+    const price = product ? ctx.resolvePrice({ id: product.id, sku: product.sku, category: product.category, listPrice: product.listPrice, currency: product.currency, prices: listEntriesFor(product.prices, request.pricebookId) }, qty) : null;
     const cost = product ? ctx.resolveCost({ id: product.id, cogs: product.cogs, currency: product.currency, costs: product.costs }) : null;
     const summary: PriceSummary | undefined = summaries.get(compactCfn(normalizeCfn(line.cfnNorm)));
     const competitorPrice = summary?.reference ?? money(line.estCompetitorPrice) ?? null;
@@ -146,6 +152,16 @@ export async function createFromRequest(actor: Actor, requestId: string, opts: {
   return prisma.proposal.findUniqueOrThrow({ where: { id: proposal.id } });
 }
 
+/**
+ * The pricebook entries a LIST price may fall back to: the request's selected pricebook only. A
+ * cross-reference run prices its candidates the same way (src/lib/pipeline/run.ts `priceOf`), so
+ * the price the rep saw on the run and the price the proposal snapshots are the same price; with no
+ * pricebook selected, a SKU without a catalog list price has no list price in either place.
+ */
+export function listEntriesFor<T extends { pricebookId: string | null; contractId: string | null; pricebook?: { name: string } | null }>(prices: T[], pricebookId: string | null | undefined): (T & { pricebook: { name: string } | null })[] {
+  return prices.filter((e) => pricebookId && e.pricebookId === pricebookId && !e.contractId).map((e) => ({ ...e, pricebook: e.pricebook ? { name: e.pricebook.name } : null }));
+}
+
 function recToJson(r: Recommendation) {
   const s = (v: Money | null) => (v === null ? null : v.toString());
   return { ...r, recommendedPrice: s(r.recommendedPrice), floorPrice: s(r.floorPrice), targetPrice: s(r.targetPrice), ceilingPrice: s(r.ceilingPrice), referencePrice: s(r.referencePrice), discountFromListPct: s(r.discountFromListPct), discountFromContractPct: s(r.discountFromContractPct), marginPct: s(r.marginPct), marginAmount: s(r.marginAmount) };
@@ -178,11 +194,11 @@ function toEcon(l: LineRow): EconLine {
   return { id: l.id, included: l.included, family: l.productFamily, quantity: money(l.quantity)!, proposedPrice: money(l.proposedPrice), competitorPrice: money(l.competitorPrice), listPrice: money(l.listPrice), contractPrice: money(l.contractPrice), cost: money(l.cost), currency: "USD", approvalState: l.approvalState };
 }
 
-export async function refreshEconomics(proposalId: string, priceOverrides?: Map<string, Money | null>) {
-  const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { lines: true } });
+export async function refreshEconomics(proposalId: string, priceOverrides?: Map<string, Money | null>, db: Db = prisma) {
+  const p = await db.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { lines: true } });
   const lines = p.lines.map((l) => ({ ...toEcon(l), currency: p.currency, proposedPrice: priceOverrides?.has(l.id) ? priceOverrides.get(l.id)! : money(l.proposedPrice) }));
   const e = rollup(lines, p.currency);
-  if (!priceOverrides) await prisma.proposal.update({ where: { id: proposalId }, data: { economicsJson: JSON.stringify(economicsToJson(e)) } });
+  if (!priceOverrides) await db.proposal.update({ where: { id: proposalId }, data: { economicsJson: JSON.stringify(economicsToJson(e)) } });
   return e;
 }
 
@@ -213,21 +229,21 @@ function derivedWith(policy: Policy, l: LineRow & { proposal: { account: { isStr
  * Recompute every line of a proposal in one pass: one read, one policy load, one batched write.
  * (Per-line recomputation cost ~4 round trips; a 300-line deal took a minute.)
  */
-export async function recomputeAllLines(proposalId: string, opts: { dealValue?: Money | null; strategicAccount?: boolean } = {}) {
-  const lines = await prisma.proposalLine.findMany({ where: { proposalId }, include: { proposal: { include: { account: true } } }, orderBy: { lineNo: "asc" } });
+export async function recomputeAllLines(proposalId: string, opts: { dealValue?: Money | null; strategicAccount?: boolean } = {}, db: Db = prisma) {
+  const lines = await db.proposalLine.findMany({ where: { proposalId }, include: { proposal: { include: { account: true } } }, orderBy: { lineNo: "asc" } });
   const cache = await policyCacheFor(lines);
   const updates = lines.map((l) => ({ id: l.id, data: derivedWith(policyFromCache(cache, l), l, money(l.proposedPrice), l.included, opts) }));
-  await bulkWriteDerived(updates);
+  await bulkWriteDerived(updates, db);
   return lines.map((l, i) => ({ ...l, ...updates[i].data }));
 }
 
 type Derived = ReturnType<typeof derivedWith>;
 /** One UPDATE … FROM unnest(…) statement for every line — a 300-line deal is one round trip, not 300. */
-async function bulkWriteDerived(rows: { id: string; data: Derived & { proposedPrice?: string | null; included?: boolean } }[]) {
+async function bulkWriteDerived(rows: { id: string; data: Derived & { proposedPrice?: string | null; included?: boolean } }[], db: Db = prisma) {
   if (!rows.length) return;
   const col = <K extends keyof (Derived & { proposedPrice?: string | null; included?: boolean })>(k: K) => rows.map((r) => (r.data[k] === undefined ? null : r.data[k])) as (string | boolean | null)[];
   const withPrice = rows.some((r) => "proposedPrice" in r.data);
-  await prisma.$executeRaw(Prisma.sql`
+  await db.$executeRaw(Prisma.sql`
     UPDATE "ProposalLine" AS l SET
       "marginAmount" = v.ma::numeric, "marginPct" = v.mp::numeric, "discountFromListPct" = v.dl::numeric, "discountFromContractPct" = v.dc::numeric,
       "requiredAuthority" = v.ra, "approvalState" = v.st,
@@ -254,16 +270,13 @@ export async function setProposedPrice(actor: Actor, lineId: string, price: Mone
   requirePermission(actor, "edit_proposed_pricing");
   const before = await prisma.proposalLine.findUniqueOrThrow({ where: { id: lineId } });
   await assertEditable(before.proposalId);
-  if (price !== null && price.lte(0)) throw new Error("price must be positive");
-  if (price !== null && price.gt(MAX_UNIT_PRICE)) throw new Error(`price exceeds the supported range (max ${MAX_UNIT_PRICE.toString()})`);
-  const list = money(before.listPrice);
-  if (price !== null && list && list.gt(0) && price.gt(list.times(10))) throw new Error(`price ${price.toFixed(2)} is more than 10× the list price ${list.toFixed(2)} — check the decimal point`);
   // Price and its derived fields are computed first and written in ONE statement: a line is never
   // left with a new price and stale margins (or a failed write after the price landed).
   const full = await prisma.proposalLine.findUniqueOrThrow({ where: { id: lineId }, include: { proposal: { include: { account: true } } } });
-  // A quoted price is a price in the currency's minor unit: what is stored is what is approved,
-  // exported and written into the contract — never a sub-cent figure that rounds differently later.
-  if (price !== null) price = round(price, full.proposal.currency);
+  // Bounds (positive, ≤ MAX_UNIT_PRICE, ≤ 10 × list) and rounding are the same for manual edits and
+  // scenarios. A quoted price is a price in the currency's minor unit: what is stored is what is
+  // approved, exported and written into the contract — never a sub-cent figure that rounds differently later.
+  price = boundedPrice(price, money(before.listPrice), full.proposal.currency);
   const derived = await derivedFor({ ...full, approvalState: "NOT_REQUIRED" }, price, full.included);
   const after = await prisma.proposalLine.update({ where: { id: lineId }, data: { proposedPrice: toDb(price), ...derived } });
   // A pending approval request is for the *old* price; it is void now and the line must be resubmitted.
@@ -307,10 +320,33 @@ export async function rerecommendLine(actor: Actor, lineId: string, opts: { stra
 // Scenarios (what-if) — never touch the proposal's own prices until applied
 // ---------------------------------------------------------------------------
 
+/**
+ * Scenario kinds — the one list the service, the API and the Scenario.kind CHECK constraint
+ * (src/lib/db/constraints.ts) agree on. How each seeds its prices:
+ *   RECOMMENDED        the engine's recommendation on every line
+ *   AGGRESSIVE         UNDERCUT_PCT 5 % under the competitor price where one exists, else STRATEGIC_DISCOUNT 5 %
+ *   MARGIN_OPTIMIZED   the lower of the target-margin price and the reference (contract, else list)
+ *   CUSTOMER_REQUESTED the customer's ask — their current competitor price where known (a "match what I
+ *                      pay today" request), else the current proposed price — for the rep to edit
+ *   CUSTOM             a copy of the current proposed prices
+ *   FINAL              a copy of the current proposed prices, labelled as the final negotiated set
+ */
+export const SCENARIO_KINDS = ["RECOMMENDED", "AGGRESSIVE", "MARGIN_OPTIMIZED", "CUSTOMER_REQUESTED", "CUSTOM", "FINAL"] as const;
+export type ScenarioKind = (typeof SCENARIO_KINDS)[number];
+
+/** The same bounds a manual price edit applies (positive, ≤ MAX_UNIT_PRICE, ≤ 10 × list), rounded to the minor unit. */
+function boundedPrice(price: Money | null, list: Money | null, currency: string, label = "price"): Money | null {
+  if (price === null) return null;
+  if (price.lte(0)) throw new Error(`${label} must be positive`);
+  if (price.gt(MAX_UNIT_PRICE)) throw new Error(`${label} exceeds the supported range (max ${MAX_UNIT_PRICE.toString()})`);
+  if (list && list.gt(0) && price.gt(list.times(10))) throw new Error(`${label} ${price.toFixed(2)} is more than 10× the list price ${list.toFixed(2)} — check the decimal point`);
+  return round(price, currency);
+}
+
 export async function createScenario(actor: Actor, proposalId: string, kind: string, name?: string) {
   requirePermission(actor, "edit_proposed_pricing");
   const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { lines: true, account: true } });
-  if (!["RECOMMENDED", "AGGRESSIVE", "MARGIN_OPTIMIZED", "CUSTOM"].includes(kind)) throw new Error("kind must be RECOMMENDED, AGGRESSIVE, MARGIN_OPTIMIZED or CUSTOM");
+  if (!SCENARIO_KINDS.includes(kind as ScenarioKind)) throw new Error(`kind must be one of ${SCENARIO_KINDS.join(", ")}`);
   if (name !== undefined && (typeof name !== "string" || name.length > 120)) throw new Error("name must be text (max 120)");
   const cache = await policyCacheFor(p.lines);
   const s = await prisma.scenario.create({ data: { proposalId, kind, name: name ?? kind.charAt(0) + kind.slice(1).toLowerCase().replace(/_/g, " "), createdByUserId: actor.id } });
@@ -323,6 +359,8 @@ export async function createScenario(actor: Actor, proposalId: string, kind: str
       if (kind === "RECOMMENDED") price = money(l.recommendedPrice);
       else if (kind === "AGGRESSIVE") price = recommend({ ...base, strategy: money(l.competitorPrice) ? "UNDERCUT_PCT" : "STRATEGIC_DISCOUNT", adjustmentPct: 0.05 }).recommendedPrice;
       else if (kind === "MARGIN_OPTIMIZED") { const t = money(l.targetPrice); const ref = money(l.contractPrice) ?? money(l.listPrice); price = t && ref ? (t.gt(ref) ? ref : t) : (t ?? price); }
+      else if (kind === "CUSTOMER_REQUESTED") { const comp = money(l.competitorPrice); if (comp && comp.gt(0)) price = round(comp, p.currency); }
+      // CUSTOM and FINAL start from the current proposed prices.
     }
     scenarioLines.push({ scenarioId: s.id, proposalLineId: l.id, proposedPrice: toDb(price), included: l.included });
   }
@@ -333,8 +371,9 @@ export async function createScenario(actor: Actor, proposalId: string, kind: str
 export async function setScenarioPrice(actor: Actor, scenarioId: string, lineId: string, price: Money | null, included?: boolean) {
   requirePermission(actor, "edit_proposed_pricing");
   const s = await prisma.scenario.findUniqueOrThrow({ where: { id: scenarioId }, include: { proposal: { select: { currency: true } } } });
-  if (!(await prisma.proposalLine.findFirst({ where: { id: lineId, proposalId: s.proposalId }, select: { id: true } }))) throw new Error("line does not belong to this scenario's proposal");
-  if (price !== null) { if (price.lte(0)) throw new Error("price must be positive"); price = round(price, s.proposal.currency); }
+  const line = await prisma.proposalLine.findFirst({ where: { id: lineId, proposalId: s.proposalId }, select: { id: true, listPrice: true } });
+  if (!line) throw new Error("line does not belong to this scenario's proposal");
+  price = boundedPrice(price, money(line.listPrice), s.proposal.currency, "scenario price");
   return prisma.scenarioLine.upsert({ where: { scenarioId_proposalLineId: { scenarioId, proposalLineId: lineId } }, create: { scenarioId, proposalLineId: lineId, proposedPrice: toDb(price), included: included ?? true }, update: { proposedPrice: toDb(price), ...(included === undefined ? {} : { included }) } });
 }
 
@@ -369,13 +408,7 @@ export async function applyScenario(actor: Actor, scenarioId: string) {
   const writes = s.lines.map((sl) => {
     const b = before.get(sl.proposalLineId);
     if (!b) throw new Error("scenario refers to a line that is no longer on the proposal");
-    let price = money(sl.proposedPrice);
-    if (price !== null) {
-      if (price.lte(0)) throw new Error("scenario price must be positive");
-      const list = money(b.listPrice);
-      if (list && list.gt(0) && price.gt(list.times(10))) throw new Error(`scenario price ${price.toFixed(2)} is more than 10× list`);
-      price = round(price, s.proposal.currency);
-    }
+    const price = boundedPrice(money(sl.proposedPrice), money(b.listPrice), s.proposal.currency, "scenario price");
     return { id: sl.proposalLineId, included: sl.included, price, previous: money(b.proposedPrice) };
   });
   const rows = writes.map((w) => { const l = before.get(w.id)!; return { id: w.id, data: { ...derivedWith(policyFromCache(cache, l), { ...l, approvalState: "NOT_REQUIRED" }, w.price, w.included), proposedPrice: toDb(w.price), included: w.included } }; });

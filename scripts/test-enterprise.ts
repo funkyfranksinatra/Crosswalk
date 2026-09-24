@@ -14,6 +14,7 @@
  * published. Idempotent: prior test artefacts are removed first.
  */
 import "dotenv/config";
+import { releaseResources } from "./lib/harness";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -102,7 +103,9 @@ async function main() {
     assert.ok(resolved >= 30, `resolved ${resolved}`);
     const stapler = lines.find((l) => l.cfnNorm === "GST60D")!;
     assert.equal(stapler.candidates[0]?.ownProduct.sku, "EGIA60AMT");
-    assert.equal(lines.find((l) => l.cfnNorm === "B12LTH")!.candidates[0]?.ownProduct.sku, "ONB12STF");
+    // B12LTH (Endopath Xcel bladeless, non-optical, 12 × 100, handled) → NONB12STF: the like-for-like VersaOne bladeless
+    // non-optical 12 × 100. The curated "Exact" ONB12STF is optical and is ranked Close (docs/MATCH_QUALITY_MODEL.md §4).
+    assert.equal(lines.find((l) => l.cfnNorm === "B12LTH")!.candidates[0]?.ownProduct.sku, "NONB12STF");
   });
 
   // ---- 2. Proposal creation: waterfall, cost, intelligence, recommendation snapshots ----
@@ -159,7 +162,7 @@ async function main() {
   // ---- 3. Rep prices the deal: one stapler line below floor, mesh deep, trocar within authority -------
   const reload = by("EGIA60AMT");
   const meshLine = by("PPM4530");
-  const trocar = by("ONB12STF");
+  const trocar = by("NONB12STF");
   await step("pricing a stapler line below floor requires the pricing committee; a deep mesh discount needs the director; a 10% trocar discount is within rep authority; every change is audited", async () => {
     const belowFloor = d(reload.floorPrice).times(0.9);
     const l1 = await setProposedPrice(rep, reload.id, belowFloor, "customer demands parity with Ethicon GST pricing");
@@ -276,11 +279,11 @@ async function main() {
     const { contract } = await recordOutcome(rep, proposal.id, { outcome: "WON", contractMonths: 12 });
     assert.ok(contract);
     const ctx = await loadPricingContext({ accountId: msk.id });
-    const prod = await prisma.ownProduct.findFirstOrThrow({ where: { sku: "ONB12STF" }, include: { prices: { include: { pricebook: true } } } });
+    const prod = await prisma.ownProduct.findFirstOrThrow({ where: { sku: "NONB12STF" }, include: { prices: { include: { pricebook: true } } } });
     const r = ctx.resolvePrice({ ...prod, prices: prod.prices.map((e) => ({ ...e, pricebook: e.pricebook ? { name: e.pricebook.name } : null })) }, new Decimal(600));
     assert.equal(r.source, "LOCAL");
     assert.ok(r.price!.eq(round(d(trocar.contractPrice).times(0.95))), `contract price ${r.price} ≠ approved ${round(d(trocar.contractPrice).times(0.95))}`);
-    await prisma.purchaseRecord.create({ data: { accountId: msk.id, productId: prod.id, sku: "ONB12STF", quantity: "120", netPrice: r.price!.toFixed(4), currency: "USD", invoiceDate: new Date(), contractId: contract!.id, proposalId: proposal.id, source: "import", externalId: `E2E-${proposal.id}` } });
+    await prisma.purchaseRecord.create({ data: { accountId: msk.id, productId: prod.id, sku: "NONB12STF", quantity: "120", netPrice: r.price!.toFixed(4), currency: "USD", invoiceDate: new Date(), contractId: contract!.id, proposalId: proposal.id, source: "import", externalId: `E2E-${proposal.id}` } });
     const conv = await proposalConversion(proposal.id);
     assert.equal(conv.linesConverted, 1);
     const perf = await contractPerformance(contract!.id);
@@ -393,7 +396,8 @@ async function main() {
 
   console.log(`\n${passed} passed, ${failures.length} failed`);
   for (const f of failures) console.log(`  ✗ ${f}`);
-  await prisma.$disconnect();
+  // Stop the queue (started by any step that enqueued a job) and the client, so the process exits by itself.
+  await releaseResources();
   if (failures.length) process.exit(1);
 }
 main().catch((e) => { console.error(e); process.exit(1); });

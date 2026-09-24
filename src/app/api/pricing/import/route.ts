@@ -1,14 +1,16 @@
+import { assertSafeArchive } from "@/lib/security/archive";
 import { NextResponse } from "next/server";
 import { getCompany } from "@/lib/settings";
 import { importPricing, importPricingRows } from "@/lib/excel/pricing";
 import { fetchSheetRows, parseSheetLink, SheetAccessError } from "@/lib/sheets/google";
-import { authorize } from "@/lib/api";
+import { authorize, formBody, badRequest } from "@/lib/api";
 import { audit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   const { actor, deny } = await authorize("import_cost_data");
   if (deny) return deny;
-  const form = await req.formData();
+  const form = await formBody(req);
+  if (!form) return badRequest("Expected a multipart/form-data body");
   const file = form.get("file");
   const sheetUrl = String(form.get("sheetUrl") ?? "").trim();
   if (file instanceof File && file.size > 20 * 1024 * 1024) return NextResponse.json({ error: "File is larger than 20 MB" }, { status: 400 });
@@ -29,7 +31,9 @@ export async function POST(req: Request) {
       await audit({ actorUserId: actor.id, entityType: "OwnProduct", entityId: "pricing-import", action: "IMPORT_PRICING", after: { source: file.name, updated: res.updated, rows: res.rows } });
       return NextResponse.json(res);
     }
-    const res = await importPricing(Buffer.from(await file.arrayBuffer()), company.id);
+    const bytes = Buffer.from(await file.arrayBuffer());
+    try { assertSafeArchive(bytes, file.name || "file"); } catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 400 }); }
+    const res = await importPricing(bytes, company.id);
     await audit({ actorUserId: actor.id, entityType: "OwnProduct", entityId: "pricing-import", action: "IMPORT_PRICING", after: { source: file.name, updated: res.updated, rows: res.rows } });
     return NextResponse.json(res);
   } catch (e) {

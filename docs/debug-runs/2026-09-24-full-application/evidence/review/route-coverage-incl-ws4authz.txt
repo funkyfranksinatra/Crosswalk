@@ -1,0 +1,31 @@
+## routes with no explicit test reference (outside the dynamic ws4 matrix) [uiScript=WS3 evidence scripts]:
+  /api/catalog/add POST 
+  /api/catalog/gudid/adopt POST 
+  /api/catalog/gudid/plan POST 
+  /api/catalog/gudid/prune POST 
+  /api/competitor-sizes/coverage GET 
+  /api/competitor-sizes/template GET (WS3 browser script)
+  /api/contracts/[id]/performance GET 
+  /api/contracts/[id]/terms POST,DELETE 
+  /api/crosswalk/publish POST 
+  /api/documents/extractions/[id]/import POST 
+  /api/documents/extractions/[id]/verify POST 
+  /api/feeds GET,POST 
+  /api/integrations/config/[key]/jobs GET 
+  /api/integrations/config/[key]/test POST 
+  /api/integrations/config/[key]/validate-mapping POST 
+  /api/integrations/sync POST 
+  /api/pricing/template GET (WS3 browser script)
+  /api/pricing-policies/[id]/activate POST 
+  /api/pricing-policies GET,POST (WS3 browser script)
+  /api/proposals/[id]/outcome POST 
+  /api/proposals/[id]/push-crm POST 
+  /api/proposals/[id]/reopen POST 
+  /api/proposals/[id]/scenarios/[sid]/apply POST 
+  /api/proposals/[id]/submit POST 
+  /api/proposals/[id]/version POST 
+  /api/requests/[id]/cancel POST 
+  /api/requests/[id]/sheets POST 
+  /api/system GET,POST 
+
+## count referenced: 73 unreferenced: 28

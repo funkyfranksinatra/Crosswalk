@@ -52,7 +52,7 @@ async function main() {
     e.expected.add((k.preferredOwnSku ?? k.ownSku).toUpperCase());
     byCode.set(k.competitorCodeNorm, e);
   }
-  const own = await prisma.ownProduct.findMany({ where: { isActive: true } });
+  const own = await prisma.ownProduct.findMany({ where: { isActive: true }, orderBy: { sku: "asc" } });
   const ownSkus = new Set(own.map((p) => p.sku.toUpperCase()));
   // Reviewer columns carry notes (DUPLICATE, DISCONT, HAND…); only real SKUs count as expected answers.
   for (const e of byCode.values()) for (const x of [...e.expected]) if (!ownSkus.has(x)) e.expected.delete(x);

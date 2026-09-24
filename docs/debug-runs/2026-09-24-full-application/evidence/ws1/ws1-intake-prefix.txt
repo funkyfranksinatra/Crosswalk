@@ -1,0 +1,9 @@
+     × a corrupt or empty .xlsx fails with a rep-readable message, not a zip-library error 10ms
+     × header found in the first 10 non-empty rows, even past 10 physical rows of title and blank lines 2ms
+     × no-header fallback: column 1 = code, column 2 = quantity; a title row or a header-looking row is not a product 3ms
+     × price and description headers: 'Est. Competitor Price', 'Cost', 'Product Name' 2ms
+     × quantity: 0, negative, NaN, ±Infinity, > 10,000,000 and words are skipped with reasons; fractions, '1,200', '$5', '12 EA', '1e3' and blanks are read 2ms
+     × code length: 42 characters is the longest catalog number; 43 is skipped with the length reason 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  6 failed | 13 passed (19)

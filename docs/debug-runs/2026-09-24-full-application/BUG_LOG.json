@@ -1,0 +1,1481 @@
+[
+ {
+  "id": "CW-DBG-0001",
+  "sev": "P2",
+  "type": "TEST_DEFECT",
+  "title": "tier3 embedding sweep test assumed a fully embedded catalog; failed on a fresh seed",
+  "status": "VERIFIED_FIXED",
+  "note": "WS1-B: test drains pending rows first; passes fresh and warm"
+ },
+ {
+  "id": "CW-DBG-0002",
+  "sev": "P1",
+  "type": "TEST_DEFECT",
+  "title": "test:enterprise expected B12LTH → ONB12STF (optical); matcher picks NONB12STF (non-optical); 4 steps cascaded",
+  "status": "VERIFIED_FIXED",
+  "note": "WS1-A: expectation + demo seed updated with the evidence chain; 18/18 in both worker modes. Evidence-vs-curated call recorded as REV-13 (sheet owner)"
+ },
+ {
+  "id": "CW-DBG-0003",
+  "sev": "P1",
+  "type": "PREREQUISITE",
+  "title": "eval:gate fails: BIN_VERSION 8 (was 7) vs accepted baseline 6; model gpt-5.6-astra vs gpt-6-astra; CI on main fails at this step",
+  "status": "BLOCKED",
+  "note": "needs OPENAI_API_KEY: `npm run eval:model` → review → `-- --accept`; gate deliberately not weakened"
+ },
+ {
+  "id": "CW-DBG-0004",
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "db-preflight printed prisma:error noise on an empty database",
+  "status": "VERIFIED_FIXED",
+  "note": "WS5-F15: information_schema check first; final bootstrap log has 0 prisma:error lines"
+ },
+ {
+  "id": "CW-DBG-0005",
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "model-eval printed a stack trace when OPENAI_API_KEY is missing",
+  "status": "VERIFIED_FIXED",
+  "note": "WS5-F16: one-line message, exit 1"
+ },
+ {
+  "id": "CW-DBG-0006",
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Expected 404s (e.g. GET /api/proposals/<unknown>) are logged as prisma:error with a full stack at error level",
+  "status": "VERIFIED_FIXED",
+  "note": "Prisma errors routed through an event and P2025 skipped; errorResponse no longer logs not-found; verified with a direct findUniqueOrThrow miss (0 prisma:error lines) and the ws4-authz/adversarial suites"
+ },
+ {
+  "id": "CW-DBG-0007",
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "REGRESSION introduced by WS3: ImportHistory called useState after an early return → React #310 → /catalog/gudid crashed to the error boundary on the first import into an empty history",
+  "status": "VERIFIED_FIXED",
+  "note": "found by rerunning the admin journey on the integrated build; hook moved above the return; rules-of-hooks ESLint gate added (`npm run lint`, CI); journey 14/14 and 61/61 on the final build"
+ },
+ {
+  "id": "CW-DBG-0008",
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Catalog enrich panel stopped polling for good on the first poll after an earlier job had finished, so Start showed no progress until the panel was reopened",
+  "status": "VERIFIED_FIXED",
+  "note": "found by the polling script on the final build; polls while open, refreshes once per finish; polling 9/9"
+ },
+ {
+  "id": "WS1-F01",
+  "kn": null,
+  "sev": "P1",
+  "type": "TEST_DEFECT",
+  "title": "CW-DBG-0002: `test:enterprise` expects ONB12STF for B12LTH; NONB12STF is the evidence-based pick",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F02",
+  "kn": null,
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "Versaport Plus \"Bladeless N mm … with fixation cannula\" SKUs (NB12STF, NB12LGF, NB12SHF, NB12STS, NB15LGF, NB15STF, NB5LGF) classified **cannula**",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F03",
+  "kn": null,
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "NBFCA12ST \"fixation cannula … for use with Versaport Plus Bladeless trocar\" classified **trocar** → ranked attribute **Exact** (#2) for trocar lines and No Match for cannula lines",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F04",
+  "kn": null,
+  "sev": "P2",
+  "type": "DATA_QUALITY",
+  "title": "Seeded own-product bins were built without `manufacturer`, so SKU conventions never applied (no `sku:` evidence in any stored own bin)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": "seed patch applied by WS5 (prisma/seed.ts); match-quality 72/72 after re-seed; final full run green"
+ },
+ {
+  "id": "WS1-F05",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Ranking and the eval depend on physical DB row order on exact ties (no deterministic tiebreak): identical code gave top-1 26 → 28 after tier3 rewrote every OwnProduct row",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F06",
+  "kn": null,
+  "sev": "P2",
+  "type": "TEST_DEFECT",
+  "title": "CW-DBG-0001: tier3 \"refreshEmbeddings writes vectors once\" state-dependent",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F07",
+  "kn": null,
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "KN-06: Settings weights / maxCandidates never reached queued runs",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F08",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "KN-11: \"US Downsell Match\" ranked 2 in `score.ts` and 3 in `line.ts`",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F09",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "KN-14: `cfnVariants()` dead",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F10",
+  "kn": null,
+  "sev": "P1",
+  "type": "DEFECT + DATA_QUALITY",
+  "title": "Reviewer notes in `preferredOwnSku` (DUPLICATE, REPEAT, HAND, DISCONT, WRONG, TAKE, THIS, DOESNT…) were treated as SKUs: `curatedCandidates` dropped those rows from matching, and `publishVersion` published them as own SKUs — published crosswalk v3 holds **654** such entries (412 DUPLICATE, 115 REPEAT, 59 HAND, 57 DISCONT, …) which `approvedCross()` hands to proposals",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": "code fixed (line.ts, governance.ts publishVersion); DATA follow-up: republish the crosswalk in every environment (BLOCKERS B-06)"
+ },
+ {
+  "id": "WS1-F11",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Model-grading sibling floor lifted a hard-capped No Match (cannula for a trocar line) to Alternative",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F12",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "SELF_MATCH successor handling was one hop, no cycle guard, no invalid-successor message",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F13",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Re-run overwrote a reviewed line's manual selection with the new top pick while leaving `reviewed = true`",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F14",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Intake: header window counted blank rows (header on physical row 11 → \"ITEM\" ingested as a code); a multi-word title row (\"Hospital list\") ingested as a code; a repeated page header (\"Product Code\") ingested as a code",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F15",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Intake: a 42-character code was rejected as \"does not look like a catalog number\" while the documented limit is > 42",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F16",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Intake: a corrupt/empty `.xlsx` surfaced ExcelJS's zip error (\"Can't find end of central directory … see https://…\") to the rep via the 400 response",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F17",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Intake: \"Est. Competitor Price\" / \"Avg. Price\" headers not detected (the dot)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F18",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT / SPEC_AMBIGUITY",
+  "title": "Intake quantities with a unit (\"12 EA\") became 1; non-numeric words (\"abc\", \"NaN\") also become 1",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": "units) / OPEN (words, spec"
+ },
+ {
+  "id": "WS1-F19",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Access profile ignored structured sizes not in mm: GUDID \"Centimeter\" lengths and curated imports (whose unit **defaults to cm**, `excel/sizes.ts:86`) never reached the profile; text \"10 cm length\" / \"12 mm x 10 cm\" unread",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F20",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Brand rules and feature tags ignored negations: \"non-optical\" → optical; \"without fixation\" → fixation; \"non-bladed\" also fired `generic.bladed`; `FEATURES` tags likewise (`optical`, `bladed`, `fixation cannula` on negated text)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F21",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "openFDA client had no request timeout — a hung connection blocked a run forever",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": "`.env.example`/BUILD_NOTES §5 mention is WS5's"
+ },
+ {
+  "id": "WS1-F22",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Token bucket stalls every openFDA caller when the clock steps backwards (`now - last` negative drains the bucket)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F23",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "`pruneAdopted` dry-run over-reported already-inactive referenced rows and the apply rewrote them (not idempotent)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F24",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Raw `e.message` (Prisma invocation dumps, driver text) written into rep-visible `resolutionNote`, the run log, the enqueue failure and the GUDID import log",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F25",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "A corrupt `gudidJson` on one competitor/own row failed the whole run in the bin stage (`JSON.parse` inside `mapLimit`)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": "tests/db/ws1-run.test.ts in the final full run"
+ },
+ {
+  "id": "WS1-F26",
+  "kn": null,
+  "sev": "P2",
+  "type": "PREREQUISITE",
+  "title": "`npm run eval:gate` fails at baseline and after: BIN_VERSION 7 (now 8) vs accepted baseline 6; model name mismatch",
+  "status": "BLOCKED",
+  "source": "workstreams/WS1-report.md",
+  "note": "needs a model key: `npm run eval:model` at bins v8 then review/accept (CW-DBG-0003)"
+ },
+ {
+  "id": "WS1-F27",
+  "kn": null,
+  "sev": "P3",
+  "type": "SPEC_AMBIGUITY",
+  "title": "Thoracoport own SKUs 179301/303/305/307 (\"… Single Use Trocar; Non-conductive Sleeve\") classify as cannula; curated TT012 (Endopath thoracic trocar **sleeves**) expects them, so changing it would regress TT012",
+  "status": "OPEN",
+  "source": "workstreams/WS1-report.md",
+  "note": "sheet owner decision (Thoracoport sold as sleeve?)"
+ },
+ {
+  "id": "WS1-F28",
+  "kn": null,
+  "sev": "P3",
+  "type": "TEST_DEFECT",
+  "title": "GUDID jobs enqueued by a DB test with `JOBS_WORKER=off` linger in pg-boss and are picked up by another suite's in-process worker (tier1's RUN_COMPLETE notification vanished in the first full run)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F29",
+  "kn": null,
+  "sev": "P3",
+  "type": "NOT_A_DEFECT",
+  "title": "BUILD_NOTES §23.2/§26.2 say `test:enterprise` / `test:adversarial` do not exit on their own",
+  "status": "NOT_A_DEFECT_WITH_RATIONALE",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F30",
+  "kn": null,
+  "sev": "P3",
+  "type": "SPEC_AMBIGUITY",
+  "title": "Corrupt `optionsJson` on a request: I first made the run tolerant (fall back to Settings); WS5's `tests/db/tier1.test.ts` uses `\"{not json\"` as its failure-injection and expects the run to fail",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F31",
+  "kn": null,
+  "sev": "P3",
+  "type": "COVERAGE_GAP (sweep decisions)",
+  "title": "Swallowed catches reviewed: `grading.ts:108` (corrupt LlmGrade cache row → re-grade), `llm/client.ts` telemetry writes, `refresh.ts` stamp-on-error (rotates a wedged row), notification `.catch`, `run.ts:54` boss lookup → treated as \"no live job\" then a failed enqueue is reported. Loops: `http.ts take()` bounded by refill/pause (F22), `library.ts` paging bounded by cursor. No TODO/FIXME. Missing awaits: none (the two bare `prisma.*` calls at `run.ts` 621–622 are inside a `$transaction([...])` array). Permissive fallbacks: `qty ?? 1` (F18, spec), `endorsements ?? 1` (fine)",
+  "status": "NOT_A_DEFECT_WITH_RATIONALE",
+  "source": "workstreams/WS1-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS1-F32",
+  "kn": null,
+  "sev": "P3",
+  "type": "DATA_QUALITY",
+  "title": "Eval sample: curated rows whose expected SKU contradicts the competitor text (C0121 \"Cannula Only\" → expects trocars 176674PF/B12LGF; C0Q11 \"Threaded Cannula and Seal\" → expects ONB5LGF trocar; CFI12 \"Threaded sleeve Optical Tip with Handle\" → expects ONB5LGF) stay misses by design (the hard component constraint holds)",
+  "status": "OPEN",
+  "source": "workstreams/WS1-report.md",
+  "note": "sheet owner: inconsistent curated rows"
+ },
+ {
+  "id": "WS2-F01",
+  "kn": null,
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "KN-18: contract price-entry batch is non-transactional — a failure on row 2 of 3 leaves row 1 half-applied, row 2's old ACTIVE price superseded **with no replacement** (the SKU now has no price), row 3 untouched, and no audit event",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": "WS4 applied the route patch; tests/db/ws2-contracts.test.ts + review §5 read"
+ },
+ {
+  "id": "WS2-F02",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "KN-12: scenario kinds disagree — service accepted 4, the CHECK constraint 6, the UI offers CUSTOMER_REQUESTED → \"kind must be RECOMMENDED, AGGRESSIVE, MARGIN_OPTIMIZED or CUSTOM\" from the workspace",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F03",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Scenario prices had weaker bounds than manual prices: `setScenarioPrice` had no ≤ 1e9 / ≤ 10 × list check, `applyScenario` no ≤ 1e9 check — a stored scenario price of 3001 on a 300-list line could be applied",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F04",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "`money(\"NaN\")` / `money(\"Infinity\")` returned a non-finite Decimal: NaN compares false to every bound so `positiveMoney`/`lte(0)`/`gt(max)` pass it, `toDb` gives `\"NaN\"`, and PostgreSQL stores `numeric NaN` (`psql: select 'NaN'::numeric(18,4)` → `NaN`) — a typed \"NaN\" freight value or scenario price would land in a price column",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F05",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Run-vs-proposal pricing divergence: a run without a selected price book passes **no** price-book entries to the waterfall (`run.ts priceOf`), the proposal passed **every** price book's entries — a SKU without a catalog list price showed \"no price\" to the rep and was then priced from an arbitrary price book on the proposal (77 → proposed 18.18 at target margin)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F06",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Policy activation race: two drafts for one family activated concurrently → **two ACTIVE policies** (the batch `$transaction([updateMany, update])` evaluates `status='ACTIVE'` against a snapshot in which neither draft is active); also any status (SUPERSEDED, ACTIVE) could be \"activated\" again",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F07",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "`explanationPublic` leaked the floor figure: a competitor price below floor produced \"raised to the floor $571.43\" in the public text (floor = cost ÷ (1 − min margin), i.e. cost-derived); and when the floor exceeds the reference the note said \"raised to the floor\" although the price was then capped below it",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F08",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Stored deal economics carried stale approval counts: `submitForApproval` rolled up **before** routing (`approvalsPending: 0` with a PENDING line); `refreshContext` rolled up before `recomputeAllLines`; `decide`/`reopen` never re-rolled",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F09",
+  "kn": null,
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "Submission was not atomic: manual rollback in `catch`, but the \"withdraw earlier requests\" step ran **before** the `try` (a failure there left the proposal locked + SUBMITTED) and withdrawn earlier requests were never restored; decision tail (line state, proposal status, audits) was not atomic either; a decision could overwrite a DRAFT (reopen race) or resurrect a LOST proposal that still had a PENDING request",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F10",
+  "kn": null,
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "WON was not atomic and not race-safe: contract in one tx, then outcome upsert, then proposal update (a failure after the contract left a contract without a WON); two simultaneous closes both passed the status check → the loser died with a raw Prisma unique-constraint dump (`Invalid prisma.contract.create()`); months validated only after the idempotency lookup; `finalValue: \"abc\"` silently closed the deal with `finalValue = null`; LOST left PENDING requests decidable",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F11",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Tax fingerprint ignored the ship-to actually taxed: with no proposal ship-to, `calculateProposalTax` uses the **account's** default address, but the fingerprint only covered `proposal.shipToJson` — changing the account default did not make the figure stale",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F12",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Validity contradiction: contract-offer workbook/CSV hard-coded \"Valid 90 days\", the offer PDF used Branding `validityDays` (default 60), `createFromRequest` hard-coded 60",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F13",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Offer workbook/CSV printed an unpriced matched line with an empty price cell while the offer PDF omitted it and counted it as \"not included\" — the two customer artefacts disagreed on what is on the offer",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F14",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Quote/offer PDF code and SKU columns (66 pt, Courier 8 pt ≈ 12 characters) wrap a 13+ character code mid-word (a 14-digit GUDID DI or \"PROXIMATE-TX60B\" would break across two lines; `pdftotext` de-hyphenates it)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F15",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT / COVERAGE_GAP",
+  "title": "Rebate performance measured COMPLIANCE_PCT and GROWTH_PCT as 0 always (`rebateBasisValue(r.basis, units, spend, null, null)`) — a compliance rebate never reached a tier",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": "compliance) / OPEN (growth: needs a baseline field or prior-period purchase window — WS5/schema"
+ },
+ {
+  "id": "WS2-F16",
+  "kn": null,
+  "sev": "P3",
+  "type": "SPEC_AMBIGUITY",
+  "title": "Scenario creation / what-if edits are allowed on a locked (submitted/approved) proposal; only `applyScenario` and price edits are refused. BUILD_NOTES says \"use after lock/submission refused\" for edits; a read-only what-if on a locked deal is harmless and the workspace offers it",
+  "status": "NOT_A_DEFECT_WITH_RATIONALE",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F17",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT (not mine)",
+  "title": "CRM push (`src/lib/integrations/sync.ts pushQuote`, `salesforce/writeback.ts buildQuoteWriteback`) gates on `status ∈ {APPROVED, WON}` only, not on `canFinalize` (BUILD_NOTES §16.5 says it needs `canFinalize`): an APPROVED proposal past `validThrough`, or one whose included line lost its price after approval, can still be pushed. Neither CRM push nor WON require a fresh tax figure — only the quote exports do (`buildQuote`/`buildQuotePdf`), which is consistent with \"tax is never part of line economics\"; I did not broaden the policy",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS2-report.md",
+  "note": "WS5-F11: pushQuote gated by finalizeCheck; tests/db/ws5-platform.test.ts"
+ },
+ {
+  "id": "WS2-F18",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT (not mine)",
+  "title": "`src/lib/pipeline/run.ts priceOf` stores the waterfall price as a JS `Number(r.price.toString())` on `MatchCandidate.unitPrice` (a Decimal(18,4) column) — a float on a money path. Values are exact at 4 dp for realistic prices (asserted in the parity test), so no observable defect; noted as the one float leak in the grep (`parseFloat",
+  "status": "NOT_A_DEFECT_WITH_RATIONALE",
+  "source": "workstreams/WS2-report.md",
+  "note": "scoring inputs are numbers by type; the persisted Decimal(18,4) of a 4-dp price is exact"
+ },
+ {
+  "id": "WS2-F19",
+  "kn": null,
+  "sev": "P3",
+  "type": "NOT_A_DEFECT (sweep)",
+  "title": "Float/`Number`/`toFixed` uses on my paths are all display or transport: `money.ts num()/fmt()`, `recommend.ts` `discount.toNumber()` with a 1e-9 tolerance in an authority *comparison* (pinned: 0.150000001 → rep, 0.15001 → manager), `policy-model.ts` margins as numbers (policy parameters, not money), `avatax.ts` `Number(amount)` in the provider's JSON body (AvaTax requires numbers; the reply is re-read as strings → Decimal), `manual.ts rate.toNumber()` for the rate display, `pdf/documents.ts` `Number(v)` for Intl formatting of already-rounded strings, `export.ts` `Math.round(confidence*100)/100` (a score), `clauses.ts` years as float (a date fraction). Catch blocks: JSON parses with typed fallbacks, notification `.catch(() => undefined)` (documented best-effort), `createFromRequest` cleanup `.catch`, analytics snapshot prune `.catch` (best-effort cache). No TODO/FIXME, no `while` loops, no unawaited Prisma calls",
+  "status": "NOT_A_DEFECT_WITH_RATIONALE",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F20",
+  "kn": null,
+  "sev": "P3",
+  "type": "NOT_A_DEFECT",
+  "title": "A selected \"No Match\" candidate is shown in the rep's cross-reference workbook with its SKU and match type \"No Match\" (the \"NO MATCH\" cell is only for lines with no selection); the offer/quote never print it",
+  "status": "NOT_A_DEFECT_WITH_RATIONALE",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS2-F21",
+  "kn": null,
+  "sev": "P3",
+  "type": "COVERAGE_GAP",
+  "title": "Pre-existing: `Decimal(18,4)` amounts are never clamped by `toDb` (documented) — a 1e9 unit price × 1e6 quantity would overflow the column in a raw write; every entry point bounds prices at 1e9 (`positiveMoney`, `boundedPrice`, `validateEntryRows`) and quantities come from intake (≤ 10 M), so the largest extended value (1e16) is only computed, never stored",
+  "status": "NOT_A_DEFECT_WITH_RATIONALE",
+  "source": "workstreams/WS2-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F01",
+  "kn": "KN-03",
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "GPO contracts cannot be created from the UI: `gpoId` always null, `gpoName` input never rendered, dead `fetch(\"/api/intelligence\")`",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F02",
+  "kn": "KN-04",
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "`/catalog` renders list and pricebook prices without `view_pricing`; `/requests/new` lists pricebooks and `/settings` shows model call stats/endpoint to every session",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F03",
+  "kn": "KN-05",
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "`/docs/INTEGRATIONS.md` (Settings → Integrations card) and `/docs/INTEGRATION_SETUP.md` (integrations admin) → 404",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F04",
+  "kn": "KN-09",
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Controls shown regardless of permission and business state (New contract, Terminate/Activate, Save entries, Verify/Dispute, Record/Import/Extract, New draft/Activate/New version, approval buttons, Delegate, bids Pull/Save/import, extraction verify/import, Create proposal, Settings save, overview New request)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F05",
+  "kn": "KN-10",
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Sidebar `section` headings (\"Commercial\", \"Reference\") never rendered",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F06",
+  "kn": "KN-02 UI",
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "`/crosses` governance panel showed \"Nothing awaiting review\" when the queue fetch failed (403 for CLINICAL_REVIEWER)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F07",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Dev sign-in box fetched `/api/auth/dev` on every page load and exhausted the `auth` rate class (20/min): the next sign-in POST got 429",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F08",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Double click on \"Continue request\" created two requests",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F09",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Proposal workspace hid every refused action: `setErr(...)` was immediately wiped by the reload's `setErr(null)`; a refused value (\"-5\") stayed in the price box",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F10",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Quote PDF/.xlsx were plain `<a href>`s: a refusal (e.g. \"Tax was calculated before the latest price change — recalculate\") navigated the tab to a JSON error document",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F11",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "\"Create proposal\" on a request without an account number always failed (\"Choose an account for this proposal\") with no way to choose",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F12",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Submit for approval enabled while included lines had no price → server 400 after the click",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F13",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Controlled radio/checkbox snapped back until the server replied (candidate selection looked ignored for ~100 ms; Playwright `check()` failed)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F14",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Stale-reply ordering: a slow earlier poll could overwrite a newer request/proposal/system/GUDID state",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F15",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Polling kept running in hidden tabs (request 1.2 s, system 20 s, enrich 1.5 s, GUDID 2 s)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F16",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "No `error.tsx` / `not-found.tsx` / `global-error.tsx`: unknown routes showed Next's default page, a thrown page error blanked the app",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F17",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Horizontal page scroll at 390/768/1024 (fixed 232 px sidebar, non-wrapping header actions, fixed grid columns, `grid` children with `min-width:auto`)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F18",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "axe: 785 colour-contrast nodes (muted/alt/faint text, chips, dimmed rows), 5 unlabeled selects (critical), 8 empty table headers, 1 colour-only link",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F19",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Menus/popovers/dialogs: no Escape/outside-click dismissal, no `role=dialog`/`menu`, focus not moved in or restored, no trap",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F20",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Overview listed recent requests (references, account names, match counts) to roles without `run_cross_reference` (CLINICAL_REVIEWER) while `/requests` refuses them; New request button shown to everyone",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F21",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Stale tabs: a second tab kept showing its old price until the user edited",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F22",
+  "kn": null,
+  "sev": "P3",
+  "type": "COVERAGE_GAP",
+  "title": "No UI to add contract terms (the POST/DELETE `/api/contracts/{id}/terms` routes were unreachable from the browser)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F23",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Unhandled fetch rejections / `r.json()` on non-JSON / `r.results.filter` on an error body across client views (catalog add/import/enrich, GUDID, notifications, branding, system, google, bids, extraction, approvals, delegation, policies, intelligence)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS3-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS3-F24",
+  "kn": null,
+  "sev": "P3",
+  "type": "PREREQUISITE",
+  "title": "`next build` broken twice by other workstreams: (a) `tests/db/ws4-adversarial.test.ts` type error (tsconfig includes tests/**), (b) `.next/dev/types/{routes.d.ts,validator.ts}` left corrupted by interleaved writes at 09:37 (copies in `logs/corrupt-next-dev-types/`)",
+  "status": "NOT_A_DEFECT_WITH_RATIONALE",
+  "source": "workstreams/WS3-report.md",
+  "note": "environment"
+ },
+ {
+  "id": "WS4-F01",
+  "kn": null,
+  "sev": "P0",
+  "type": "DEFECT",
+  "title": "**SSO_MODE=proxy trusted a client-supplied `x-sso-subject`: any HTTP client could become any user (including ADMIN)**",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": "WS5**: add `SSO_PROXY_SHARED_SECRET` to `.env.example`, `docs/DEPLOYMENT.md`, and make `checkSecrets` (`src/lib/secrets.ts`) refuse `SSO_MODE=proxy` without it (today it says \"the proxy signs nothing here\""
+ },
+ {
+  "id": "WS4-F02",
+  "kn": null,
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "KN-01: `POST /api/webhooks/salesforce` was blocked by the proxy session gate",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F03",
+  "kn": null,
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "KN-02: CLINICAL_REVIEWER could not load `GET /api/crosses` / `GET /api/crosswalk/versions`",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F04",
+  "kn": null,
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "Scenario economics leaked COGS / gross profit / margin to a SALES_REP: `GET/POST /api/proposals/{id}/scenarios`, `GET/PATCH …/scenarios/{sid}`, and `PATCH …/lines/{lineId}` returned `economicsToJson` unredacted",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F05",
+  "kn": null,
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "The raw `economicsJson` column (with cogs and margin) was returned to a SALES_REP by `GET /api/proposals/{id}` (spread of the row next to the redacted `economics`), `GET /api/proposals` (list) and `GET /api/accounts/{id}` (embedded proposals)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F06",
+  "kn": null,
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "Approval rows quoted the floor and the margin to roles without `view_cost`/`view_margin`: `snapshotJson` (floorPrice, marginPct) and the routing `reason` (\"below floor (4700.00 < 2345.68), …, margin 34.6%\") in `GET /api/proposals/{id}` (approvals) and the `reason` in `GET /api/approvals`",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F07",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Matcher rationale \"62% margin\" reached a SALES_REP in `GET /api/requests/{id}` (with the unit price that IS the COGS); `compare` already stripped it, the detail did not",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": "see F21 for the xlsx export (WS2 file"
+ },
+ {
+  "id": "WS4-F08",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "KN-07: `GET /api/catalog/enrich` had no `handle()`/`authorize()`",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F09",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "KN-08: `PATCH /api/competitor/{id}` — any `run_cross_reference` user could correct any shared cache row; a lookup of `di: \"../../etc\"` went to openFDA unvalidated (an OpenFdaError then escaped as an unhandled throw); embedding hash not invalidated",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F10",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "No CSRF defence beyond `SameSite=Lax` on cookie-authenticated mutations; no `Origin`/`Sec-Fetch-Site` check",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F11",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Error mapping hid server faults as 400: every non-`AuthError` exception (Prisma errors, TypeErrors, driver failures) became a 400 with the fault's message",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F12",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "`GET /api/requests/{id}/export` with an unknown id threw an unhandled `PrismaClientKnownRequestError` (HTTP 500 page)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F13",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "A JSON body on a form route (`POST /api/requests`, intake preview, 8 import/upload routes) threw a `TypeError` from `req.formData()` (unhandled 500 on the authorize-style routes)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F14",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "`POST /api/catalog/add` had no input validation (`body.skus.split` on undefined; would also call openFDA for any string)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F15",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "`GET /api/contracts/renewals?days=abc` → 500 (NaN into a date)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F16",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "A NUL byte in a path (`/api/accounts/x%00y`) made the proxy throw (`Headers.set … invalid header value` → 500); a NUL in a search parameter (`?q=%00`) → Postgres \"invalid byte sequence\" → 500",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F17",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "`DELETE /api/approvals/delegations/{id}` answered 403 \"Only the delegating user or an admin…\" for someone else's delegation — an existence oracle on delegation ids at `view_pricing`",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F18",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "No decompression-bomb guard on spreadsheet uploads (a < 2 MB `.xlsx` whose `sharedStrings.xml` inflates to 300 MB is handed to ExcelJS); `POST /api/intelligence/import` also had no 20 MB cap",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F19",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Money validators accepted hex / binary / octal strings (`\"0x10\"` = 16, decimal.js) and had no cap on quantities (`nonNegativeMoney`)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": "route validators (strictMoney) by WS4; the underlying money() parser tightened by the coordinator after REV-04"
+ },
+ {
+  "id": "WS4-F20",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "`body()` returned JSON `null`, arrays and primitives as the body object → TypeErrors in handlers (`POST /api/crosses` with body `null` → 500 after F11)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F21",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "The xref **xlsx** export's \"All Candidates\" sheet writes the raw candidate `rationale` (\"62% margin\") even with `hide.margin` (the COGS/margin fit columns are hidden, the prose is not)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": "coordinator patched src/lib/excel/export.ts (hideText); ws4-redaction test un-skipped, 9/9"
+ },
+ {
+  "id": "WS4-F22",
+  "kn": null,
+  "sev": "P3",
+  "type": "DATA_QUALITY",
+  "title": "`normalizeCfn` does not NFKC-fold: fullwidth `ＡＢＣ１２３` and `ABC123` are different `competitorCodeNorm` values (two cache rows / two crosses for one code pasted from a Japanese/Chinese PDF)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": "coordinator added NFKC folding in normalizeCfn; ws4-adversarial assertion flipped"
+ },
+ {
+  "id": "WS4-F23",
+  "kn": null,
+  "sev": "P3",
+  "type": "SPEC_AMBIGUITY",
+  "title": "Rate-limit client key: with `TRUST_PROXY_HOPS=1` and no load balancer in front, Next forwards a client-supplied `X-Forwarded-For` unchanged (proved: the HTTP probe's chosen address was the bucket key), so a direct-exposed instance lets a client pick another client's bucket (lock a victim out of sign-in for a minute; the per-instance ceiling still bounds the flood). Behind a balancer that appends, only the balancer's entry counts (unit-tested for hops 0/1/2/5 and attacker-prepended entries)",
+  "status": "NOT_A_DEFECT_WITH_RATIONALE",
+  "source": "workstreams/WS4-report.md",
+  "note": "documented; WS5 doc item"
+ },
+ {
+  "id": "WS4-F24",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Integration URL fields (`baseUrl`, `endpoint`, `tokenUrl`, `loginUrl`) accept loopback / link-local / private / metadata hosts — an operator with `configure_settings` can point \"test connection\" at `http://169.254.169.254/` (SSRF by a trusted admin; `sheetUrl` on the intake routes is NOT affected: only a spreadsheet id is extracted and the fetch is always to docs.google.com — proved with a fetch spy for 9 hostile URLs × 5 routes)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": "coordinator wired outboundUrlProblem into integrations/core/fields.ts; ws5-integrations + ws4-proxy tests"
+ },
+ {
+  "id": "WS4-F25",
+  "kn": null,
+  "sev": "P3",
+  "type": "SPEC_AMBIGUITY",
+  "title": "Scope rule: a child account under an **unassigned** parent is visible to every rep even when the child itself has an owner and a territory elsewhere (the seeded MSK account under the unassigned NYC IDN is readable by a rep in \"Mars\")",
+  "status": "OPEN",
+  "source": "workstreams/WS4-report.md",
+  "note": "business decision on the scope rule (child of an unassigned parent) — see BLOCKERS B-08"
+ },
+ {
+  "id": "WS4-F26",
+  "kn": null,
+  "sev": "P3",
+  "type": "COVERAGE_GAP",
+  "title": "Route handlers could not be exercised as an anonymous caller in-process (`setActorForTests(null)` fell through to `cookies()` → \"called outside a request scope\" → a 400, not a 401) and the ownership-scope hook never ran in-process (no `x-crosswalk-path`)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS4-F27",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "KN-12 (route side): `POST …/scenarios` passed any `kind` value through; branding PUT accepted non-object bodies as a no-op",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS4-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F01",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "KN-19: `test:adversarial` / `test:enterprise` never exit with inline workers (the default)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F02",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "KN-15: legacy `SF_*` / `SAP_*` variables selected API \"skeletons\" that only threw `NotConfigured(\"… custom quote objects agreed with the SF admin\")` — untruthful once the Tier 2 providers exist; `feedSource(\"crm\")` only knew the legacy env var, so the crm/erp/gpo feeds reported \"no source configured\" even with the Tier 2 integration enabled",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F03",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Feed concurrency: \"one ingestion per feed at a time\" was a find-then-create — two callers arriving together both ran (schedule + \"Sync now\", or two workers)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F04",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "`evaluateAlerts().notified` counted, and `lastNotifiedAt` was stamped by, a notification that `notify()` deduplicated (never created) — a condition that resolves and re-fires within the hour restarted the `ALERT_RENOTIFY_HOURS` clock without anyone being told",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F05",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "`/api/health` (and the `queue_stalled` alert) missed a stalled job: the \"oldest ready\" query only ran when pg-boss's **cached** `readyCount` was > 0; that cache refreshes at most once a minute and less under vacuum back-off",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F06",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Job handlers computed `finalAttempt` from the queue's `retryLimit`, ignoring a per-job override — an exhausted job sent with its own limit was never reported (no `JOB_FAILED`, `onFinalFailure` never ran)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F07",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "A malformed `FEED_<NAME>_CRON` (or `ALERTS_CRON` / `GUDID_REFRESH_CRON`) threw out of `registerSchedules` and took the whole job system down at start (`jobs.workers_failed`, retried for ever): no pollers for the other queues, no orphan recovery",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F08",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Deployment: `deploy/entrypoint.sh` exec'd `npx next start` / `npx tsx scripts/worker.ts`; `npx` does not forward `SIGTERM`, so `docker stop` ended npx and orphaned the server/worker — no graceful stop, active jobs not handed back",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": "image boot itself BLOCKED — no Docker"
+ },
+ {
+  "id": "WS5-F09",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Sealed integration secrets under a rotated / wrong `INTEGRATIONS_ENCRYPTION_KEY` made **every** save and the settings detail throw (\"cannot be decrypted\") — the documented recovery (\"re-save the secrets under the new key\") was impossible",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F10",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "Legacy `pushQuote` / `syncCrmAccounts` / `syncErp` decided \"Tier 2 enabled?\" through `readConfig(...).catch(() => null)` — an enabled Salesforce whose secrets could not be decrypted silently fell back to the **file/dev** adapter (a quote \"pushed to CRM\" landed in a directory)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F11",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "WS2-F17 / item L: CRM push (`sync.ts pushQuote`, `salesforce/writeback.ts buildQuoteWriteback`) gated on status only — an APPROVED proposal past `validThrough`, or with an included line that lost its price, was still pushed",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F12",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "KN-16: `OWN_LABELERS` was documented but not implemented (three hard-coded `[\"Covidien\",\"Medtronic\",\"Sofradim\"]` lists); `seed.ts`'s no-reference-data path `upsert`ed the company **by name** (a second Company row on a database whose company has another name); `seed-enterprise.ts demoData` used `findUniqueOrThrow` by name (throws on drift); the startup tenancy check only warned",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": "for seeds + worker; **web start-up refusal needs a 2-line patch in `src/instrumentation.ts` (shared, not edited)** — see §5; `src/lib/settings.ts getCompany()` create path still hard-codes the labelers (shared file) — patch in §5"
+ },
+ {
+  "id": "WS5-F13",
+  "kn": null,
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "KN-13: FX look-back default 5 (service) vs 3 (registry) and the configured policy was never read — `rateFor` had no callers outside tests, so Settings → FX \"fallback\" / \"max look-back days\" did nothing",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": "wiring `configuredFxPolicy()` into a conversion caller is left to the callers that will convert — none exist today; documented"
+ },
+ {
+  "id": "WS5-F14",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "SAP adapter: `Number(priceUnit) \\",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F15",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "CW-DBG-0004: `db-preflight` printed 68 `prisma:error` blocks on an empty database",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F16",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "CW-DBG-0005: `model-eval` printed a 12-line stack trace when `OPENAI_API_KEY` was missing",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F17",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "`documents/storage.ts readDocumentBytes(\"a/b\")` returned `null` (the invalid-id error was swallowed by the not-found catch)",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F18",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Stored sync errors could carry a credential quoted by a provider: `writeBackQuote` wrote `err.message` raw to `SyncLog`, the legacy `sync.ts log()` wrote `publicErrorMessage(e)` raw; the NDJSON export returned rows verbatim",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": "write side) / FIXED_AWAITING_VERIFICATION (export route: WS4 to apply `rows.map(redactRecord)`"
+ },
+ {
+  "id": "WS5-F19",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "`retention.ts` swallowed a failed audit write (`.catch(() => undefined)`) — a sweep could delete with no record",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F20",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Config parsing: `JOBS_WORKER=on` was \"enabled\" for enqueuing but never started workers (queue fills silently); `JOBS_POOL_MAX` / `DATABASE_POOL_MAX` / `JOBS_MAINTENANCE_SECONDS` / batch sizes became `NaN` on a typo; an unknown `DATABASE_ADAPTER` silently meant `pg`",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": "`src/instrumentation.ts` still reads `process.env.JOBS_WORKER ?? \"inline\"` directly — patch in §5"
+ },
+ {
+  "id": "WS5-F21",
+  "kn": null,
+  "sev": "P3",
+  "type": "SPEC_AMBIGUITY",
+  "title": "`runs_failing` threshold: BUILD_NOTES §19.4 says \"≥ `ALERT_RUN_FAILURES`\", the code and `OPERATIONS.md` say \"> `ALERT_RUN_FAILURES`\" (fires at 3 with the default 2)",
+  "status": "NOT_A_DEFECT_WITH_RATIONALE",
+  "source": "workstreams/WS5-report.md",
+  "note": "behaviour consistent with the ops doc and the rule's own header"
+ },
+ {
+  "id": "WS5-F22",
+  "kn": null,
+  "sev": "P3",
+  "type": "DEFECT (docs)",
+  "title": "KN-20/21/22/23/24 and BACKUPS: `package.json` 0.4.0 vs FEATURES v0.7; 5 stale schema comments (+3 columns with none); CONTRIBUTING's CI paragraph missing `test:adversarial`, `npm test`, `eval:gate`, the image job; `.env.example` missing 20 variables; BACKUPS.md claimed \"nothing else lives on disk\" while `DOCUMENT_STORAGE_DIR` holds uploaded document bytes",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F23",
+  "kn": null,
+  "sev": "P3",
+  "type": "COVERAGE_GAP → covered",
+  "title": "Queue lifecycle, integrations fault matrix, config, health/metrics, retention, analytics snapshots, notifications had no WS-level tests for the boundaries in the brief",
+  "status": "VERIFIED_FIXED",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "WS5-F24",
+  "kn": null,
+  "sev": "P3",
+  "type": "NOT_A_DEFECT",
+  "title": "Items verified fine (a row each, per brief): **KN-17** process-local state classified and documented (security/correctness: rate limiter, enrich job; caches: openFDA memo/bucket, metrics counters) — supported topology one web + one worker; **KN-21** constraints right, comments fixed; **KN-24** mac-demo read-only: `reset.sh` refuses non-localhost by substring match on `DATABASE_URL` (`*localhost*\\",
+  "status": "NOT_A_DEFECT_WITH_RATIONALE",
+  "source": "workstreams/WS5-report.md",
+  "note": ""
+ },
+ {
+  "id": "REV-01",
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "Two approvers deciding two lines at once left the proposal PARTIALLY_APPROVED for ever (no proposal row lock in decide())",
+  "status": "VERIFIED_FIXED",
+  "note": "FOR UPDATE on the proposal row inside decide(); tests/db/review-concurrency.test.ts passes (was 6/6 failing)",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-02",
+  "sev": "P1",
+  "type": "DEFECT",
+  "title": "A rep could reconstruct COGS and floor exactly from targetPrice and the policy margins",
+  "status": "VERIFIED_FIXED",
+  "note": "targetPrice in COST_KEYS, redactForActor uses the shared key sets, GET /api/pricing-policies redacted; ws4-redaction test",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-03",
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "factorsJson.notes (\"73% margin\") and the line PATCH response leaked margin figures to reps",
+  "status": "VERIFIED_FIXED",
+  "note": "redactCandidateForActor used by both routes; ws4-redaction test",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-04",
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "money() parsed hex/binary/octal/hex-float (\"0x10\" → 16) and a contract entry was created at $16 through the route",
+  "status": "VERIFIED_FIXED",
+  "note": "plain decimal notation only; ws2-money test; stray entry removed from crosswalk_dbg",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-05",
+  "sev": "P2",
+  "type": "DEFECT",
+  "title": "PDF export branch returned 400 with the raw Prisma dump for an unknown id",
+  "status": "VERIFIED_FIXED",
+  "note": "routed through errorResponse (404 / 500 contract)",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-06",
+  "sev": "P2",
+  "type": "TEST_DEFECT",
+  "title": "Feed-race regression test passed with the advisory lock removed",
+  "status": "VERIFIED_FIXED",
+  "note": "pool warmed + 5 rounds; ws5-platform 25/25",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-07",
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "VersaOne/Kii optical brand rules lacked a \"non-optical\" negation guard",
+  "status": "VERIFIED_FIXED",
+  "note": "lookbehind guards; review-matching + ws1-access tests",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-08",
+  "sev": "P3",
+  "type": "HYGIENE",
+  "title": "Curated-cross expectations (private reference data) were in tracked evidence files",
+  "status": "VERIFIED_FIXED",
+  "note": "per-line eval listings moved out of the run directory; only aggregate metrics kept",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-09",
+  "sev": "P3",
+  "type": "HARDENING",
+  "title": "CSRF origin check trusted a client-supplied X-Forwarded-Host",
+  "status": "VERIFIED_FIXED",
+  "note": "honoured only with TRUST_PROXY_HOPS > 0; ws4-proxy tests; DEPLOYMENT/.env.example",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-10",
+  "sev": "P3",
+  "type": "HARDENING",
+  "title": "Proxy echoed a client-supplied x-request-id",
+  "status": "VERIFIED_FIXED",
+  "note": "honoured only with TRUST_PROXY_HOPS > 0; ws4-proxy test",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-11",
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "Unreadable FX config silently became the default policy",
+  "status": "VERIFIED_FIXED",
+  "note": "logged at error level (fx.config_unreadable)",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-12",
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "reopen() was four sequential writes without a transaction",
+  "status": "VERIFIED_FIXED",
+  "note": "single transaction with the proposal row locked; ws2-approvals + full suite green",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-13",
+  "sev": "P2",
+  "type": "SPEC_AMBIGUITY",
+  "title": "B12LTH → NONB12STF (evidence) vs three curated sheets calling the optical ONB12STF Exact",
+  "status": "OPEN",
+  "note": "sheet owner to confirm B12LTH is non-optical (ENDOPATH XCEL Bladeless, no OPTIVIEW) — BLOCKERS B-07; code follows MATCH_QUALITY_MODEL §4/§5",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-14",
+  "sev": "P3",
+  "type": "DOCS",
+  "title": "BUILD_NOTES §8/§21/§26 stale after the fixes",
+  "status": "VERIFIED_FIXED",
+  "note": "§8, §21 rows, §26 headings, §5, §23, §28 updated",
+  "source": "REVIEW.md"
+ },
+ {
+  "id": "REV-15",
+  "sev": "P3",
+  "type": "DEFECT",
+  "title": "recordOutcome: a reopen racing between finalizeCheck and the WON claim could close a DRAFT as won",
+  "status": "VERIFIED_FIXED",
+  "note": "WON claim requires status APPROVED (or WON) inside the transaction",
+  "source": "REVIEW.md"
+ }
+]

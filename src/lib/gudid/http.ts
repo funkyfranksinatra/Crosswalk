@@ -27,7 +27,10 @@ class TokenBucket {
   constructor(private capacity: number, private perMs: number) { this.tokens = capacity; }
   private refill() {
     const now = Date.now();
-    this.tokens = Math.min(this.capacity, this.tokens + (now - this.last) * this.perMs);
+    // A clock that stepped backwards (NTP correction, a test's fake clock) must not drain the bucket
+    // and stall every caller until it catches up: elapsed time is never negative.
+    const elapsed = Math.max(0, now - this.last);
+    this.tokens = Math.min(this.capacity, this.tokens + elapsed * this.perMs);
     this.last = now;
   }
   /** Resolves when a token is available and no pause is in force; returns the wait in ms. */
@@ -42,7 +45,7 @@ class TokenBucket {
       await sleep(Math.min(wait, 1000));
     }
   }
-  /** Externally observed throttling: empty the bucket and hold every caller for `ms`. */
+  /** Externally observed throttling: empty the bucket and hold every caller for `ms` (never past the cap the caller applies). */
   drain(ms = 0) { this.tokens = 0; this.last = Date.now(); this.pausedUntil = Math.max(this.pausedUntil, Date.now() + ms); }
   get available() { this.refill(); return this.tokens; }
 }
@@ -92,22 +95,34 @@ export class OpenFdaError extends Error {
  * logs or in callers). Returns the parsed body; 404 is returned as status 404 with
  * `json: null` because openFDA answers 404 for an empty result set.
  */
-export async function openFdaGet(url: string, opts: { maxAttempts?: number } = {}): Promise<OpenFdaResponse> {
+/** Per-request timeout (OPENFDA_TIMEOUT_MS, default 20 s): a hung connection is a network failure and is retried, never waited on forever. */
+export function timeoutMs(): number {
+  const n = Number(process.env.OPENFDA_TIMEOUT_MS ?? 20_000);
+  return Number.isFinite(n) && n > 0 ? n : 20_000;
+}
+
+export async function openFdaGet(url: string, opts: { maxAttempts?: number; timeoutMs?: number } = {}): Promise<OpenFdaResponse> {
   const maxAttempts = opts.maxAttempts ?? Number(process.env.OPENFDA_MAX_ATTEMPTS ?? 5);
   const baseDelay = Number(process.env.OPENFDA_RETRY_BASE_MS ?? 1000);
+  const timeout = opts.timeoutMs ?? timeoutMs();
   let lastErr: string = "";
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const waited = await getBucket().take();
     if (waited > 0) openFdaWait.observe({}, waited / 1000);
     let res: Response;
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(new Error(`openFDA request timed out after ${timeout} ms`)), timeout);
     try {
-      res = await fetchImpl(withKey(url), { headers: { accept: "application/json" }, cache: "no-store" });
+      res = await fetchImpl(withKey(url), { headers: { accept: "application/json" }, cache: "no-store", signal: ac.signal });
     } catch (e) {
-      // Network failure: retry like a 5xx.
-      lastErr = e instanceof Error ? e.message : String(e);
-      openFdaRequests.inc({ outcome: "error" });
+      // Network failure or timeout: retry like a 5xx.
+      const reason = ac.signal.aborted ? (ac.signal.reason instanceof Error ? ac.signal.reason.message : `openFDA request timed out after ${timeout} ms`) : e instanceof Error ? e.message : String(e);
+      lastErr = reason;
+      openFdaRequests.inc({ outcome: ac.signal.aborted ? "timeout" : "error" });
       if (attempt < maxAttempts) { await sleep(backoff(baseDelay, attempt)); continue; }
       throw new OpenFdaError(0, `openFDA unreachable: ${lastErr}`, attempt);
+    } finally {
+      clearTimeout(timer);
     }
     if (res.status === 404) { openFdaRequests.inc({ outcome: "ok" }); return { status: 404, json: null, attempts: attempt }; }
     if (res.status === 429 || res.status >= 500) {

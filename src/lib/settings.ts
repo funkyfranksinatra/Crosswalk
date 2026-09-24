@@ -1,3 +1,4 @@
+import { defaultLabelers } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
 import { DEFAULT_WEIGHTS, type Weights } from "@/lib/match/score";
 
@@ -64,5 +65,5 @@ export async function getCompany() {
   // Single-tenant: if a company exists under another name, it *is* the company (settings drifted).
   const only = await prisma.company.findFirst({ orderBy: { createdAt: "asc" } });
   if (only) return only;
-  return prisma.company.create({ data: { name: s.companyName, labelers: JSON.stringify(["Covidien", "Medtronic", "Sofradim"]) } });
+  return prisma.company.create({ data: { name: s.companyName, labelers: JSON.stringify(defaultLabelers()) } });
 }

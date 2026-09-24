@@ -1,0 +1,24 @@
+final verification on crosswalk_ws5 — 2026-09-24T09:57:38Z
+== npx vitest run
+exit=0
+ Test Files  41 passed (41)
+      Tests  688 passed | 1 skipped (689)
+real	2m40.162s
+== npm run typecheck
+exit=0
+0
+== npm run check
+exit=0
+19 passed, 0 failed
+== npm run check:enterprise
+exit=0
+21 passed, 0 failed
+== npm run test:adversarial (inline workers, no JOBS_WORKER)
+exit=0
+24 passed, 0 failed
+real	0m2.736s
+== npm run test:enterprise (inline workers, no JOBS_WORKER)
+exit=0
+18 passed, 0 failed
+real	0m6.210s
+finished 2026-09-24T10:00:33Z

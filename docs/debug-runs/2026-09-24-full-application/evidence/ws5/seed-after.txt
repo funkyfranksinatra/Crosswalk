@@ -1,0 +1,9 @@
+Read 5817 curated rows from /home/claude/cracr/data/reference/Endomechanical.xlsx (1 placeholder rows skipped)
+Upserted 338 own products for Medtronic
+Upserted 3926 known crosses
+Upserted 10 own products + prices from the legacy BAT report
+
+real	0m23.495s
+user	0m7.640s
+sys	0m0.497s
+exit=0

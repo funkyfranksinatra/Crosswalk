@@ -1,3 +1,4 @@
+import { outboundUrlProblem } from "@/lib/security/urls";
 /**
  * How a provider describes its configuration. The registry lists FieldSpecs per provider;
  * the Settings UI renders them, the API validates against them, and `secret: true` fields are
@@ -34,7 +35,7 @@ export function validateConfig(values: Record<string, unknown>, specs: FieldSpec
     if (f.required && !present) { errors.push({ field: f.name, message: `${f.label} is required` }); continue; }
     if (!present || f.secret) continue;
     switch (f.type) {
-      case "url": try { const u = new URL(String(v)); if (!/^https?:$/.test(u.protocol)) errors.push({ field: f.name, message: `${f.label} must be an http(s) URL` }); } catch { errors.push({ field: f.name, message: `${f.label} is not a valid URL` }); } break;
+      case "url": { const p = outboundUrlProblem(String(v)); if (p) errors.push({ field: f.name, message: { scheme: `${f.label} must be an http(s) URL`, credentials: `${f.label} must not embed credentials`, host: `${f.label} has no host`, private: `${f.label} must not point at a loopback, link-local, private or metadata address`, unparsable: `${f.label} is not a valid URL` }[p] }); break; }
       case "number": if (!Number.isFinite(Number(v))) errors.push({ field: f.name, message: `${f.label} must be a number` }); break;
       case "boolean": if (typeof v !== "boolean" && !/^(true|false)$/i.test(String(v))) errors.push({ field: f.name, message: `${f.label} must be true or false` }); break;
       case "select": if (f.options && !f.options.some((o) => o.value === String(v))) errors.push({ field: f.name, message: `${f.label} must be one of ${f.options.map((o) => o.value).join(", ")}` }); break;

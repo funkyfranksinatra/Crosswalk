@@ -44,7 +44,7 @@ export default async function GudidLibraryPage({ searchParams }: { searchParams:
         description="Whole labeler catalogs from FDA GUDID, kept in Crosswalk. The cross-reference engine answers from here before it asks openFDA, and anyone can look a product up by code, brand, DI or description."
         actions={canManage ? <ImportPanel families={[...FAMILIES]} ownLabelers={ownLabelers} running={running ? { id: running.id, query: running.query } : null} /> : undefined}
       />
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <Stat label="Records" value={total.toLocaleString()} hint={total ? `${byManufacturer.length} manufacturer${byManufacturer.length === 1 ? "" : "s"}` : "import a labeler to start"} tone="accent" />
         <Stat label="Manufacturers" value={byManufacturer.length} hint={byManufacturer.slice(0, 3).map((m) => m.manufacturer).join(" · ") || "—"} />
         <Stat label="Imports" value={imports.length} hint={running ? `running: ${running.query}` : imports[0] ? `last: ${imports[0].query}` : "none yet"} tone={running ? "close" : "none"} />

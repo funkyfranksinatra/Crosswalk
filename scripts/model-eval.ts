@@ -33,4 +33,10 @@ async function main() {
   else console.log(`\nEval id ${r.id}. Re-run with --accept to make this the baseline.`);
   await prisma.$disconnect();
 }
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  // A missing model key or a configuration problem is a one-line message, not a stack trace.
+  const msg = e instanceof Error ? e.message : String(e);
+  if (/OPENAI_API_KEY|not configured|not set/i.test(msg)) console.error(`Model eval: ${msg}`);
+  else console.error(e);
+  process.exit(1);
+});

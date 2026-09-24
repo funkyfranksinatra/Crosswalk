@@ -1,0 +1,11 @@
+     × KN-06: saved weights are snapshotted at enqueue, applied by the run, kept by a retry/resume, and re-snapshotted by a fresh Re-run 114ms
+     × a corrupt or hostile snapshot never reaches the scorer: bad weights fall back to the Settings, an out-of-range maxCandidates to the Settings value 304ms
+     × re-run keeps a reviewed line's chosen SKU when it is still offered, and clears the review when it is not 262ms
+     × publishVersion never publishes a reviewer note as an own SKU; the preferred column redirects only to catalog SKUs 705ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected { freshGrades: false } to match object { weights: { bin: 0.5, …(3) }, …(1) }
+AssertionError: expected { bin: 'x', price: -1, …(2) } to deeply equal { bin: 0.5, price: 0.2, …(2) }
+AssertionError: expected 'cmuf7xu610000tn7d3pv8zz52' to be 'cmuf7xu660001tn7dwb6ekou4' // Object.is equality
+AssertionError: expected [ { …(10) }, { …(10) }, …(652) ] to have a length of +0 but got 654
+ Test Files  1 failed (1)
+      Tests  4 failed | 5 passed (9)

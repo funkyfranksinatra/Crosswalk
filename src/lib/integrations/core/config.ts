@@ -84,10 +84,16 @@ export async function readConfig(k: IntegrationKey): Promise<ResolvedConfig | nu
   return { key: k, provider: row.provider, enabled: row.enabled, config: parseJson(row.configJson), secrets, mapping: parseMappingBundle(row.mappingJson), scheduleCron: row.scheduleCron, configVersion: row.configVersion, status: row.status };
 }
 
-/** Which secret fields have a stored value (for the UI: `{ set: true }`, never the value). */
+/** Which secret fields have a stored value (for the UI: `{ set: true }`, never the value); unreadable secrets count as absent. */
 export async function secretsPresent(k: IntegrationKey): Promise<Set<string>> {
+  return (await secretsState(k)).present;
+}
+
+/** Presence per secret field plus, when the stored blob cannot be opened under the current key, the reason (so the UI can say "re-enter"). */
+export async function secretsState(k: IntegrationKey): Promise<{ present: Set<string>; unreadable: string | null }> {
   const row = await prisma.integrationConfig.findUnique({ where: { key: k }, select: { secretsJson: true } });
-  return new Set(Object.keys(open(row?.secretsJson)));
+  try { return { present: new Set(Object.keys(open(row?.secretsJson))), unreadable: null }; }
+  catch (e) { return { present: new Set(), unreadable: e instanceof Error ? e.message : String(e) }; }
 }
 
 export type SaveInput = {
@@ -107,7 +113,13 @@ export type SaveInput = {
  */
 export async function saveConfig(k: IntegrationKey, input: SaveInput, specs: FieldSpec[], actorUserId: string | null): Promise<{ status: string; configVersion: number; errors: { field: string; message: string }[] }> {
   const existing = await prisma.integrationConfig.findUnique({ where: { key: k } });
-  const storedSecrets = open(existing?.secretsJson);
+  // Secrets sealed under a key this process does not have (rotated or lost INTEGRATIONS_ENCRYPTION_KEY)
+  // must not make every save fail — that is exactly when an admin needs to re-enter them. They are
+  // treated as absent for this save: supplied values replace the unreadable blob; a save that supplies
+  // none keeps the blob untouched (restoring the old key still recovers it) and reports the problem.
+  let storedSecrets: Record<string, string> = {};
+  let unreadable: string | null = null;
+  try { storedSecrets = open(existing?.secretsJson); } catch (e) { unreadable = e instanceof Error ? e.message : String(e); }
   const nextSecrets: Record<string, string> = { ...storedSecrets };
   for (const [name, v] of Object.entries(input.secrets ?? {})) {
     const spec = specs.find((s) => s.name === name && s.secret);
@@ -121,12 +133,14 @@ export async function saveConfig(k: IntegrationKey, input: SaveInput, specs: Fie
   let config: Record<string, unknown>;
   try { config = normalizeConfig(input.config ?? {}, specs); } catch (e) { return { status: existing?.status ?? "NOT_CONFIGURED", configVersion: existing?.configVersion ?? 0, errors: [{ field: "config", message: e instanceof Error ? e.message : String(e) }] }; }
   const v = validateConfig(config, specs, new Set(Object.keys(nextSecrets)));
+  const keepUnreadable = unreadable !== null && Object.keys(nextSecrets).length === 0;
+  if (keepUnreadable) { v.ok = false; v.errors.push({ field: "secrets", message: unreadable! }); }
   const enabled = input.enabled ?? existing?.enabled ?? false;
   const status = !enabled ? "DISABLED" : v.ok ? "CONFIGURED" : "NOT_CONFIGURED";
   const data = {
     provider: input.provider, enabled,
     configJson: JSON.stringify(config),
-    secretsJson: Object.keys(nextSecrets).length ? seal(nextSecrets) : null,
+    secretsJson: keepUnreadable ? existing!.secretsJson : Object.keys(nextSecrets).length ? seal(nextSecrets) : null,
     mappingJson: JSON.stringify(input.mapping ?? parseMappingBundle(existing?.mappingJson)),
     scheduleCron: input.scheduleCron === undefined ? existing?.scheduleCron ?? null : input.scheduleCron,
     configVersion: (existing?.configVersion ?? 0) + 1,

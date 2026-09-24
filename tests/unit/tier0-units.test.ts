@@ -109,7 +109,8 @@ class FakeIdp {
   private key!: { privateKey: CryptoKey; jwk: Record<string, unknown> };
   tokenCalls: { body: URLSearchParams; auth: string | null }[] = [];
   /** What the next token exchange should put in the ID token (tests override per case). */
-  next: { sub?: string; nonce?: string | (() => string); aud?: string; iss?: string; exp?: number; claims?: Record<string, unknown>; status?: number; body?: unknown } = {};
+  next: { sub?: string; nonce?: string | (() => string); aud?: string; iss?: string; exp?: number; nbf?: number; iat?: number; claims?: Record<string, unknown>; status?: number; body?: unknown; rawToken?: string | ((nonce: string) => Promise<string>) } = {};
+  get publicJwk() { return this.key.jwk; }
   lastNonce = "";
   async init() {
     const { privateKey, publicKey } = await generateKeyPair("RS256");
@@ -127,10 +128,13 @@ class FakeIdp {
       this.tokenCalls.push({ body, auth });
       if (this.next.status) return json(this.next.body ?? { error: "invalid_grant" }, this.next.status);
       const nonce = typeof this.next.nonce === "function" ? this.next.nonce() : this.next.nonce ?? this.lastNonce;
+      if (this.next.rawToken !== undefined) return json({ id_token: typeof this.next.rawToken === "function" ? await this.next.rawToken(nonce) : this.next.rawToken, access_token: "at", token_type: "Bearer" });
       const now = Math.floor(Date.now() / 1000);
-      const jwt = await new SignJWT({ nonce, email: "Rep@Example.com", name: "Rep Person", roles: ["CW-Reps"], ...(this.next.claims ?? {}) })
+      const builder = new SignJWT({ nonce, email: "Rep@Example.com", name: "Rep Person", roles: ["CW-Reps"], ...(this.next.claims ?? {}) })
         .setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(this.next.iss ?? this.issuer).setAudience(this.next.aud ?? this.clientId).setSubject(this.next.sub ?? "sub-123")
-        .setIssuedAt(now).setExpirationTime(this.next.exp ?? now + 600).sign(this.key.privateKey);
+        .setIssuedAt(this.next.iat ?? now).setExpirationTime(this.next.exp ?? now + 600);
+      if (this.next.nbf !== undefined) builder.setNotBefore(this.next.nbf);
+      const jwt = await builder.sign(this.key.privateKey);
       return json({ id_token: jwt, access_token: "at", token_type: "Bearer" });
     }
     return new Response("not found", { status: 404 });
@@ -254,6 +258,68 @@ describe("0.1 OIDC flow against an in-memory provider", () => {
     await expect(completeSignIn(cfg, { code: "c", state: state.state }, state)).rejects.toMatchObject({ status: 403, message: /unverified/ });
   });
 
+  // ---- WS4 additions (item G): algorithm confusion, time-window skew, replay, logout -----------------
+  test("WS4: alg=none and HS256-with-the-public-key tokens are rejected (algorithm confusion)", async () => {
+    const { state } = await happyStart();
+    const go = () => completeSignIn(cfg, { code: "c", state: state.state }, state);
+    const now = Math.floor(Date.now() / 1000);
+    const claims = { iss: idp.issuer, aud: idp.clientId, sub: "sub-123", nonce: state.nonce, iat: now, exp: now + 600, email: "rep@example.com" };
+    const b64u = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
+    idp.next = { rawToken: `${b64u({ alg: "none" })}.${b64u(claims)}.` };
+    await expect(go()).rejects.toMatchObject({ status: 401, message: /ID token rejected/ });
+    idp.next = { rawToken: `${b64u({ alg: "none", kid: "k1" })}.${b64u(claims)}.` };
+    await expect(go()).rejects.toMatchObject({ status: 401 });
+    // HS256 signed with the RSA public key material (the classic key-confusion attack)
+    const pub = Buffer.from(String(idp.publicJwk.n), "base64url");
+    const signingInput = `${b64u({ alg: "HS256", kid: "k1", typ: "JWT" })}.${b64u(claims)}`;
+    const mac = (await import("node:crypto")).createHmac("sha256", pub).update(signingInput).digest("base64url");
+    idp.next = { rawToken: `${signingInput}.${mac}` };
+    await expect(go()).rejects.toMatchObject({ status: 401 });
+    // an unknown kid, a garbage token and an empty token
+    idp.next = { rawToken: "not.a.jwt" }; await expect(go()).rejects.toMatchObject({ status: 401 });
+    idp.next = { rawToken: "" }; await expect(go()).rejects.toMatchObject({ status: 401, message: /Token exchange failed/ });
+  });
+
+  test("WS4: nbf in the future and iat older than the max token age are rejected; 2 minutes of skew is tolerated", async () => {
+    let { state } = await happyStart();
+    const go = () => completeSignIn(cfg, { code: "c", state: state.state }, state);
+    const now = Math.floor(Date.now() / 1000);
+    idp.next = { nbf: now + 600 }; await expect(go()).rejects.toMatchObject({ status: 401, message: /nbf|not yet/i });
+    idp.next = { nbf: now + 60 }; await expect(go()).resolves.toBeTruthy(); // inside the 120 s tolerance
+    ({ state } = await happyStart());
+    idp.next = { iat: now - 2 * 3600, exp: now + 600 }; await expect(go()).rejects.toMatchObject({ status: 401, message: /iat|too far in the past|maxTokenAge/i });
+    ({ state } = await happyStart());
+    idp.next = { iat: now + 60 }; await expect(go()).resolves.toBeTruthy(); // clock skew on the provider side
+    ({ state } = await happyStart());
+    idp.next = { exp: now - 60 }; await expect(go()).resolves.toBeTruthy(); // 60 s past expiry is within tolerance…
+    ({ state } = await happyStart());
+    idp.next = { exp: now - 200 }; await expect(go()).rejects.toMatchObject({ status: 401 }); // …200 s is not
+  });
+
+  test("WS4: a state/nonce pair is bound to one attempt — a second attempt's token does not satisfy the first's cookie", async () => {
+    const first = await happyStart();
+    const second = await happyStart();
+    // token minted for the second attempt (its nonce), presented against the first state cookie
+    idp.next = { nonce: second.state.nonce };
+    await expect(completeSignIn(cfg, { code: "c", state: first.state.state }, first.state)).rejects.toMatchObject({ status: 401, message: /nonce/ });
+    // the state parameter of the second attempt against the first cookie
+    await expect(completeSignIn(cfg, { code: "c", state: second.state.state }, first.state)).rejects.toMatchObject({ status: 401, message: /state mismatch/ });
+    // a state value of a different length never reaches timingSafeEqual with mismatched buffers
+    await expect(completeSignIn(cfg, { code: "c", state: first.state.state + "x" }, first.state)).rejects.toMatchObject({ status: 401, message: /state mismatch/ });
+  });
+
+  test("WS4: logout URL comes from discovery with the client id and the app origin; none when the provider has no end-session endpoint", async () => {
+    const { logoutUrl, resetOidcCachesForTests } = await import("@/lib/auth/oidc");
+    const u = new URL((await logoutUrl(cfg))!);
+    expect(u.origin + u.pathname).toBe(`${idp.issuer}/logout`);
+    expect(u.searchParams.get("client_id")).toBe(idp.clientId);
+    expect(u.searchParams.get("post_logout_redirect_uri")).toBe("https://crosswalk.example.com/");
+    resetOidcCachesForTests();
+    setOidcFetchForTests(async () => new Response(JSON.stringify({ issuer: idp.issuer, authorization_endpoint: "a", token_endpoint: "b", jwks_uri: "c" }), { status: 200, headers: { "content-type": "application/json" } }));
+    expect(await logoutUrl(cfg)).toBeNull();
+    setOidcFetchForTests(idp.fetch);
+  });
+
   test("a bad discovery document is a 502, never a crash", async () => {
     setOidcFetchForTests(async () => new Response("{}", { status: 200, headers: { "content-type": "application/json" } }));
     await expect(beginSignIn(cfg, "/")).rejects.toMatchObject({ status: 502 });
@@ -263,9 +329,75 @@ describe("0.1 OIDC flow against an in-memory provider", () => {
   });
 });
 
+describe("WS4 — development session cookie and proxy-mode subject trust", () => {
+  const env = { ...process.env };
+  afterEach(() => { process.env = { ...env }; });
+
+  test("the dev cookie is <userId>.<hmac>: tampered id, tampered signature, bare id, wrong key and empty values are refused", async () => {
+    process.env.SESSION_SECRET = "unit-test-session-secret-1";
+    delete process.env.SSO_ISSUER; delete process.env.SSO_CLIENT_ID;
+    const { signSession, verifySession, devSessionsAllowed } = await import("@/lib/auth");
+    expect(devSessionsAllowed()).toBe(true);
+    const c = signSession("cmuser000000000000000001");
+    expect(verifySession(c)).toBe("cmuser000000000000000001");
+    expect(verifySession("cmuser000000000000000001")).toBeNull(); // a bare user id off the sign-in list is not a session
+    expect(verifySession("cmuser000000000000000002." + c.split(".")[1])).toBeNull();
+    expect(verifySession(c.slice(0, -1) + (c.endsWith("A") ? "B" : "A"))).toBeNull();
+    expect(verifySession(c + "=")).toBeNull(); // length change
+    expect(verifySession("." + c.split(".")[1])).toBeNull();
+    expect(verifySession("")).toBeNull(); expect(verifySession(null)).toBeNull(); expect(verifySession(undefined)).toBeNull();
+    process.env.SESSION_SECRET = "a-different-secret-entirely";
+    expect(verifySession(c)).toBeNull(); // signed under another key
+  });
+
+  test("a production build without SSO refuses dev sessions unless ALLOW_DEV_SIGNIN=true; SSO configured disables them", async () => {
+    const { signSession, verifySession, devSessionsAllowed } = await import("@/lib/auth");
+    delete process.env.SESSION_SECRET; delete process.env.ALLOW_DEV_SIGNIN; delete process.env.SSO_ISSUER; delete process.env.SSO_CLIENT_ID;
+    (process.env as Record<string, string>).NODE_ENV = "production";
+    expect(devSessionsAllowed()).toBe(false);
+    expect(() => signSession("u1")).toThrow(/disabled/);
+    expect(verifySession("u1.anything")).toBeNull();
+    process.env.ALLOW_DEV_SIGNIN = "true";
+    expect(devSessionsAllowed()).toBe(true);
+    expect(verifySession(signSession("u1"))).toBe("u1");
+    process.env.SSO_ISSUER = "https://idp"; process.env.SSO_CLIENT_ID = "c";
+    expect(devSessionsAllowed()).toBe(false);
+  });
+
+  test("proxy mode: x-sso-subject is believed only with the shared-secret header (constant-time), never without a configured secret", async () => {
+    const { proxySubjectFromHeaders } = await import("@/lib/auth");
+    const h = (o: Record<string, string>) => new Headers(o);
+    const good = { SSO_PROXY_SHARED_SECRET: "proxy-shared-secret-32-characters!!" };
+    expect(proxySubjectFromHeaders(h({ "x-sso-subject": "u@x" }), good)).toBeNull(); // subject alone: a client's claim
+    expect(proxySubjectFromHeaders(h({ "x-sso-subject": "u@x", "x-sso-proxy-secret": "wrong" }), good)).toBeNull();
+    expect(proxySubjectFromHeaders(h({ "x-sso-subject": "u@x", "x-sso-proxy-secret": "proxy-shared-secret-32-characters!" }), good)).toBeNull(); // length-1
+    expect(proxySubjectFromHeaders(h({ "x-sso-subject": " u@x ", "x-sso-proxy-secret": good.SSO_PROXY_SHARED_SECRET }), good)).toBe("u@x");
+    expect(proxySubjectFromHeaders(h({ "x-sso-subject": "u@x", "x-sso-proxy-secret": "" }), {})).toBeNull(); // no secret configured: fail closed
+    expect(proxySubjectFromHeaders(h({ "x-sso-subject": "u@x", "x-sso-proxy-secret": "short" }), { SSO_PROXY_SHARED_SECRET: "short" })).toBeNull(); // too short to count as configured
+    expect(proxySubjectFromHeaders(h({ "x-sso-subject": "x".repeat(400), "x-sso-proxy-secret": good.SSO_PROXY_SHARED_SECRET }), good)).toBeNull();
+    expect(proxySubjectFromHeaders(h({}), good)).toBeNull();
+  });
+
+  test("safeNext: more open-redirect shapes", () => {
+    for (const bad of ["/\\evil.com", "\\/evil.com", "//evil.com/x", "///evil.com", "https:evil", "/api/", "/api/auth/oidc/logout", " /x", "/x\u007f", "%2f%2fevil.com"]) expect(safeNext(bad), JSON.stringify(bad)).toBe("/");
+    expect(safeNext("/a?next=//evil.com")).toBe("/a?next=//evil.com"); // a query string is data, not a destination
+    expect(safeNext("/%2F%2Fevil.com")).toBe("/%2F%2Fevil.com"); // percent-encoded slashes stay literal in a path: same origin
+    expect(safeNext("/" + "x".repeat(600)).length).toBeLessThanOrEqual(500);
+  });
+});
+
 describe("0.3 secrets", () => {
   const env = { ...process.env };
   afterEach(() => { process.env = { ...env }; resetSecretsForTests(); setSecretsFetchForTests(null); });
+
+  test("production refuses SSO_MODE=proxy without a usable SSO_PROXY_SHARED_SECRET (the subject header is otherwise ignored)", () => {
+    const base = { NODE_ENV: "production", SESSION_SECRET: "a-perfectly-fine-long-random-secret", DATABASE_URL: "postgresql://app:Str0ngPassw0rd@db.example.com/crosswalk?sslmode=verify-full", SSO_ISSUER: "https://idp.example.com", SSO_CLIENT_ID: "crosswalk", SSO_MODE: "proxy" };
+    expect(checkSecrets(base, true)).toMatchObject([{ key: "SSO_PROXY_SHARED_SECRET", problem: /not set/ }]);
+    expect(checkSecrets({ ...base, SSO_PROXY_SHARED_SECRET: "short" }, true)).toMatchObject([{ key: "SSO_PROXY_SHARED_SECRET", problem: /16/ }]);
+    expect(checkSecrets({ ...base, SSO_PROXY_SHARED_SECRET: "replace-me-please-please" }, true)).toMatchObject([{ key: "SSO_PROXY_SHARED_SECRET", problem: /placeholder/ }]);
+    expect(checkSecrets({ ...base, SSO_PROXY_SHARED_SECRET: "proxy-shared-secret-32-characters!!" }, true)).toEqual([]);
+    expect(checkSecrets(base, false)).toEqual([]); // development is allowed to run without it (fail-closed at request time)
+  });
 
   test("production checks refuse the dev session key, short or placeholder secrets and example database passwords", () => {
     const base = { NODE_ENV: "production", SESSION_SECRET: "a-perfectly-fine-long-random-secret", DATABASE_URL: "postgresql://app:Str0ngPassw0rd@db.example.com/crosswalk?sslmode=verify-full" };
@@ -281,7 +413,7 @@ describe("0.3 secrets", () => {
     expect(checkSecrets({ ...base, DATABASE_URL: "postgresql://crosswalk:crosswalk@localhost:5432/x" }, true)).toEqual([]); // loopback: only the box itself can reach it
     expect(checkSecrets({ ...base, OPENAI_API_KEY: "changeme" }, true)).toMatchObject([{ key: "OPENAI_API_KEY" }]);
     expect(checkSecrets({ ...base, SESSION_SECRET: "", SSO_ISSUER: "https://x", SSO_CLIENT_ID: "c", SSO_MODE: "oidc" }, true)).toMatchObject([{ key: "SESSION_SECRET", problem: /not set/ }]);
-    expect(checkSecrets({ ...base, SESSION_SECRET: "", SSO_ISSUER: "https://x", SSO_CLIENT_ID: "c", SSO_MODE: "proxy" }, true)).toEqual([]); // the proxy signs nothing here
+    expect(checkSecrets({ ...base, SESSION_SECRET: "", SSO_ISSUER: "https://x", SSO_CLIENT_ID: "c", SSO_MODE: "proxy", SSO_PROXY_SHARED_SECRET: "proxy-shared-secret-32-characters!!" }, true)).toEqual([]); // the proxy signs nothing here, but it must prove itself
     expect(checkSecrets({ ...base, SSO_ISSUER: "https://x", SSO_CLIENT_ID: "c" }, true)).toMatchObject([{ key: "SSO_MODE", problem: /not set/ }]); // upgrade note
     expect(checkSecrets({ ...base, SESSION_SECRET: "" }, true)).toEqual([]); // no SSO, no dev sign-in: nothing signs a session
     expect(checkSecrets({ ...base, ALLOW_DEV_SIGNIN: "true" }, true)).toMatchObject([{ key: "ALLOW_DEV_SIGNIN" }]);

@@ -39,7 +39,7 @@ export function IntegrationsAdmin({ canConfigure }: { canConfigure: boolean }) {
   const families = useMemo(() => [...new Set(list.map((i) => i.family))], [list]);
   const FAMILY: Record<string, string> = { crm: "CRM", erp: "ERP", gpo: "GPO rosters", documents: "Documents", fx: "Exchange rates", contracts: "Competitor pricing" };
   return (
-    <div className="grid grid-cols-[300px_1fr] gap-4 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 items-start [&>*]:min-w-0">
       <Card title="Integrations" subtitle="Status of every connector. Nothing here is required — the app runs on manual workflows until an integration is enabled." padded={false}>
         {error && <div className="px-4 py-2 text-[12px] text-none">{error}</div>}
         <div className="divide-y divide-line-2">
@@ -47,7 +47,7 @@ export function IntegrationsAdmin({ canConfigure }: { canConfigure: boolean }) {
             <div key={f}>
               <div className="eyebrow px-4 pt-3 pb-1">{FAMILY[f] ?? f}</div>
               {list.filter((i) => i.family === f).map((i) => (
-                <button key={i.key} onClick={() => setSelected(i.key)} className={`w-full text-left px-4 py-2.5 hover:bg-panel-2 ${selected === i.key ? "bg-panel-2" : ""}`}>
+                <button type="button" key={i.key} onClick={() => setSelected(i.key)} className={`w-full text-left px-4 py-2.5 hover:bg-panel-2 ${selected === i.key ? "bg-panel-2" : ""}`}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[13px] font-medium truncate">{i.label}</span>
                     <Chip tone={HEALTH_TONE[i.status] ?? "neutral"}>{i.status.replace(/_/g, " ").toLowerCase()}</Chip>
@@ -61,7 +61,7 @@ export function IntegrationsAdmin({ canConfigure }: { canConfigure: boolean }) {
               ))}
             </div>
           ))}
-          <button onClick={() => setSelected("__review")} className={`w-full text-left px-4 py-2.5 hover:bg-panel-2 ${selected === "__review" ? "bg-panel-2" : ""}`}>
+          <button type="button" onClick={() => setSelected("__review")} className={`w-full text-left px-4 py-2.5 hover:bg-panel-2 ${selected === "__review" ? "bg-panel-2" : ""}`}>
             <div className="text-[13px] font-medium">Review queue</div>
             <div className="text-[11.5px] text-muted">{list.reduce((n, i) => n + i.openReviews, 0)} open items across all integrations</div>
           </button>
@@ -76,7 +76,7 @@ export function IntegrationsAdmin({ canConfigure }: { canConfigure: boolean }) {
             <li><b>Test → validate → sync a test record</b> — the health badge moves to <i>connected</i> only after a real test passes.</li>
             <li><b>Schedule</b> — a cron expression (UTC). Manual syncs and uploads work without one.</li>
           </ol>
-          <div className="text-[12px] text-muted mt-3">Setup per integration: <a className="text-accent" href="/docs/INTEGRATION_SETUP.md">docs/INTEGRATION_SETUP.md</a>.</div>
+          <div className="text-[12px] text-muted mt-3">Setup per integration: <a className="text-accent underline" href="/docs/INTEGRATION_SETUP.md">docs/INTEGRATION_SETUP.md</a>.</div>
         </Card>
       )}
     </div>
@@ -149,17 +149,17 @@ function IntegrationEditor({ k, canConfigure, onSaved }: { k: string; canConfigu
     <div className="space-y-4">
       <Card title={def.label} subtitle={def.description} actions={cfg && <div className="flex items-center gap-2 text-[12px]"><Chip tone={HEALTH_TONE[cfg.status] ?? "neutral"}>{cfg.status.replace(/_/g, " ").toLowerCase()}</Chip>{cfg.lastSyncAt && <span className="text-muted">last sync {relTime(cfg.lastSyncAt)}</span>}</div>}>
         {cfg?.lastError && <div className="mb-3 rounded-md bg-none-soft text-none px-3 py-2 text-[12px]"><b>{cfg.lastErrorCategory?.replace(/_/g, " ").toLowerCase() ?? "error"}:</b> {cfg.lastError}</div>}
-        <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 items-end">
           <div>
-            <label className="label">Provider</label>
-            <select className="input" value={provider} disabled={!canConfigure} onChange={(e) => { setProvider(e.target.value); setSecrets({}); }}>
+            <label className="label" htmlFor="int-provider">Provider</label>
+            <select id="int-provider" className="input" value={provider} disabled={!canConfigure} onChange={(e) => { setProvider(e.target.value); setSecrets({}); }}>
               {def.providers.map((p) => <option key={p.id} value={p.id} disabled={p.mock && !d.mockAllowed}>{p.label}{p.mock && !d.mockAllowed ? " (not allowed here)" : ""}</option>)}
             </select>
             <div className="text-[11.5px] text-muted mt-1">{prov.description}{prov.mock && <b className="text-alt"> — MOCK PROVIDER: demo data, no real system.</b>}</div>
           </div>
           <div>
-            <label className="label">Schedule (cron, UTC)</label>
-            <input className="input mono w-[150px]" placeholder="0 2 * * *" value={cron} disabled={!canConfigure} onChange={(e) => setCron(e.target.value)} />
+            <label className="label" htmlFor="int-cron">Schedule (cron, UTC)</label>
+            <input id="int-cron" className="input mono w-[150px]" placeholder="0 2 * * *" value={cron} disabled={!canConfigure} onChange={(e) => setCron(e.target.value)} />
           </div>
           <label className="flex items-center gap-2 text-[13px] pb-2"><input type="checkbox" checked={enabled} disabled={!canConfigure} onChange={(e) => setEnabled(e.target.checked)} /> Enabled</label>
         </div>
@@ -178,7 +178,7 @@ function IntegrationEditor({ k, canConfigure, onSaved }: { k: string; canConfigu
               {Object.entries(def.mappingSpecs).filter(([e]) => e !== "_").map(([entity, spec]) => (
                 <div key={entity}>
                   <label className="label">{entity} <span className="text-muted font-normal">· canonical: {spec.fields.map((f) => f.name + (f.required ? "*" : "")).join(", ")}</span></label>
-                  <textarea className="input mono min-h-[110px] text-[11.5px]" value={mapping[entity] ?? "{}"} disabled={!canConfigure} onChange={(e) => setMapping({ ...mapping, [entity]: e.target.value })} spellCheck={false} />
+                  <textarea className="input mono min-h-[110px] text-[11.5px]" aria-label={`${entity} mapping JSON`} value={mapping[entity] ?? "{}"} disabled={!canConfigure} onChange={(e) => setMapping({ ...mapping, [entity]: e.target.value })} spellCheck={false} />
                   <details className="text-[11.5px] text-muted mt-1"><summary className="cursor-pointer">defaults</summary><pre className="mono whitespace-pre-wrap">{JSON.stringify(def.defaultMapping[entity] ?? {}, null, 1)}</pre></details>
                 </div>
               ))}
@@ -188,20 +188,20 @@ function IntegrationEditor({ k, canConfigure, onSaved }: { k: string; canConfigu
         {def.webhook && cfg && <div className="mt-3 text-[12px] text-muted">Webhook endpoint: <span className="mono">{def.webhook.path}</span> — sign the JSON body with the shared secret (HMAC-SHA256, header <span className="mono">X-Crosswalk-Signature</span>).</div>}
         {canConfigure && (
           <div className="mt-4 flex flex-wrap gap-2 items-center border-t border-line-2 pt-3">
-            <button className="btn-primary" disabled={busy !== null} onClick={save}>{busy === "save" ? "Saving…" : "Save"}</button>
-            <button className="btn-ghost" disabled={busy !== null || !cfg} onClick={test}>{busy === "test" ? "Testing…" : "Test connection"}</button>
-            <button className="btn-ghost" disabled={busy !== null || !cfg} onClick={() => validate(false)}>Validate mapping</button>
-            <button className="btn-ghost" disabled={busy !== null || !cfg} onClick={() => validate(true)}>Validate against provider</button>
+            <button type="button" className="btn-primary" disabled={busy !== null} onClick={save}>{busy === "save" ? "Saving…" : "Save"}</button>
+            <button type="button" className="btn-ghost" disabled={busy !== null || !cfg} title={cfg ? undefined : "Save the configuration first"} onClick={test}>{busy === "test" ? "Testing…" : "Test connection"}</button>
+            <button type="button" className="btn-ghost" disabled={busy !== null || !cfg} title={cfg ? undefined : "Save the configuration first"} onClick={() => validate(false)}>Validate mapping</button>
+            <button type="button" className="btn-ghost" disabled={busy !== null || !cfg} title={cfg ? undefined : "Save the configuration first"} onClick={() => validate(true)}>Validate against provider</button>
             {def.syncTypes.length > 0 && (<>
-              <select className="input w-auto !py-1" value={syncType} onChange={(e) => setSyncType(e.target.value)}>{def.syncTypes.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select>
-              <button className="btn-ghost" disabled={busy !== null || !cfg?.enabled} onClick={() => sync("test")}>Sync a test record</button>
-              <button className="btn-ghost" disabled={busy !== null || !cfg?.enabled} onClick={() => sync("queue")}>Run sync now</button>
-              <button className="btn-ghost" disabled={busy !== null || !cfg?.enabled} onClick={() => sync("queue", true)}>Full resync</button>
+              <select className="input w-auto !py-1" aria-label="Sync type" value={syncType} onChange={(e) => setSyncType(e.target.value)}>{def.syncTypes.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select>
+              <button type="button" className="btn-ghost" disabled={busy !== null || !cfg?.enabled} title={cfg?.enabled ? undefined : "Enable and save the integration first"} onClick={() => sync("test")}>Sync a test record</button>
+              <button type="button" className="btn-ghost" disabled={busy !== null || !cfg?.enabled} title={cfg?.enabled ? undefined : "Enable and save the integration first"} onClick={() => sync("queue")}>Run sync now</button>
+              <button type="button" className="btn-ghost" disabled={busy !== null || !cfg?.enabled} title={cfg?.enabled ? undefined : "Enable and save the integration first"} onClick={() => { if (window.confirm("Full resync re-reads every record from the provider. Continue?")) sync("queue", true); }}>Full resync</button>
               {def.syncTypes.find((s) => s.id === syncType)?.acceptsUpload && <label className="btn-ghost cursor-pointer">Upload file…<input type="file" accept=".csv,.xlsx" className="hidden" disabled={busy !== null || !cfg?.enabled} onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} /></label>}
             </>)}
           </div>
         )}
-        {msg && <div className={`mt-3 rounded-md px-3 py-2 text-[12.5px] ${msg.tone === "ok" ? "bg-exact-soft text-exact" : msg.tone === "warn" ? "bg-alt-soft text-alt" : "bg-none-soft text-none"}`}>{msg.text}{msg.detail !== undefined && msg.detail !== null && (Array.isArray(msg.detail) ? msg.detail.length > 0 : true) && <pre className="mono text-[11px] mt-1 whitespace-pre-wrap max-h-48 overflow-auto">{Array.isArray(msg.detail) ? msg.detail.join("\n") : JSON.stringify(msg.detail, null, 1)}</pre>}</div>}
+        {msg && <div role={msg.tone === "err" ? "alert" : "status"} className={`mt-3 rounded-md px-3 py-2 text-[12.5px] ${msg.tone === "ok" ? "bg-exact-soft text-exact" : msg.tone === "warn" ? "bg-alt-soft text-alt" : "bg-none-soft text-none"}`}>{msg.text}{msg.detail !== undefined && msg.detail !== null && (Array.isArray(msg.detail) ? msg.detail.length > 0 : true) && <pre className="mono text-[11px] mt-1 whitespace-pre-wrap max-h-48 overflow-auto">{Array.isArray(msg.detail) ? msg.detail.join("\n") : JSON.stringify(msg.detail, null, 1)}</pre>}</div>}
       </Card>
 
       {def.requiredFromCustomer.length > 0 && (
@@ -265,7 +265,7 @@ function ReviewList({ items, onChange, all }: { items: Review[]; onChange: () =>
   };
   return (
     <Card title={all ? "Review queue" : "Needs review"} subtitle="Records an integration would not decide on its own: unmatched members, conflicting memberships, unknown competitors, ambiguous units, overlapping prices, low-confidence extractions. Nothing here has been applied." padded={false}>
-      {msg && <div className="px-4 py-2 text-[12px] text-none">{msg}</div>}
+      {msg && <div role="alert" className="px-4 py-2 text-[12px] text-none">{msg}</div>}
       {items.length === 0 ? <div className="px-4 py-3 text-[12.5px] text-muted">Nothing to review.</div> : (
         <div className="divide-y divide-line-2">
           {items.map((it) => {
@@ -285,13 +285,13 @@ function ReviewList({ items, onChange, all }: { items: Review[]; onChange: () =>
                       {sugg?.accounts?.map((a) => <option key={a.accountId} value={a.accountId}>{a.name}{a.accountNumber ? ` (${a.accountNumber})` : ""}</option>)}
                     </select>
                     <input className="input w-[220px] !py-1 mono text-[12px]" placeholder="or paste an account id" value={linkId[it.id] ?? ""} onChange={(e) => setLinkId({ ...linkId, [it.id]: e.target.value })} />
-                    <button className="btn-primary !py-1 !text-[12px]" disabled={!linkId[it.id]} onClick={() => act(it.id, { type: "link", accountId: linkId[it.id] })}>Link</button>
+                    <button type="button" className="btn-primary !py-1 !text-[12px]" disabled={!linkId[it.id]} onClick={() => act(it.id, { type: "link", accountId: linkId[it.id] })}>Link</button>
                   </>)}
-                  {isGpo && it.kind === "MEMBERSHIP_CONFLICT" && <button className="btn-primary !py-1 !text-[12px]" onClick={() => act(it.id, { type: "supersede" })}>Accept roster (close the current membership)</button>}
-                  {isContract && <button className="btn-primary !py-1 !text-[12px]" onClick={() => act(it.id, { type: "accept", corrections: it.kind === "UNKNOWN_COMPETITOR" ? { createCompetitor: true } : undefined })}>{it.kind === "UNKNOWN_COMPETITOR" ? "Create competitor and record" : "Record anyway"}</button>}
-                  {!isGpo && !isContract && it.kind !== "LOW_CONFIDENCE_EXTRACTION" && <button className="btn-ghost !py-1 !text-[12px]" onClick={() => act(it.id, { type: "accept" })}>Accept</button>}
+                  {isGpo && it.kind === "MEMBERSHIP_CONFLICT" && <button type="button" className="btn-primary !py-1 !text-[12px]" onClick={() => act(it.id, { type: "supersede" })}>Accept roster (close the current membership)</button>}
+                  {isContract && <button type="button" className="btn-primary !py-1 !text-[12px]" onClick={() => act(it.id, { type: "accept", corrections: it.kind === "UNKNOWN_COMPETITOR" ? { createCompetitor: true } : undefined })}>{it.kind === "UNKNOWN_COMPETITOR" ? "Create competitor and record" : "Record anyway"}</button>}
+                  {!isGpo && !isContract && it.kind !== "LOW_CONFIDENCE_EXTRACTION" && <button type="button" className="btn-ghost !py-1 !text-[12px]" onClick={() => act(it.id, { type: "accept" })}>Accept</button>}
                   {it.kind === "LOW_CONFIDENCE_EXTRACTION" && <a className="btn-ghost !py-1 !text-[12px]" href={`/intelligence/extractions/${(it.payload as { extractionId?: string })?.extractionId ?? ""}`}>Open review</a>}
-                  <button className="btn-ghost !py-1 !text-[12px]" onClick={() => act(it.id, { type: "dismiss" })}>Dismiss</button>
+                  <button type="button" className="btn-ghost !py-1 !text-[12px]" onClick={() => act(it.id, { type: "dismiss" })}>Dismiss</button>
                 </div>
               </div>
             );

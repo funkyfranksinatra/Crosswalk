@@ -61,6 +61,12 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   EXECUTIVE: ["view_pricing", "view_margin", "view_analytics"],
 };
 
+/**
+ * Readers of the crosswalk governance data (GET /api/crosses, /api/crosswalk/versions): any of
+ * these. CLINICAL_REVIEWER holds no view_pricing, and the rows carry no prices.
+ */
+export const CROSSWALK_READ: readonly Permission[] = ["view_pricing", "manage_crosswalk", "review_crosswalk_clinical"];
+
 /** Approval authority order — a role can decide anything a lower role could. */
 export const AUTHORITY_ORDER: Role[] = ["SALES_REP", "REGIONAL_MANAGER", "CONTRACTING_MANAGER", "PRICING_DIRECTOR", "PRICING_COMMITTEE"];
 

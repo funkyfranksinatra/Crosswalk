@@ -62,17 +62,22 @@ export async function publishVersion(actorUserId: string | null, notes?: string)
   const asOf = new Date();
   const crosses = await prisma.knownCross.findMany({ where: { isActive: true, approvalStatus: "APPROVED", OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: asOf } }], AND: [{ OR: [{ effectiveTo: null }, { effectiveTo: { gt: asOf } }] }] } });
   const last = await prisma.crosswalkVersion.findFirst({ orderBy: { number: "desc" } });
+  // The reviewer's preferred column redirects an entry only to a SKU that is in our catalog; the same column
+  // carries notes (DUPLICATE, DISCONT, HAND, REPEAT…) and a note must never be published as an own SKU.
+  const catalog = new Set((await prisma.ownProduct.findMany({ select: { sku: true } })).map((p) => p.sku.toUpperCase()));
+  const publishedSku = (c: { ownSku: string; preferredOwnSku: string | null }) => { const pref = (c.preferredOwnSku ?? "").trim().toUpperCase(); return pref && catalog.has(pref) ? pref : c.ownSku.trim().toUpperCase(); };
+  const publishable = crosses.filter((c) => !isPlaceholderSku(publishedSku(c)));
   const version = await prisma.$transaction(async (tx) => {
     await tx.crosswalkVersion.updateMany({ where: { status: "PUBLISHED" }, data: { status: "SUPERSEDED", supersededAt: asOf } });
     const v = await tx.crosswalkVersion.create({ data: { number: (last?.number ?? 0) + 1, status: "PUBLISHED", notes: notes ?? null, createdByUserId: actorUserId, publishedAt: asOf, publishedByUserId: actorUserId } });
     // createMany in chunks — thousands of rows on the first publish
-    for (let i = 0; i < crosses.length; i += 500) {
-      await tx.crosswalkVersionEntry.createMany({ data: crosses.slice(i, i + 500).map((c) => ({ versionId: v.id, knownCrossId: c.id, ownSku: (c.preferredOwnSku && /^[A-Z0-9-]{4,}$/i.test(c.preferredOwnSku) ? c.preferredOwnSku : c.ownSku).toUpperCase(), competitorName: c.competitorName, competitorCodeNorm: c.competitorCodeNorm, matchType: c.matchType, equivalenceLevel: c.equivalenceLevel, approvedUsage: c.approvedUsage, additionalProducts: c.additionalProducts })) });
+    for (let i = 0; i < publishable.length; i += 500) {
+      await tx.crosswalkVersionEntry.createMany({ data: publishable.slice(i, i + 500).map((c) => ({ versionId: v.id, knownCrossId: c.id, ownSku: publishedSku(c), competitorName: c.competitorName, competitorCodeNorm: c.competitorCodeNorm, matchType: c.matchType, equivalenceLevel: c.equivalenceLevel, approvedUsage: c.approvedUsage, additionalProducts: c.additionalProducts })) });
     }
     return v;
   }, { timeout: 120_000 });
-  await audit({ actorUserId, entityType: "CrosswalkVersion", entityId: version.id, action: "PUBLISHED", after: { number: version.number, entries: crosses.length } });
-  return { version, entries: crosses.length };
+  await audit({ actorUserId, entityType: "CrosswalkVersion", entityId: version.id, action: "PUBLISHED", after: { number: version.number, entries: publishable.length, skippedPlaceholders: crosses.length - publishable.length } });
+  return { version, entries: publishable.length };
 }
 
 export async function retireVersion(actorUserId: string | null, id: string) {

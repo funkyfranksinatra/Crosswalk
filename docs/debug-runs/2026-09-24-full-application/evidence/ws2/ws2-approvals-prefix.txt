@@ -1,0 +1,95 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+ ❯ tests/db/ws2-approvals.test.ts (10 tests | 4 failed) 2864ms
+   ❯ WS2 approvals (10)
+     × routing on submission: NOT_REQUIRED lines, lines within the submitter's authority auto-approved (audited), the rest PENDING with the lowest role that can decide 526ms
+     × submission is atomic: a forced failure at each step (claim, withdraw, recompute, line states, request create, status write, audit) leaves the draft exactly as it was 224ms
+     × deciding: lower authority refused, equal/higher allowed; simultaneous approve + reject → exactly one decision; a retry is refused; the queue shows only decidable requests 397ms
+     × a stale snapshot cannot authorise a changed price; changes-requested unlocks, a price change voids that line's request; reopen withdraws everything 341ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/db/ws2-approvals.test.ts > WS2 approvals > routing on submission: NOT_REQUIRED lines, lines within the submitter's authority auto-approved (audited), the rest PENDING with the lowest role that can decide
+AssertionError: expected { currency: 'USD', …(20) } to match object { approvalsPending: 2, …(1) }
+(19 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "approvalsPending": 2,
+-   "approvalsRequired": 2,
++   "approvalsPending": 0,
++   "approvalsRequired": 4,
+  }
+
+ ❯ tests/db/ws2-approvals.test.ts:77:34
+     75|     expect(st.requests).toEqual(["PRICING_DIRECTOR:PENDING", "PRICING_…
+     76|     expect(st.locked).toBe(true);
+     77|     expect(JSON.parse(st.econ!)).toMatchObject({ approvalsPending: 2, …
+       |                                  ^
+     78|     const auto = await prisma.auditEvent.findMany({ where: { entityTyp…
+     79|     expect(auto.length).toBe(2);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/db/ws2-approvals.test.ts > WS2 approvals > submission is atomic: a forced failure at each step (claim, withdraw, recompute, line states, request create, status write, audit) leaves the draft exactly as it was
+TypeError: .toMatch() expects to receive a string, but got undefined
+ ❯ tests/db/ws2-approvals.test.ts:111:52
+    109|     for (const at of steps) {
+    110|       const r = await withTxFailure(at, () => submitForApproval(rep.ac…
+    111|       expect(r.error?.message, JSON.stringify(at)).toMatch(/injected f…
+       |                                                    ^
+    112|       expect(r.calls, JSON.stringify(at)).toBeGreaterThanOrEqual(at.nt…
+    113|       expect(await state(fx.proposal.id), JSON.stringify(at)).toEqual(…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/db/ws2-approvals.test.ts > WS2 approvals > deciding: lower authority refused, equal/higher allowed; simultaneous approve + reject → exactly one decision; a retry is refused; the queue shows only decidable requests
+AssertionError: expected +0 to be 2 // Object.is equality
+
+- Expected
++ Received
+
+- 2
++ 0
+
+ ❯ tests/db/ws2-approvals.test.ts:160:51
+    158|     expect(st.lines[0]).toBe(decided.status);
+    159|     expect(st.status).toBe(decided.status === "REJECTED" ? "REJECTED" …
+    160|     expect(JSON.parse(st.econ!).approvalsPending).toBe(2);
+       |                                                   ^
+    161|     // Committee approves both remaining; the proposal is APPROVED onl…
+    162|     await decide(committee.actor, rDir.id, "APPROVED");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/db/ws2-approvals.test.ts > WS2 approvals > a stale snapshot cannot authorise a changed price; changes-requested unlocks, a price change voids that line's request; reopen withdraws everything
+AssertionError: promise resolved "{ status: 'APPROVED' }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "status": "APPROVED",
+  }
+
+ ❯ tests/db/ws2-approvals.test.ts:194:57
+    192|     // A PENDING request whose proposal is no longer in the approval c…
+    193|     await prisma.approvalRequest.update({ where: { id: rDir.id }, data…
+    194|     await expect(decide(dir.actor, rDir.id, "APPROVED")).rejects.toThr…
+       |                                                         ^
+    195|     expect((await state(fx.proposal.id)).status).toBe("DRAFT");
+    196|     await prisma.approvalRequest.update({ where: { id: rDir.id }, data…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 6 passed (10)
+   Start at  08:35:18
+   Duration  4.07s (tests 73%, transform 17%, setup 7%, import 3%)
+
