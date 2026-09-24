@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, Chip, MatchChip, ScoreBar, StatusPill, Stat, money, num, relTime, Empty } from "@/components/ui";
 import type { Bin } from "@/lib/match/bin";
 
-type Candidate = { id: string; rank: number; matchType: string; source: string; score: number; scoreBin: number | null; scorePrice: number | null; scoreCogs: number | null; scoreMargin: number | null; factorsJson: string | null; rationale: string | null; additionalProducts: string | null; unitPrice: number | null; ownProduct: { id: string; sku: string; description: string; category: string | null; brand: string | null; binJson: string | null; listPrice: number | null; cogs: number | null; gudidDi: string | null; status: string | null } };
+type Candidate = { id: string; rank: number; matchType: string; source: string; score: number; scoreBin: number | null; scorePrice: number | null; scoreCogs: number | null; scoreMargin: number | null; confidence: number | null; priceSource: string | null; factorsJson: string | null; rationale: string | null; additionalProducts: string | null; unitPrice: number | null; ownProduct: { id: string; sku: string; description: string; category: string | null; brand: string | null; binJson: string | null; listPrice: number | null; cogs: number | null; gudidDi: string | null; status: string | null } };
 type Competitor = { id: string; cfnNorm: string; cfnMatched: string | null; manufacturer: string | null; brand: string | null; description: string | null; gudidDi: string | null; gmdnName: string | null; status: string | null; resolution: string; resolutionNote: string | null; confidence: number | null; alternatesJson: string | null; binJson: string | null; binSource: string | null };
 type Line = { id: string; lineNo: number; rawCode: string; cfnNorm: string; quantity: number; estCompetitorPrice: number | null; resolutionStatus: string; resolutionNote: string | null; matchStatus: string; selectedCandidateId: string | null; overrideNote: string | null; customerNote: string | null; flag: string | null; reviewed: boolean; competitorProduct: Competitor | null; candidates: Candidate[] };
 type RequestData = { id: string; reference: string; accountName: string | null; accountNumber: string | null; accountType: string | null; reportType: string; status: string; stage: string | null; progress: number; attempt: number; error: string | null; useLlm: boolean; sourceFileName: string | null; createdAt: string; completedAt: string | null; llmAvailable: boolean; modelStatus: { requested: boolean; used: boolean; model: string; error?: string } | null; google: { configured: boolean; canWrite: boolean; email: string | null }; sourceUrl: string | null; xrefSheetUrl: string | null; offerSheetUrl: string | null; company: { name: string }; pricebook: { name: string } | null; lines: Line[]; summary: { total: number; resolved: number; matched: number; exact: number; close: number; alternative: number; reviewed: number; ourExtended: number; competitorExtended: number; priced: number }; log: { t: string; m: string }[] };
@@ -39,7 +39,7 @@ export function RequestView({ id }: { id: string }) {
     return data.lines.filter((l) => {
       const sel = l.candidates.find((c) => c.id === l.selectedCandidateId);
       const cp = l.competitorProduct;
-      if (filter === "attention" && !(l.resolutionStatus !== "resolved" || !sel || (cp?.confidence ?? 1) < 0.75)) return false;
+      if (filter === "attention" && !(l.resolutionStatus !== "resolved" || !sel || (cp?.confidence ?? 1) < 0.75 || (sel.confidence ?? 1) < 0.75)) return false;
       if (filter === "flagged" && l.flag !== "verify") return false;
       if (filter === "exact" && sel?.matchType !== "Exact Match") return false;
       if (filter === "close" && sel?.matchType !== "Close Match") return false;
@@ -82,7 +82,7 @@ export function RequestView({ id }: { id: string }) {
   if (!data) return <div className="space-y-3"><div className="h-8 w-64 rounded shimmer" /><div className="h-24 rounded shimmer" /><div className="h-96 rounded shimmer" /></div>;
   const s = data.summary;
   const running = ["running", "queued"].includes(data.status);
-  const attention = data.lines.filter((l) => l.resolutionStatus !== "resolved" || !l.candidates.some((c) => c.id === l.selectedCandidateId) || (l.competitorProduct?.confidence ?? 1) < 0.75).length;
+  const attention = data.lines.filter((l) => { const sel = l.candidates.find((c) => c.id === l.selectedCandidateId); return l.resolutionStatus !== "resolved" || !sel || (l.competitorProduct?.confidence ?? 1) < 0.75 || (sel.confidence ?? 1) < 0.75; }).length;
   const retain = data.lines.filter((l) => l.candidates.find((c) => c.id === l.selectedCandidateId)?.source === "identity").length;
   const flagged = data.lines.filter((l) => l.flag === "verify").length;
 
@@ -247,17 +247,19 @@ function LineRows({ l, cp, sel, isOpen, notFound, lowConf, us, toggle, onSelect,
                 <span className="mono font-semibold">{sel.ownProduct.sku}</span>
                 <MatchChip type={sel.matchType} />
                 {sel.source === "identity" && <Chip tone="info">Already ours</Chip>}
-                {sel.source === "known-cross" && <Chip>Curated</Chip>}
+                {sel.source === "known-cross" && <Chip>Curated{curatedOf(sel)?.contradicted ? " · contradicted" : ""}</Chip>}
+                {sel.confidence != null && sel.confidence < 0.75 && sel.source !== "identity" && <Chip tone="alt" title="Match confidence: how much evidence supports this grade">Verify match · {Math.round(sel.confidence * 100)}%</Chip>}
                 {l.candidates.length > 1 && <span className="text-[11.5px] text-muted">+{l.candidates.length - 1} more</span>}
               </div>
               <div className="text-[12.5px] text-ink-2 mt-0.5 line-clamp-2">{sel.ownProduct.description}</div>
+              {mismatchOf(sel) && <div className="text-[12px] text-alt mt-0.5 line-clamp-1">{mismatchOf(sel)}</div>}
             </>
           ) : (
             <div className="text-muted text-[12.5px]">{notFound ? "Resolve the competitor product first" : l.candidates.length ? "No acceptable match — review candidates" : "No candidates in catalog"}</div>
           )}
         </td>
         <td>{sel ? <ScoreBar value={sel.score} tone={sel.matchType === "Exact Match" ? "exact" : sel.matchType === "Alternative Match" ? "alt" : "accent"} /> : null}</td>
-        <td className="mono text-right">{sel ? money(sel.unitPrice) : ""}</td>
+        <td className="mono text-right" title={sel?.priceSource ?? undefined}>{sel ? money(sel.unitPrice) : ""}{sel?.priceSource && !sel.priceSource.startsWith("no price") && <div className="text-[10.5px] text-muted font-sans whitespace-nowrap">{sel.priceSource.replace(/^LIST · catalog list price$/, "list price")}</div>}{sel && sel.unitPrice == null && sel.priceSource && <div className="text-[10.5px] text-alt font-sans">no price</div>}</td>
         <td className="mono text-right">{sel ? money(ext) : ""}</td>
         <td className="text-center"><input type="checkbox" className="accent-[var(--accent)] h-4 w-4" checked={l.reviewed} onChange={(e) => onReviewed(e.target.checked)} /></td>
       </tr>
@@ -340,9 +342,29 @@ function LineRows({ l, cp, sel, isOpen, notFound, lowConf, us, toggle, onSelect,
   );
 }
 
+type Factors = { used: string[]; notes: string[]; evidence?: { kind: "hard" | "soft" | "agree" | "unknown"; field: string; text: string }[]; curated?: { source: string; grade: string; effective: string; contradicted: boolean; preferred: boolean }; cap?: string };
+const factorsOf = (c: Candidate): Factors | null => { if (!c.factorsJson) return null; try { return JSON.parse(c.factorsJson) as Factors; } catch { return null; } };
+const curatedOf = (c: Candidate) => factorsOf(c)?.curated ?? null;
+/** The first contradiction, for the line row ("length 150 mm vs 100 mm"). */
+const mismatchOf = (c: Candidate): string | null => { const e = factorsOf(c)?.evidence?.find((x) => x.kind === "hard" || x.kind === "soft"); return e ? `${e.kind === "hard" ? "✗" : "≠"} ${e.text}` : null; };
+
+function EvidenceList({ f }: { f: Factors }) {
+  const ev = f.evidence ?? [];
+  if (!ev.length && !f.curated) return null;
+  const glyph = { hard: "✗", soft: "≠", agree: "=", unknown: "?" } as const;
+  const tone = { hard: "text-alt", soft: "text-alt", agree: "text-exact", unknown: "text-muted" } as const;
+  const order = { hard: 0, soft: 1, agree: 2, unknown: 3 } as const;
+  return (
+    <ul className="mt-2 text-[12px] space-y-0.5">
+      {f.curated && <li className="text-ink-2">📄 Curated cross: <span className="font-medium">{f.curated.source}</span> says {f.curated.grade}{f.curated.preferred ? " (reviewer's preferred cross)" : ""}{f.curated.contradicted ? ` — ranked as ${f.curated.effective}: the attributes contradict it` : ""}</li>}
+      {[...ev].sort((a, b) => order[a.kind] - order[b.kind]).map((e, i) => <li key={i} className={tone[e.kind]}><span className="mono">{glyph[e.kind]}</span> <span className="text-muted">{e.field}:</span> {e.text}</li>)}
+    </ul>
+  );
+}
+
 function CandidateRow({ c, lineId, selected, qty, onSelect, compBin }: { c: Candidate; lineId: string; selected: boolean; qty: number; onSelect: () => void; compBin: Bin | null }) {
   const [more, setMore] = useState(false);
-  const factors: { used: string[]; notes: string[] } | null = c.factorsJson ? JSON.parse(c.factorsJson) : null;
+  const factors = factorsOf(c);
   const bin = parseBinSafe(c.ownProduct.binJson);
   return (
     <li className={`rounded-lg border px-3.5 py-3 bg-panel transition-colors ${selected ? "border-accent ring-2 ring-accent/15" : "border-line hover:border-faint"}`}>
@@ -354,12 +376,15 @@ function CandidateRow({ c, lineId, selected, qty, onSelect, compBin }: { c: Cand
             <span className="mono font-semibold">{c.ownProduct.sku}</span>
             <MatchChip type={c.matchType} />
             {c.source === "identity" && <Chip tone="info">Already ours</Chip>}
-            {c.source === "known-cross" && <Chip>Curated cross</Chip>}
+            {c.source === "known-cross" && <Chip>Curated cross{factors?.curated ? ` · ${factors.curated.source}` : ""}</Chip>}
+            {c.confidence != null && c.source !== "identity" && <Chip tone={c.confidence < 0.75 ? "alt" : "none"} title="How much evidence supports this grade (not the same as fit)">{c.confidence < 0.75 ? "Verify · " : "Confidence "}{Math.round(c.confidence * 100)}%</Chip>}
             {c.ownProduct.status && /not in/i.test(c.ownProduct.status) && <Chip tone="alt">Discontinued</Chip>}
-            <span className="ml-auto mono text-[12.5px]">{money(c.unitPrice)}{c.unitPrice != null && <span className="text-muted"> · {money(c.unitPrice * qty)}</span>}</span>
+            <span className="ml-auto mono text-[12.5px] text-right">{money(c.unitPrice)}{c.unitPrice != null && <span className="text-muted"> · {money(c.unitPrice * qty)}</span>}{c.priceSource && <div className={`text-[10.5px] font-sans ${c.priceSource.startsWith("no price") ? "text-alt" : "text-muted"}`} title={c.priceSource}>{c.priceSource.startsWith("no price") ? "no price on file" : c.priceSource.replace(/^LIST · catalog list price$/, "list price")}</div>}</span>
           </div>
           <div className="text-[12.5px] text-ink-2 mt-0.5">{c.ownProduct.description}</div>
-          {c.rationale && <div className="text-[12.5px] text-muted mt-1 italic">{c.rationale}</div>}
+          {c.rationale && !factors?.evidence?.length && <div className="text-[12.5px] text-muted mt-1 italic">{c.rationale}</div>}
+          {factors?.evidence?.length ? <EvidenceList f={factors} /> : null}
+          {c.priceSource?.startsWith("no price") && <div className="text-[11.5px] text-muted mt-1">{c.priceSource.replace(/^no price: /, "Why no price: ")}</div>}
           {c.additionalProducts && <div className="text-[12px] mt-1"><span className="text-muted">Also needs:</span> <span className="mono">{c.additionalProducts}</span></div>}
           <div className="flex items-center gap-4 mt-2 text-[11.5px] text-muted flex-wrap">
             <span className="flex items-center gap-1.5">Fit <ScoreBar value={c.scoreBin} width={48} /></span>

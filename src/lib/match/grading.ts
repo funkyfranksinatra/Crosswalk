@@ -168,7 +168,11 @@ export function applyGroupGrades(group: GradeLineInput[], grade: GroupGrade | nu
       const gg = g.grades.find((x) => x.sku.toUpperCase() === s.sku.toUpperCase());
       if (!gg) return s;
       const rationale = [gg.rationale, gg.clinicalCaveat ? `Caveat: ${gg.clinicalCaveat}` : null].filter(Boolean).join(" ");
-      const matchType = s.knownCross && gg.matchType === "No Match" ? s.matchType : s.identity ? "Exact Match" : gg.matchType;
+      // The model refines a grade; it cannot lift one past what the hard/soft constraints allow.
+      const RANK: Record<string, number> = { "Exact Match": 0, "Close Match": 1, "Alternative Match": 2, "No Match": 3 };
+      const cap = s.factors.cap ?? "Exact Match";
+      const proposed = s.knownCross && gg.matchType === "No Match" ? s.matchType : s.identity ? "Exact Match" : gg.matchType;
+      const matchType = (RANK[proposed] ?? 3) >= (RANK[cap] ?? 0) ? proposed : cap;
       return { ...s, matchType, rationale, factors: { ...s.factors, notes: [...s.factors.notes, cached ? "graded by model (cached verdict)" : "graded by model", ...(group.length > 1 ? [`graded with ${group.length - 1} sibling line(s)`] : [])] }, additionalProducts: gg.additionalProducts ?? undefined } as ScoredCandidate & { additionalProducts?: string };
     });
     scored = sortGraded(scored, g.bestSku);

@@ -6,23 +6,31 @@
  * report what we skipped. All sources reduce to a grid of cells first.
  */
 import ExcelJS from "exceljs";
-import { normalizeCfn, looksLikeCfn } from "@/lib/cfn";
+import { normalizeCfn, looksLikeCfn, isPlaceholderSku } from "@/lib/cfn";
 import { parseCsv } from "@/lib/sheets/csv";
 import { fetchSheetRows, parseSheetLink, SheetAccessError } from "@/lib/sheets/google";
 
-export type IntakeLine = { rawCode: string; cfnNorm: string; quantity: number; estPrice: number | null; sourceRows: number[] };
+export type IntakeLine = { rawCode: string; cfnNorm: string; quantity: number; estPrice: number | null; /** the sheet's description column, when it has one — evidence for matching */ description: string | null; sourceRows: number[] };
 export type IntakeResult = {
   lines: IntakeLine[];
   sheet: string;
   source: { kind: "xlsx" | "csv" | "google-sheet"; name: string; url?: string; via?: string };
+  /** rows with a value in the code column that were rejected, each with the reason */
   skipped: { row: number; reason: string; value: string }[];
-  detectedColumns: { code: number; qty: number | null; price: number | null; headerRow: number | null };
+  /** rows that are not data (TOTAL / subtotal / section headings) — reported so every row is accounted for */
+  ignored: { row: number; reason: string; value: string }[];
+  detectedColumns: { code: number; qty: number | null; price: number | null; description: number | null; headerRow: number | null };
   duplicatesMerged: number;
+  /** rows with something in the code column = lines' source rows + duplicates merged + skipped + ignored */
+  accounting: { dataRows: number; lines: number; merged: number; skipped: number; ignored: number };
 };
 
 const CODE_HEADERS = /^(product\s*code|productcode|cfn|catalog(ue)?\s*(no|number|#)?|item\s*(no|number|#|code)?|sku|part\s*(no|number|#)?|competitor\s*product|code|material)$/i;
 const QTY_HEADERS = /^(qty|quantity|annual\s*qty|annual\s*quantity|units|usage|volume|amount|count|qty\s*purchased)$/i;
 const PRICE_HEADERS = /^(price|unit\s*price|est(imated)?\s*(competitor\s*)?price|current\s*price|cost|avg\s*price)$/i;
+const DESC_HEADERS = /^((competitor\s*)?(product\s*|item\s*)?desc(ription)?|product\s*name|name|material\s*description)$/i;
+/** Report footers and section rows that live in the code column but are not products. */
+const SUMMARY_ROW = /^(grand\s*)?(sub)?total(s)?\b|^summary$|^page\s*\d+|^end\s+of\s+report$/i;
 
 type Cell = string | number | null;
 
@@ -52,18 +60,20 @@ export function parseIntakeGrid(grid: Cell[][], sheet: string, source: IntakeRes
   let codeCol = -1;
   let qtyCol: number | null = null;
   let priceCol: number | null = null;
+  let descCol: number | null = null;
 
   for (let r = 0; r < Math.min(10, grid.length); r++) {
     const row = grid[r] ?? [];
-    let c = -1, qc: number | null = null, pc: number | null = null;
+    let c = -1, qc: number | null = null, pc: number | null = null, dc: number | null = null;
     row.forEach((cell, i) => {
       const t = cellText(cell).trim();
       if (!t) return;
       if (c < 0 && CODE_HEADERS.test(t)) c = i;
       else if (qc == null && QTY_HEADERS.test(t)) qc = i;
       else if (pc == null && PRICE_HEADERS.test(t)) pc = i;
+      else if (dc == null && DESC_HEADERS.test(t)) dc = i;
     });
-    if (c >= 0) { headerRow = r; codeCol = c; qtyCol = qc; priceCol = pc; break; }
+    if (c >= 0) { headerRow = r; codeCol = c; qtyCol = qc; priceCol = pc; descCol = dc; break; }
   }
   if (codeCol < 0) {
     codeCol = 0;
@@ -75,15 +85,20 @@ export function parseIntakeGrid(grid: Cell[][], sheet: string, source: IntakeRes
 
   const byCode = new Map<string, IntakeLine>();
   const skipped: IntakeResult["skipped"] = [];
+  const ignored: IntakeResult["ignored"] = [];
   let duplicatesMerged = 0;
+  let dataRows = 0;
   for (let r = headerRow == null ? 0 : headerRow + 1; r < grid.length; r++) {
     const row = grid[r] ?? [];
     const rawVal = row[codeCol];
     const raw = cellText(rawVal).trim();
     if (!raw) continue;
-    if (/^total$/i.test(raw)) continue;
+    dataRows++;
+    if (SUMMARY_ROW.test(raw)) { ignored.push({ row: r + 1, reason: "summary row, not a product", value: raw }); continue; }
     const norm = normalizeCfn(typeof rawVal === "number" ? rawVal : raw);
-    if (!looksLikeCfn(norm)) { skipped.push({ row: r + 1, reason: "does not look like a catalog number", value: raw }); continue; }
+    if (isPlaceholderSku(norm)) { skipped.push({ row: r + 1, reason: "placeholder, not a catalog number", value: raw }); continue; }
+    if (!looksLikeCfn(norm)) { skipped.push({ row: r + 1, reason: norm.length > 42 ? "longer than any catalog number (42+ characters)" : /[^A-Z0-9\-./_]/.test(norm) ? `contains characters no catalog number uses (${[...new Set(norm.replace(/[A-Z0-9\-./_]/g, ""))].join(" ")})` : "does not look like a catalog number", value: raw }); continue; }
+    const description = descCol != null ? cellText(row[descCol] ?? null).trim().slice(0, 500) || null : null;
     const qty = qtyCol != null ? cellNumber(row[qtyCol] ?? null) : null;
     const priceRaw = priceCol != null ? cellNumber(row[priceCol] ?? null) : null;
     // Negative usage is a return or a credit, not demand; an implausible figure is a units/currency mix-up.
@@ -96,16 +111,20 @@ export function parseIntakeGrid(grid: Cell[][], sheet: string, source: IntakeRes
       existing.quantity += quantity;
       existing.sourceRows.push(r + 1);
       if (existing.estPrice == null && price != null) existing.estPrice = price;
+      if (existing.description == null && description) existing.description = description;
       duplicatesMerged++;
-    } else byCode.set(norm, { rawCode: raw, cfnNorm: norm, quantity, estPrice: price, sourceRows: [r + 1] });
+    } else byCode.set(norm, { rawCode: raw, cfnNorm: norm, quantity, estPrice: price, description, sourceRows: [r + 1] });
   }
+  const lines = [...byCode.values()];
   return {
-    lines: [...byCode.values()],
+    lines,
     sheet,
     source,
     skipped,
-    detectedColumns: { code: codeCol + 1, qty: qtyCol == null ? null : qtyCol + 1, price: priceCol == null ? null : priceCol + 1, headerRow: headerRow == null ? null : headerRow + 1 },
+    ignored,
+    detectedColumns: { code: codeCol + 1, qty: qtyCol == null ? null : qtyCol + 1, price: priceCol == null ? null : priceCol + 1, description: descCol == null ? null : descCol + 1, headerRow: headerRow == null ? null : headerRow + 1 },
     duplicatesMerged,
+    accounting: { dataRows, lines: lines.length, merged: duplicatesMerged, skipped: skipped.length, ignored: ignored.length },
   };
 }
 

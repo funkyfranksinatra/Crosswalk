@@ -28,6 +28,9 @@ export async function binProduct(input: {
   category?: string | null;
   sizes?: { type?: string; value?: string; unit?: string }[] | null;
   importedSizes?: Dimension[] | null;
+  /** catalog number as printed by its manufacturer (competitor codes too) — SKU-convention evidence */
+  code?: string | null;
+  intakeDescription?: string | null;
   singleUse?: boolean | null;
   sterile?: boolean | null;
   implantable?: boolean | null;
@@ -58,7 +61,8 @@ export async function binProduct(input: {
   const res = await structured({ purpose: "bin", subject: input.subject, system: BIN_SYSTEM, user, schema: BinSchema, schemaName: "product_bin" });
   if (!res.ok) return { bin: heuristic, source: "heuristic" };
   // Keep any heuristic dimensions the model dropped when it kept the same family
-  const bin: Bin = { ...res.data, v: 9999, hv: BIN_VERSION }; // stale only when the heuristic draft rules change
+  // The provenance-tagged access profile is derived, never asked of the model; it rides along from the draft.
+  const bin: Bin = { ...res.data, v: 9999, hv: BIN_VERSION, ...(heuristic.access ? { access: heuristic.access } : {}) }; // stale only when the heuristic draft rules change
   if (bin.dimensions.length === 0 && heuristic.dimensions.length) bin.dimensions = heuristic.dimensions;
   // Sizes we know from our own SKU convention beat a model that only saw a partial GUDID record.
   for (const d of heuristic.dimensions.filter((x) => ["width", "length", "diameter"].includes(x.name))) if (!bin.dimensions.some((x) => x.name === d.name)) bin.dimensions.push(d);

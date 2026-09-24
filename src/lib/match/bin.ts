@@ -7,6 +7,8 @@
  * a model. Similarity between two bins is deterministic and explainable.
  */
 import { z } from "zod";
+import { buildAccessProfile, type AccessProfile, type ProfileSource } from "./access";
+import { compareAccess, type ConstraintResult } from "./constraints";
 
 export const FAMILIES = [
   "Trocar Products",
@@ -30,7 +32,7 @@ export const DimensionSchema = z.object({
  * Model bins record the heuristic version they were drafted from (`hv`); a bump rebuilds those
  * too, because the model corrects the heuristic first pass rather than starting from nothing.
  */
-export const BIN_VERSION = 6;
+export const BIN_VERSION = 7;
 
 export const BinSchema = z.object({
   v: z.number().optional().describe("internal: binner rule version"),
@@ -47,13 +49,15 @@ export const BinSchema = z.object({
   implantable: z.boolean().nullable(),
   summary: z.string().describe("one line a sales rep would recognise"),
 });
-export type Bin = z.infer<typeof BinSchema>;
+/** Stored shape: the model's bin plus the provenance-tagged access profile the heuristic derives (never asked of the model). */
+export const StoredBinSchema = BinSchema.extend({ access: z.custom<AccessProfile>((v) => v == null || (typeof v === "object" && Array.isArray((v as AccessProfile).diameters))).optional() });
+export type Bin = z.infer<typeof StoredBinSchema>;
 export type Dimension = z.infer<typeof DimensionSchema>;
 
 export function parseBin(json: string | null | undefined, opts: { allowStale?: boolean } = {}): Bin | null {
   if (!json) return null;
   try {
-    const parsed = BinSchema.safeParse(JSON.parse(json));
+    const parsed = StoredBinSchema.safeParse(JSON.parse(json));
     if (!parsed.success) return null;
     // Bins built by older heuristic rules are treated as missing so they get rebuilt. Model bins
     // (v = 9999) go stale when the heuristic draft they corrected is older than the current rules.
@@ -132,7 +136,8 @@ const FEATURES: [RegExp, string][] = [
   [/\bloading unit\b|\breload\b|\bcartridge\b|sulu/i, "reload"],
   [/\bstapler\b|\bhandle\b|\binstrument\b/i, "instrument"],
   [/\bcircular\b|\beea\b|\bcdh\b|hemorrhoid/i, "circular"],
-  [/\blinear cutter\b|\bgia\b|\bendopath\b|\bets\b/i, "linear cutter"],
+  // Endopath is Ethicon's stapler line and its trocar line; only the stapler sense is a linear cutter.
+  [/\blinear cutter\b|\bgia\b|\bendopath\b(?![^;]*\b(?:xcel|basx|trocars?|sleeves?|cannulas?|separators?|obturators?)\b)|\bets\b/i, "linear cutter"],
   [/\bta\b|\bta™/i, "linear non-cutting"],
   [/\bextra long\b|\bxl\b|\blong\b/i, "long"],
   [/\bshort\b|\bcompact\b/i, "short"],
@@ -346,6 +351,12 @@ export function heuristicBin(input: {
   sizes?: { type?: string; value?: string; unit?: string }[] | null;
   /** Sizes the rep imported for this competitor code — trusted over GUDID and regex. */
   importedSizes?: Dimension[] | null;
+  /** Labeler / company, so SKU conventions apply only to the manufacturer that defines them. */
+  manufacturer?: string | null;
+  /** The catalog number as the manufacturer prints it (competitor or ours) — read by the SKU-convention rules. `sku` stays our own SKU (mesh size convention). */
+  code?: string | null;
+  /** The rep's intake description for this code (customer item master) — evidence below GUDID and the SKU convention. */
+  intakeDescription?: string | null;
   singleUse?: boolean | null;
   sterile?: boolean | null;
   implantable?: boolean | null;
@@ -355,7 +366,9 @@ export function heuristicBin(input: {
 
   // Rules first (they read the product itself), sales category as the fallback.
   let family: Family = "Other";
-  const offSpecialty = (input.specialties ?? []).some((sp) => OFF_SPECIALTIES.test(sp));
+  // A review panel outside surgery vetoes the surgical families — unless the GMDN term itself is a
+  // surgical-access / stapling / mesh term (a laparoscopic cannula filed under "Cardiovascular" is still a cannula).
+  const offSpecialty = (input.specialties ?? []).some((sp) => OFF_SPECIALTIES.test(sp)) && !/laparoscop|trocar|surgical stapl|hernia|surgical mesh/i.test(input.gmdnName ?? "");
   if (!offSpecialty) {
     for (const [re, fam] of FAMILY_RULES) {
       if (re.test(text)) { family = fam; break; }
@@ -413,7 +426,25 @@ export function heuristicBin(input: {
     for (const d of fromSku) if (!dims.some((x) => x.name === d.name || (d.name !== "diameter" && x.name === "diameter") || (d.name === "diameter" && (x.name === "width" || x.name === "length")))) dims.push(d);
   }
 
-  const productType = deriveProductType(family, features, lower);
+  // Access products get the provenance-tagged profile; its sizes replace the generic regex reading
+  // (a "5–12 mm" range is not two diameters, "2/3 mm" is two, "100 mm x 5 mm" is length then size).
+  let access: AccessProfile | undefined;
+  if (family === "Trocar Products") {
+    // Priority: structured sizes (curated import, GUDID) > the manufacturer's SKU convention > description
+    // text (GUDID / curated sheet) > the intake description. The GMDN term is read only for what it
+    // states specifically (a seal, a needle); "laparoscopic access cannula" is the generic term for trocars.
+    const sources: ProfileSource[] = [
+      ...(input.importedSizes?.length ? [{ text: null, source: "curated-spec" as const, dims: input.importedSizes }] : []),
+      ...(input.sizes?.length ? [{ text: null, source: "gudid:size" as const, sizes: input.sizes }] : []),
+      { text: input.code ?? input.sku ?? null, source: "sku", manufacturer: input.manufacturer ?? null },
+      { text: [input.brand, input.name, input.description].filter(Boolean).join(" ; "), source: "gudid:description", gmdn: input.gmdnName ?? null },
+      ...(input.intakeDescription ? [{ text: input.intakeDescription, source: "intake:description" as const }] : []),
+    ];
+    access = buildAccessProfile(sources);
+    accessDimensions(dims, access);
+    accessFeatures(features, access);
+  }
+  const productType = deriveProductType(family, features, lower, access);
   normaliseDimensions(dims);
   const compatibility: string[] = [];
   for (const sys of ["signia", "endo gia", "echelon", "aeon", "tri-staple", "versaone", "kii", "endopath xcel", "ligasure", "harmonic"]) {
@@ -433,13 +464,53 @@ export function heuristicBin(input: {
     sterile: input.sterile ?? (features.includes("sterile") ? true : null),
     implantable: input.implantable ?? (family === "Hernia Mesh" || family === "Fixation" ? true : null),
     summary: (input.description || input.name || "").replace(/\s+/g, " ").trim().slice(0, 120) + (input.importedSizes?.length ? " (size from competitor sizes import)" : ""),
+    ...(access ? { access } : {}),
   };
 }
 
-function deriveProductType(family: Family, features: string[], lower: string): string {
+/** Replace the generic size reading with the profile's (in place). */
+function accessDimensions(dims: Dimension[], access: AccessProfile) {
+  for (let i = dims.length - 1; i >= 0; i--) { const n = canonName(dims[i].name); if (["diameter", "length", "width", "lumen/inner diameter", "min instrument", "max instrument"].includes(n)) dims.splice(i, 1); }
+  for (const d of [...access.diameters].reverse()) dims.unshift({ name: "diameter", value: d, unit: "mm" });
+  if (access.lengthMm != null) dims.push({ name: "length", value: access.lengthMm, unit: "mm" });
+  if (access.range) dims.push({ name: "min instrument", value: access.range.min, unit: "mm" }, { name: "max instrument", value: access.range.max, unit: "mm" });
+}
+function accessFeatures(features: string[], access: AccessProfile) {
+  if (access.visualization === "optical" && !features.includes("optical")) features.push("optical");
+  if ((access.tip === "bladeless" || access.tip === "dilating") && !features.includes("bladeless")) features.push("bladeless");
+  if (access.tip === "bladed" && !features.includes("bladed")) features.push("bladed");
+  if (access.component === "cannula" && !features.includes("sleeve")) features.push("sleeve");
+  // "trocar with stability sleeve" is a trocar: the generic sleeve tag is the cannula-only marker.
+  if (access.component === "trocar" || access.component === "dilating-system") { const i = features.indexOf("sleeve"); if (i >= 0) features.splice(i, 1); }
+}
+
+/**
+ * A bin with a (merged) access profile applied: sizes, features and product type follow the profile.
+ * Used at match time to fold line-level evidence (the intake description) into a cached competitor bin.
+ */
+export function withAccessProfile(bin: Bin, access: AccessProfile): Bin {
+  const dims = bin.dimensions.map((d) => ({ ...d }));
+  const features = [...bin.features];
+  accessDimensions(dims, access);
+  accessFeatures(features, access);
+  normaliseDimensions(dims);
+  return { ...bin, dimensions: dims, features, productType: bin.family === "Trocar Products" ? deriveProductType(bin.family, features, bin.summary.toLowerCase(), access) : bin.productType, access };
+}
+
+function deriveProductType(family: Family, features: string[], lower: string, access?: AccessProfile): string {
   const has = (f: string) => features.includes(f);
   switch (family) {
     case "Trocar Products":
+      if (access && access.component !== "unknown") {
+        switch (access.component) {
+          case "insufflation-needle": return "insufflation needle";
+          case "cannula": return "trocar sleeve";
+          case "obturator": return "trocar obturator";
+          case "accessory": return "trocar accessory";
+          case "dilating-system": return "radially expanding trocar";
+          default: return [access.tip === "bladed" ? "bladed" : access.tip === "blunt" ? "blunt" : access.tip ? "bladeless" : "", access.visualization === "optical" ? "optical" : "", "trocar"].filter(Boolean).join(" ");
+        }
+      }
       if (has("insufflation needle")) return "insufflation needle";
       if (has("sleeve") && !/trocar/.test(lower)) return "trocar sleeve";
       if (has("obturator") && !/trocar|system/.test(lower)) return "trocar obturator";
@@ -551,12 +622,14 @@ function dimensionScore(a: Dimension[], b: Dimension[]): { score: number | null;
   return { score: sum / n, detail };
 }
 
-export type MatchCap = "Exact Match" | "Close Match" | "Alternative Match";
+export type MatchCap = "Exact Match" | "Close Match" | "Alternative Match" | "No Match";
 
 export type SimilarityBreakdown = {
   score: number;
   /** Highest match type the construction differences allow. */
   cap: MatchCap;
+  /** Access-product constraint findings when both sides carry a profile (docs/MATCH_QUALITY_MODEL.md §4). */
+  access?: ConstraintResult;
   family: number | null;
   productType: number | null;
   dimensions: number | null;
@@ -613,7 +686,22 @@ export function binSimilarity(a: Bin, b: Bin, textA = "", textB = ""): Similarit
   else if (has(a, "barrier") !== has(b, "barrier")) { if (cap === "Exact Match") cap = "Close Match"; notes.push(has(a, "barrier") ? "competitor has a tissue-separating barrier; ours does not" : "ours has a barrier layer; competitor does not"); score *= 0.92; }
   if (coreA.length && coreB.length && !coreA.some((m) => coreB.includes(m))) { if (cap === "Exact Match") cap = "Close Match"; notes.push(`different material (${coreA.join("/")} vs ${coreB.join("/")})`); score *= 0.92; }
   if (has(a, "partially-absorbable") !== has(b, "partially-absorbable") && cap === "Exact Match") cap = "Close Match";
-  return { score, cap, family, productType: pt, dimensions: dim.score, features: feat, materials: mat, text: txt, notes };
+
+  // Access products: hard constraints and soft signals from the provenance-tagged profiles.
+  let access: ConstraintResult | undefined;
+  if (a.access && b.access && a.family === "Trocar Products" && b.family === "Trocar Products") {
+    access = compareAccess(a.access, b.access);
+    score *= access.multiplier;
+    // The decisive attributes are the evidence: generic feature/text overlap (brand words, packaging
+    // words) must not hold a fully agreeing pair below the Exact threshold, nor lift a contradicted one.
+    if (access.hard === 0) score = Math.max(score, access.agreement);
+    if (MATCH_RANK[access.cap] > MATCH_RANK[cap]) cap = access.cap;
+    // Findings lead the explanation: contradictions first, then what agrees.
+    const order = { hard: 0, soft: 1, agree: 2, unknown: 3 };
+    const lines = [...access.findings].sort((x, y) => order[x.kind] - order[y.kind]).filter((f) => f.kind !== "unknown").map((f) => (f.kind === "hard" ? `✗ ${f.text}` : f.kind === "soft" ? `≠ ${f.text}` : `= ${f.text}`));
+    notes.splice(0, notes.length, ...lines, ...notes.filter((n) => !/same product type|different product type/.test(n)));
+  }
+  return { score, cap, access, family, productType: pt, dimensions: dim.score, features: feat, materials: mat, text: txt, notes };
 }
 
 const MATCH_RANK: Record<string, number> = { "Exact Match": 0, "Close Match": 1, "Alternative Match": 2, "No Match": 3 };
@@ -626,5 +714,6 @@ export function matchTypeFromScore(score: number, dims: number | null, cap: Matc
   else t = "No Match";
   // Never claim Exact when the competitor's size is unknown — a rep must confirm it.
   if (t === "Exact Match" && dims === null) t = "Close Match";
-  return MATCH_RANK[t] > MATCH_RANK[cap] ? t : cap === "Exact Match" ? t : MATCH_RANK[t] < MATCH_RANK[cap] ? cap : t;
+  // A cap only ever lowers the grade; a hard incompatibility is No Match whatever the score.
+  return MATCH_RANK[t] > MATCH_RANK[cap] ? t : cap;
 }

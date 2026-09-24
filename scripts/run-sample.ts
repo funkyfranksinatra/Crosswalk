@@ -32,7 +32,7 @@ async function main() {
       pricebookId: pricebook?.id,
       sourceFileName: path.basename(file),
       status: "queued",
-      lines: { create: intake.lines.map((l, i) => ({ lineNo: i + 1, rawCode: l.rawCode, cfnNorm: l.cfnNorm, quantity: l.quantity, estCompetitorPrice: l.estPrice })) },
+      lines: { create: intake.lines.map((l, i) => ({ lineNo: i + 1, rawCode: l.rawCode, cfnNorm: l.cfnNorm, quantity: l.quantity, estCompetitorPrice: l.estPrice, description: l.description ?? null })) },
     },
   });
   console.log(`Created ${req.reference} (${req.id})`);

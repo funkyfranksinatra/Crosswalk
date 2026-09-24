@@ -73,7 +73,7 @@ export async function buildCrossReferenceWorkbook(requestId: string, hide: Hide 
   totalRow.font = { bold: true };
   totalRow.getCell(6).numFmt = money;
   totalRow.getCell(14).numFmt = money;
-  ws.columns = headers.map((h, i) => ({ width: [3, 8, 18, 20, 23].includes(i + 1) ? 48 : [1, 7, 15, 19, 22].includes(i + 1) ? 22 : 14 }));
+  ws.columns = headers.map((h, i) => ({ width: [3, 8, 18, 20, 23, 27].includes(i + 1) ? 48 : [1, 7, 15, 19, 22, 28].includes(i + 1) ? 22 : 14 }));
   ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: headers.length } };
 
   // ---- Sheet 2: All candidates ----------------------------------------------
@@ -183,7 +183,21 @@ export function xrefHeaders(us: string): string[] {
     `${us} Product Match`, `${us} Product Description`, "Additional Products Needed", "Item Product Category", `${us} Quantity`,
     `${us} Current PriceBook`, `${us} Current Price`, `${us} Extended Dollars`, "Match Type",
     "Confidence", "Match Source", "Rationale", "Next Best 1", "Next Best 1 Description", "Next Best 1 Type", "Next Best 2", "Next Best 2 Description", "Next Best 2 Type", "GUDID DI", "Resolution",
+    "Pricing Source", "Curated Sheet",
   ];
+}
+
+/** "LOCAL · TROCAR - SANFORD HLTH" → "TROCAR - SANFORD HLTH"; "LIST · catalog list price" → "LIST PRICE". */
+export function priceBookLabel(priceSource: string | null | undefined, fallback: string): string {
+  if (!priceSource || priceSource.startsWith("no price")) return fallback;
+  const name = priceSource.split(" · ").slice(1).join(" · ").replace(/ \(.*\)$/, "");
+  return name === "catalog list price" ? "LIST PRICE" : name || fallback;
+}
+
+/** "Access-PACR (Exact Match)" from the candidate's stored factors; "" for attribute matches. */
+function curatedLabel(factorsJson: string | null): string {
+  if (!factorsJson) return "";
+  try { const f = JSON.parse(factorsJson) as { curated?: { source: string; grade: string; contradicted?: boolean; preferred?: boolean } }; if (!f.curated) return ""; return `${f.curated.source} (${f.curated.grade}${f.curated.preferred ? ", preferred" : ""}${f.curated.contradicted ? ", contradicted by attributes" : ""})`; } catch { return ""; }
 }
 
 /** Cells are numbers for Excel; arithmetic happens in Decimal (src/lib/money) and is rounded to cents here. */
@@ -218,11 +232,11 @@ function xrefRows(r: Loaded): { rows: { cells: CellValue[]; matchType: string }[
         sel?.additionalProducts ?? "",
         sel?.ownProduct.category ?? cp?.category ?? (notFound ? "NO MATCH" : ""),
         line.quantity,
-        sel ? (sel.unitPrice != null ? r.pricebook?.name ?? "LIST PRICE" : "No price on file") : "No Price Book found",
+        sel ? (sel.unitPrice != null ? priceBookLabel(sel.priceSource, r.pricebook?.name ?? "LIST PRICE") : "No price on file") : "No Price Book found",
         num(sel?.unitPrice),
         ourExt,
         matchType,
-        sel ? Math.round(sel.score * 100) / 100 : null,
+        sel ? Math.round((sel.confidence ?? sel.score) * 100) / 100 : null,
         sel?.source ?? "",
         sel?.rationale ?? line.resolutionNote ?? "",
         others[0]?.ownProduct.sku ?? "",
@@ -233,6 +247,8 @@ function xrefRows(r: Loaded): { rows: { cells: CellValue[]; matchType: string }[
         others[1]?.matchType ?? "",
         cp?.gudidDi ?? "",
         cp?.resolutionNote ?? "",
+        sel ? sel.priceSource ?? (sel.unitPrice != null ? `LIST · ${r.pricebook?.name ?? "catalog list price"}` : "no price on file") : "",
+        sel ? curatedLabel(sel.factorsJson) : "",
       ],
     });
   }

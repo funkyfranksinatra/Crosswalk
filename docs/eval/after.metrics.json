@@ -1,0 +1,419 @@
+{
+ "label": "after",
+ "commit": "ea820a0",
+ "at": "2026-09-24T00:20:05.369Z",
+ "reference": "REQ-0380",
+ "ms": 3474,
+ "useLlm": false,
+ "intake": {
+  "sheetRows": 245,
+  "pacrLines": 244,
+  "parsed": 244,
+  "skipped": 0,
+  "merged": 0,
+  "unaccounted": 0,
+  "codesNotInPacr": [],
+  "pacrNotParsed": [],
+  "skippedDetail": []
+ },
+ "identification": {
+  "resolved": 236,
+  "notFound": 8,
+  "error": 0,
+  "bySource": {
+   "openfda": 236,
+   "not-found": 8
+  },
+  "viaLibrary": 102,
+  "lowConfidence": 0
+ },
+ "confidence": {
+  "verify": 74,
+  "byBand": {
+   "0.75–0.9": 98,
+   "≥0.9": 62,
+   "0.6–0.75": 60,
+   "<0.6": 14
+  },
+  "meanByGrade": {
+   "Exact Match": 0.83,
+   "Close Match": 0.698,
+   "Alternative Match": 0.48
+  }
+ },
+ "matching": {
+  "proposed": 234,
+  "pacrProposed": 100,
+  "byGrade": {
+   "Exact Match": 156,
+   "Close Match": 74,
+   "Alternative Match": 4
+  },
+  "pacrByGrade": {
+   "Exact Match": 75,
+   "Close Match": 25
+  },
+  "bySource": {
+   "attribute": 136,
+   "known-cross": 71,
+   "identity": 27
+  },
+  "noMatch": 10,
+  "notFound": 8,
+  "identityLines": 27,
+  "identityKept": 27,
+  "meanScoreByGrade": {
+   "Exact Match": 0.973,
+   "Close Match": 0.843,
+   "Alternative Match": 0.575
+  }
+ },
+ "agreement": {
+  "bothNone": 10,
+  "same": 42,
+  "sameGrade": 38,
+  "pacrNextBest": 19,
+  "pacrRank4Plus": 6,
+  "different": 33,
+  "cwOnly": 134,
+  "pacrOnly": 0,
+  "cwOnlyByConf": {
+   "0.8–0.9": 35,
+   "≥0.9": 72,
+   "0.7–0.8": 17,
+   "<0.7": 10
+  },
+  "calibration": {
+   "PACR Exact Match / CW Close Match": 4
+  }
+ },
+ "curated": {
+  "lines": 85,
+  "top1": 71,
+  "top3": 80,
+  "contradictedByTop": 14,
+  "strongLines": 85,
+  "strongTop1": 71,
+  "pacrLines": 77,
+  "pacrTop1": 74,
+  "pacrContradict": 3
+ },
+ "mismatches": {
+  "cw": {
+   "diameter": 0,
+   "checked": 179,
+   "component": 0,
+   "componentChecked": 190
+  },
+  "pacr": {
+   "diameter": 3,
+   "checked": 71,
+   "component": 4,
+   "componentChecked": 74
+  },
+  "cwDiameterList": [],
+  "cwComponentList": [],
+  "pacrDiameterList": [
+   "FP007 (7 mm) → 179308 (5 mm)",
+   "CTB12LT (12 mm) → UNVCA11STF (11 mm)",
+   "C0Q20 (5 mm) → 176626P (12 mm)"
+  ],
+  "pacrComponentList": [
+   "CFS01 [cannula] → ONB5LGF [trocar]",
+   "CB5ST [cannula] → ONB5SHF [trocar]",
+   "CTF03 [trocar] → 177092 [cannula]",
+   "CFS03 [cannula] → ONB5SHF [trocar]"
+  ]
+ },
+ "pricing": {
+  "pricedByRun": 159,
+  "priceableUnderContract": 159,
+  "bySource": {
+   "LOCAL:TROCAR - SANFORD HLTH": 141,
+   "LIST:list": 8,
+   "GPO:VIZIENT TROCAR T1": 1,
+   "LOCAL:ENDO - SANFORD HLTH": 9
+  },
+  "pacrPriced": 100,
+  "pacrByBook": {
+   "HOSPITAL LIST PRICE": 13,
+   "TROCAR - SANFORD HLTH": 80,
+   "ENDO - SANFORD HLTH": 6,
+   "VIZIENT TROCAR T1": 1
+  },
+  "samePriceAsPacr": 42,
+  "sameSkuPricedByPacr": 42
+ },
+ "nextBest": {
+  "linesWithAlt": 233,
+  "altDistinct": 233,
+  "altSameDiameterAsTop": 226
+ },
+ "pacrWins": [
+  {
+   "code": "2B5ST",
+   "pacr": "ONB5STF",
+   "expected": [
+    "ONB5SHF"
+   ],
+   "why": "OPTIVIEW optical 5 mm × 75 mm → the 70 mm short optical trocar (PACR gives the 100 mm)",
+   "cw": "ONB5SHF (Exact Match, conf 0.90, known-cross)",
+   "pacrRank": null,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": false
+  },
+  {
+   "code": "2B5LT",
+   "pacr": "ONB5STF",
+   "expected": [
+    "ONB5STF"
+   ],
+   "why": "OPTIVIEW optical 5 × 100",
+   "cw": "ONB5STF (Exact Match, conf 0.90, known-cross)",
+   "pacrRank": 1,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": true
+  },
+  {
+   "code": "2B5XT",
+   "pacr": "ONB5LGF",
+   "expected": [
+    "ONB5LGF"
+   ],
+   "why": "OPTIVIEW optical 5 × 150 (XT), despite the item master's '100 mm'",
+   "cw": "ONB5LGF (Exact Match, conf 0.90, known-cross)",
+   "pacrRank": 1,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": true
+  },
+  {
+   "code": "2B12XT",
+   "pacr": "ONB12LGF",
+   "expected": [
+    "ONB12LGF"
+   ],
+   "why": "OPTIVIEW optical 12 × 150",
+   "cw": "ONB12LGF (Exact Match, conf 0.90, known-cross)",
+   "pacrRank": 1,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": true
+  },
+  {
+   "code": "CTF04",
+   "pacr": "NONB5LGF",
+   "expected": [
+    "ONB5STF"
+   ],
+   "why": "Kii Fios optical 5 × 100 (PACR: non-optical, 150 mm)",
+   "cw": "ONB5STF (Exact Match, conf 0.90, known-cross)",
+   "pacrRank": null,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": false
+  },
+  {
+   "code": "CTF73",
+   "pacr": "NB12STF",
+   "expected": [
+    "ONB12STF"
+   ],
+   "why": "Kii Fios optical 12 × 100 (PACR: non-optical bladeless)",
+   "cw": "ONB12STF (Close Match, conf 0.90, known-cross)",
+   "pacrRank": 2,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": false
+  },
+  {
+   "code": "CTF74",
+   "pacr": "NB12STF",
+   "expected": [
+    "ONB12STF"
+   ],
+   "why": "Kii Fios optical 12 × 100",
+   "cw": "ONB12STF (Close Match, conf 0.90, known-cross)",
+   "pacrRank": 2,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": false
+  },
+  {
+   "code": "CTF71",
+   "pacr": "NB12LGF",
+   "expected": [
+    "ONB12LGF"
+   ],
+   "why": "Kii Fios optical 12 × 150",
+   "cw": "ONB12LGF (Close Match, conf 0.90, known-cross)",
+   "pacrRank": 4,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": false
+  },
+  {
+   "code": "CB5ST",
+   "pacr": "ONB5SHF",
+   "expected": [
+    "UNVCA5SHF"
+   ],
+   "why": "universal sleeve 5 × 75 → cannula only (PACR gives a complete trocar)",
+   "cw": "UNVCA5SHF (Close Match, conf 0.76, known-cross)",
+   "pacrRank": null,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": false
+  },
+  {
+   "code": "CB5LT",
+   "pacr": "UNVCA5STF",
+   "expected": [
+    "UNVCA5STF"
+   ],
+   "why": "universal sleeve 5 × 100",
+   "cw": "UNVCA5STF (Exact Match, conf 0.76, known-cross)",
+   "pacrRank": 1,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": true
+  },
+  {
+   "code": "CB11LT",
+   "pacr": "UNVCA11STF",
+   "expected": [
+    "UNVCA11STF"
+   ],
+   "why": "universal sleeve 11 × 100",
+   "cw": "UNVCA11STF (Exact Match, conf 0.76, known-cross)",
+   "pacrRank": 1,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": true
+  },
+  {
+   "code": "CB12LT",
+   "pacr": "UNVCA12STF",
+   "expected": [
+    "UNVCA12STF"
+   ],
+   "why": "universal sleeve 12 × 100",
+   "cw": "UNVCA12STF (Exact Match, conf 0.76, known-cross)",
+   "pacrRank": 1,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": true
+  },
+  {
+   "code": "2CB5LT",
+   "pacr": "UNVCA5STF",
+   "expected": [
+    "UNVCA5STF"
+   ],
+   "why": "OPTIVIEW universal sleeve 5 × 100",
+   "cw": "UNVCA5STF (Exact Match, conf 0.79, known-cross)",
+   "pacrRank": 1,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": true
+  },
+  {
+   "code": "2CB12LT",
+   "pacr": "UNVCA12STF",
+   "expected": [
+    "UNVCA12STF"
+   ],
+   "why": "OPTIVIEW universal sleeve 12 × 100",
+   "cw": "UNVCA12STF (Exact Match, conf 0.79, known-cross)",
+   "pacrRank": 1,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": true
+  },
+  {
+   "code": "CTB11LT",
+   "pacr": "UNVCA11STF",
+   "expected": [
+    "UNVCA11STF"
+   ],
+   "why": "BASX universal sleeve 11 × 100",
+   "cw": "UNVCA11STF (Exact Match, conf 0.76, known-cross)",
+   "pacrRank": 1,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": true
+  },
+  {
+   "code": "CTB12LT",
+   "pacr": "UNVCA11STF",
+   "expected": [
+    "UNVCA12STF"
+   ],
+   "why": "BASX universal sleeve 12 × 100 (PACR gives the 11 mm)",
+   "cw": "UNVCA12STF (Close Match, conf 0.76, known-cross)",
+   "pacrRank": null,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": false
+  },
+  {
+   "code": "23NBL",
+   "pacr": "MS101003",
+   "expected": [
+    "MS101003"
+   ],
+   "why": "2 mm/3 mm mini trocar → the 2/3 mm Mini Step",
+   "cw": "MS101003 (Exact Match, conf 0.72, known-cross)",
+   "pacrRank": 1,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": true
+  },
+  {
+   "code": "D5LT",
+   "pacr": "B5STF",
+   "expected": [
+    "NONB5STF",
+    "NB5STF"
+   ],
+   "why": "dilating tip = bladeless 5 × 100 (PACR: bladed)",
+   "cw": "NONB5STF (Exact Match, conf 0.80, attribute)",
+   "pacrRank": 4,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": false
+  },
+  {
+   "code": "D11LT",
+   "pacr": "B11STF",
+   "expected": [
+    "NONB11STF",
+    "NB11STF"
+   ],
+   "why": "dilating tip = bladeless 11 × 100 (PACR: bladed)",
+   "cw": "NONB11STF (Exact Match, conf 0.80, attribute)",
+   "pacrRank": 3,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": false
+  },
+  {
+   "code": "D12LT",
+   "pacr": "B12STS",
+   "expected": [
+    "NONB12STF",
+    "NB12STF",
+    "NONB12STS",
+    "NB12STS"
+   ],
+   "why": "dilating tip = bladeless 12 × 100 (PACR: bladed)",
+   "cw": "NB12STF (Exact Match, conf 0.80, attribute)",
+   "pacrRank": null,
+   "expectedRank": 1,
+   "hit": true,
+   "samePacr": false
+  }
+ ]
+}
