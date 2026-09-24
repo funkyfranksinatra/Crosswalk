@@ -1,0 +1,14 @@
+PASS contracts: popover opens and focuses the first field
+PASS contracts: GPO select rendered for a GPO contract
+PASS contracts: Create disabled until a GPO is chosen
+PASS contracts: end-before-start rejected with a message — ["The end date must be after the start date."]
+PASS contracts: GPO contract persisted with gpoId and tier (KN-03) — {"type":"GPO","gpo":"Premier","tier":"Tier 2","status":"ACTIVE"}
+PASS contracts: unknown account number → clear error, nothing created — ["Account \"0000000000000\" not found in your book"]
+PASS contracts: Escape closes the popover
+PASS contracts: entries persisted (2 known SKUs; unknown reported) — ["ABSTACK30X:780:0–999","174006:640:"]
+PASS contracts: commitment and rebate terms persisted — {"commitments":1,"rebates":1}
+PASS contracts: Terminate persisted and the entries box is disabled — TERMINATED
+PASS contracts: Terminate control gone on a terminated contract
+PASS no page errors — []
+PASS no CSP violations — []
+13 checks, 0 failures

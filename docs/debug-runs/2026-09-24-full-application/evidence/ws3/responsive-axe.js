@@ -34,7 +34,9 @@ async function main() {
           console.log(`HSCROLL ${p} @${w}: ${m.sw} > ${m.cw} — ${offenders.join(", ")}`);
         }
         if (w === 1440 || w === 390) {
-          await page.screenshot({ path: path.join(OUT, `shot-${w}-${p.replace(/[^a-z0-9]+/gi, "_") || "root"}.png`), fullPage: w === 1440 });
+          const shot = path.join(OUT, `shot-${w}-${p.replace(/[^a-z0-9]+/gi, "_") || "root"}.png`);
+          // Firefox/WebKit cap a screenshot at 32,767 px; a very tall page falls back to the viewport.
+          try { await page.screenshot({ path: shot, fullPage: w === 1440 }); } catch { await page.screenshot({ path: shot, fullPage: false }); }
         }
         if (w === 1440) {
           try {

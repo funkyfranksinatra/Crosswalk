@@ -1,0 +1,23 @@
+  skip  68 constraint(s) whose table or column is not present yet (run migrations first): chk_UserRole_role, chk_Notification_kind, chk_NotificationPreference_kind, chk_KnownCross_approvalStatus, chk_KnownCross_clinicalReviewStatus, …
+No rows violate the CHECK constraints.
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+┌─────────────────────────────────────────────────────────┐
+│  Update available 7.10.0 -> 8.0.0-rc.15                 │
+│                                                         │
+│  This is a major update - please follow the guide at    │
+│  https://pris.ly/d/major-version-upgrade                │
+│                                                         │
+│  Run the following to update                            │
+│    npm i --save-dev prisma@latest                       │
+│    npm i @prisma/client@latest                          │
+└─────────────────────────────────────────────────────────┘
+
+All migrations have been successfully applied.
+Upserted 338 own products for Medtronic
+Upserted 3926 known crosses
+Upserted 10 own products + prices from the legacy BAT report
+Crosswalk v1 published with 3561 entries
+Competitor price observations: 19
+Demo commercial data ready (MSK, Premier Tier 2, local override, 3-hospital price intelligence).

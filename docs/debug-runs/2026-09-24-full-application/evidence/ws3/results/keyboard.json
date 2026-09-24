@@ -1,0 +1,156 @@
+[
+  {
+    "name": "first Tab lands on the skip link",
+    "ok": true,
+    "detail": {
+      "tag": "A",
+      "text": "Skip to content",
+      "outline": true,
+      "inDialog": false
+    }
+  },
+  {
+    "name": "skip link has a visible focus ring",
+    "ok": true,
+    "detail": {
+      "tag": "A",
+      "text": "Skip to content",
+      "outline": true,
+      "inDialog": false
+    }
+  },
+  {
+    "name": "skip link moves focus to main",
+    "ok": true,
+    "detail": {
+      "tag": "MAIN",
+      "text": "Requests/REQ-0002Unnamed account Complet",
+      "outline": true,
+      "inDialog": false
+    }
+  },
+  {
+    "name": "Tab from main reaches page content (eyebrow link), not the sidebar",
+    "ok": true,
+    "detail": {
+      "tag": "A",
+      "text": "Requests",
+      "outline": true,
+      "inDialog": false
+    }
+  },
+  {
+    "name": "sidebar Tab order: skip link, logo, Overview, Cross-reference, Proposals, Deal desk",
+    "ok": true,
+    "detail": [
+      "Skip to content",
+      "CrosswalkCompetitor Product Cross Refere",
+      "Overview",
+      "Cross-reference",
+      "Proposals",
+      "Deal desk"
+    ]
+  },
+  {
+    "name": "every focused control shows a focus ring",
+    "ok": true,
+    "detail": [
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "name": "Enter opens the Download menu",
+    "ok": true
+  },
+  {
+    "name": "Tab moves into the menu items",
+    "ok": true,
+    "detail": {
+      "tag": "A",
+      "text": "Cross-reference workbook (.xlsx)",
+      "outline": true,
+      "inDialog": false
+    }
+  },
+  {
+    "name": "Escape closes the menu and restores focus to the trigger",
+    "ok": true,
+    "detail": {
+      "tag": "BUTTON",
+      "text": "Download ▾",
+      "outline": true,
+      "inDialog": false
+    }
+  },
+  {
+    "name": "dialog: focus moves inside on open",
+    "ok": true,
+    "detail": {
+      "tag": "BUTTON",
+      "text": "Close",
+      "outline": true,
+      "inDialog": true
+    }
+  },
+  {
+    "name": "dialog: Tab stays inside (focus trap)",
+    "ok": true,
+    "detail": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "name": "dialog: Shift+Tab stays inside",
+    "ok": true
+  },
+  {
+    "name": "dialog: Escape closes and restores focus to the opener",
+    "ok": true,
+    "detail": {
+      "tag": "BUTTON",
+      "text": "Side-by-side",
+      "outline": true,
+      "inDialog": false
+    }
+  },
+  {
+    "name": "popover: opens on Enter with focus in the first field",
+    "ok": true,
+    "detail": {
+      "tag": "INPUT",
+      "text": "",
+      "outline": true,
+      "inDialog": true
+    }
+  },
+  {
+    "name": "popover: Escape closes and restores focus to the trigger",
+    "ok": true,
+    "detail": {
+      "tag": "BUTTON",
+      "text": "New contract",
+      "outline": true,
+      "inDialog": false
+    }
+  },
+  {
+    "name": "phone: Menu button visible, nav hidden",
+    "ok": true
+  },
+  {
+    "name": "phone: Enter opens the nav (aria-expanded)",
+    "ok": true
+  },
+  {
+    "name": "phone: section headings present in the open nav",
+    "ok": true
+  }
+]

@@ -10,10 +10,14 @@
 const fs = require("node:fs");
 const path = require("node:path");
 process.env.PLAYWRIGHT_BROWSERS_PATH = process.env.PLAYWRIGHT_BROWSERS_PATH || "/opt/pw-browsers";
-const { chromium } = require("playwright");
+const playwright = require("playwright");
+// PW_BROWSER=chromium|firefox|webkit selects the engine (default chromium); the scripts are engine-neutral.
+const ENGINE = process.env.PW_BROWSER || "chromium";
+const chromium = playwright[ENGINE];
 
 const BASE = process.env.BASE || "http://localhost:3103";
-const OUT = path.join(__dirname, "out");
+const OUT = path.join(__dirname, "out", process.env.PW_BROWSER ? ENGINE : "");
+if (!require("fs").existsSync(OUT)) require("fs").mkdirSync(OUT, { recursive: true });
 fs.mkdirSync(OUT, { recursive: true });
 
 /** Role → dev user e-mail (prisma/seed.ts). */
@@ -80,7 +84,7 @@ async function contextAs(browser, role, opts = {}) {
   const context = await browser.newContext({ viewport: opts.viewport || { width: 1440, height: 900 }, baseURL: BASE, acceptDownloads: true });
   if (role) {
     const c = await cookieFor(role);
-    await context.addCookies([{ name: c.name, value: c.value, domain: "localhost", path: "/", httpOnly: true, secure: true, sameSite: "Lax" }]);
+    await context.addCookies([{ name: c.name, value: c.value, domain: "localhost", path: "/", httpOnly: true, secure: BASE.startsWith("https:"), sameSite: "Lax" }]);
   }
   const page = await context.newPage();
   const log = { console: [], errors: [], failed: [], csp: [], responses: [] };
@@ -90,7 +94,14 @@ async function contextAs(browser, role, opts = {}) {
     if (/Content Security Policy|Refused to/i.test(text)) log.csp.push(text);
     if (t === "error" || t === "warning") log.console.push({ type: t, text });
   });
-  page.on("pageerror", (e) => log.errors.push(String(e.message || e)));
+  page.on("pageerror", (e) => {
+    const msg = String(e.message || e);
+    // WebKit reports a same-origin fetch/RSC prefetch cancelled by a navigation as a page error
+    // ("<url> due to access control checks."); Chromium/Firefox report the same event as a failed
+    // request (net::ERR_ABORTED). Classify it the same way so engines are comparable.
+    if (ENGINE === "webkit" && /^\/?localhost:\d+\/.* due to access control checks\.$/.test(msg)) { log.failed.push({ url: msg.replace(/ due to access control checks\.$/, ""), err: "cancelled (webkit access control)" }); return; }
+    log.errors.push(msg);
+  });
   page.on("requestfailed", (r) => log.failed.push({ url: r.url(), err: r.failure()?.errorText }));
   page.on("response", (r) => { if (r.status() >= 400) log.responses.push({ url: r.url().replace(BASE, ""), status: r.status() }); });
   return { context, page, log };
@@ -98,6 +109,7 @@ async function contextAs(browser, role, opts = {}) {
 
 async function withBrowser(fn) {
   const browser = await chromium.launch({ headless: true });
+  if (process.env.PW_BROWSER) console.log(`[engine] ${ENGINE} ${browser.version()}`);
   try { return await fn(browser); } finally { await browser.close(); }
 }
 

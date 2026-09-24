@@ -1477,5 +1477,32 @@
   "status": "VERIFIED_FIXED",
   "note": "WON claim requires status APPROVED (or WON) inside the transaction",
   "source": "REVIEW.md"
+ },
+ {
+  "id": "CW-DBG-0009",
+  "sev": "P3",
+  "type": "TEST_DEFECT",
+  "title": "WS3 browser harness was Chromium-only in four ways: hard-coded engine; Secure cookie injected over http (WebKit drops it); fullPage screenshots above the 32,767 px Firefox/WebKit cap; a scrollable <nav> counted as a broken tab order; WebKit reports navigation-cancelled fetches as page errors",
+  "status": "VERIFIED_FIXED",
+  "note": "lib.js PW_BROWSER switch + per-engine out/ dirs, cookie Secure flag follows the scheme, screenshot fallback, engine-aware tab-order and pageerror classification; all scripts green on Chromium/Firefox/WebKit except the WebKit engine abort below",
+  "source": "TEST_RESULTS.md §7"
+ },
+ {
+  "id": "CW-DBG-0010",
+  "sev": "P3",
+  "type": "COVERAGE_GAP",
+  "title": "WebKit (Playwright Linux port 26.0) WebProcess aborts with a libstdc++ std::optional assertion on the client-side navigation from the request page to a new proposal after the full request journey; no JS error; not reproducible with the short sequence; Safari on macOS untested",
+  "status": "OPEN",
+  "note": "engine/environment limitation (no GPU, Mesa/ZINK errors at launch); the same navigation passes in journey-proposal and a direct probe; rerun journey-request in real Safari on a Mac (B-04/B-05)",
+  "source": "TEST_RESULTS.md §7"
+ },
+ {
+  "id": "CW-DBG-0011",
+  "sev": "P3",
+  "type": "FEATURE_REQUEST",
+  "title": "Resolution stage writes per line (5,004 SELECT CompetitorProduct + 5,001 UPDATE RequestLine on a 5,000-line run): batching would cut the warm 25.7 s / 12,037 queries further",
+  "status": "OPEN",
+  "note": "efficiency opportunity, target (5,000 lines warm < 60 s) met; no behaviour defect",
+  "source": "TEST_RESULTS.md §7"
  }
 ]

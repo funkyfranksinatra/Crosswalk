@@ -1,0 +1,69 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+ ❯ tests/db/ws5-jobs.test.ts (8 tests | 1 failed) 36038ms
+   ❯ WS5 jobs (8)
+     × an external worker process (scripts/worker.ts) shares the queue: a job enqueued here is processed there; SIGTERM stops it cleanly 4638ms
+ ❯ tests/db/ws1-run.test.ts (9 tests | 1 failed) 3983ms
+   ❯ WS1 run lifecycle (9)
+     × KN-06: saved weights are snapshotted at enqueue, applied by the run, kept by a retry/resume, and re-snapshotted by a fresh Re-run 104ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/db/ws1-run.test.ts > WS1 run lifecycle > KN-06: saved weights are snapshotted at enqueue, applied by the run, kept by a retry/resume, and re-snapshotted by a fresh Re-run
+AssertionError: expected { weights: { bin: 0.5, …(3) }, …(2) } to match object { weights: { bin: 0.5, …(3) }, …(1) }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+@@ -2,8 +2,8 @@
+    "maxCandidates": 6,
+    "weights": {
+      "bin": 0.5,
+      "cogs": 0.15,
+      "margin": 0.15,
+-     "price": 0.2,
++     "price": 0.7,
+    },
+  }
+
+ ❯ tests/db/ws1-run.test.ts:94:42
+     92|     expect(q1.jobId).toBeTruthy();
+     93|     let row = await prisma.request.findUniqueOrThrow({ where: { id: r.…
+     94|     expect(JSON.parse(row.optionsJson!)).toMatchObject({ weights: DEFA…
+       |                                          ^
+     95|     await runRequest(r.id, { jobId: q1.jobId });
+     96|     let t = await topOf(r.id);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/db/ws5-jobs.test.ts > WS5 jobs > an external worker process (scripts/worker.ts) shares the queue: a job enqueued here is processed there; SIGTERM stops it cleanly
+AssertionError: expected '{"ts":"2026-09-24T11:00:20.785Z","lev…' to contain '"jobId":"fa4273fc-a389-4dd7-a5c7-c8b0…'
+
+- Expected
++ Received
+
+- "jobId":"fa4273fc-a389-4dd7-a5c7-c8b084ba6d68"
++ {"ts":"2026-09-24T11:00:20.785Z","level":"info","event":"tenancy.single","company":"Medtronic"}
++ {"ts":"2026-09-24T11:00:20.860Z","level":"info","event":"jobs.started","requestId":"boss","schema":"pgboss"}
++ {"ts":"2026-09-24T11:00:21.271Z","level":"info","event":"jobs.workers_started","queues":["request.run","gudid.import","gudid.refresh","integration.sync","feed.ingest","notify.deliver","alerts.evaluate","embed.refresh","analytics.refresh","bids.ingest","retention.sweep"],"mode":"inline"}
++ {"ts":"2026-09-24T11:00:21.271Z","level":"info","event":"worker.ready","pid":4908}
++
+
+ ❯ tests/db/ws5-jobs.test.ts:55:28
+     53|       const done = await until(async () => { const j = await boss.getJ…
+     54|       expect(done.state).toBe("completed");
+     55|       expect(out.join("")).toContain(`"jobId":"${jobId}"`);
+       |                            ^
+     56|     } finally {
+     57|       worker.kill("SIGTERM");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed | 39 passed (41)
+      Tests  2 failed | 686 passed | 1 skipped (689)
+   Start at  11:00:18
+   Duration  162.18s (tests 88%, setup 6%, import 4%, transform 2%)
+

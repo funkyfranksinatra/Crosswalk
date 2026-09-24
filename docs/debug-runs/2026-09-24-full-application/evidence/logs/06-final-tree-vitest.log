@@ -1,0 +1,14 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `N/A`. Message: `Can't reach database server at 127.0.0.1:1`
+
+ Test Files  43 passed (43)
+      Tests  698 passed (698)
+   Start at  13:12:43
+   Duration  175.57s (tests 87%, setup 7%, import 4%, transform 2%)
+

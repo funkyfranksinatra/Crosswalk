@@ -1,0 +1,234 @@
+{
+  "proposalId": "cmufirc77003r9z7dauc8b7fa",
+  "results": [
+    {
+      "name": "proposal loaded",
+      "ok": true,
+      "detail": {
+        "status": "DRAFT",
+        "lines": 2
+      }
+    },
+    {
+      "name": "an included, priced line exists",
+      "ok": true,
+      "detail": {
+        "code": "1190500",
+        "sku": "PPM4530",
+        "proposed": 233.28,
+        "list": 590.36
+      }
+    },
+    {
+      "name": "inline price edit persisted (777.77)",
+      "ok": true,
+      "detail": 777.77
+    },
+    {
+      "name": "negative price refused and reported",
+      "ok": true,
+      "detail": "price must be positiveDismiss"
+    },
+    {
+      "name": "drawer tab Recommendation",
+      "ok": true
+    },
+    {
+      "name": "drawer tab Price waterfall",
+      "ok": true
+    },
+    {
+      "name": "drawer tab Competitor prices",
+      "ok": true
+    },
+    {
+      "name": "drawer tab Cost basis present",
+      "ok": true,
+      "detail": "hidden: role has no view_cost"
+    },
+    {
+      "name": "drawer tab Cross evidence",
+      "ok": true
+    },
+    {
+      "name": "drawer tab Approvals",
+      "ok": true
+    },
+    {
+      "name": "re-recommend applied (recommendation JSON present)",
+      "ok": true,
+      "detail": {
+        "proposed": 448.67,
+        "recommended": 448.67
+      }
+    },
+    {
+      "name": "line customer note persisted",
+      "ok": true,
+      "detail": "ws3 proposal customer note"
+    },
+    {
+      "name": "scenario created",
+      "ok": true,
+      "detail": [
+        "Aggressive"
+      ]
+    },
+    {
+      "name": "scenario view banner",
+      "ok": true
+    },
+    {
+      "name": "scenario applied to proposal prices",
+      "ok": true,
+      "detail": {
+        "scenarioPrice": "448.67",
+        "now": 448.67
+      }
+    },
+    {
+      "name": "scenario deleted",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "name": "logistics saved (flat freight 25, manual tax 5 %)",
+      "ok": true,
+      "detail": {
+        "freight": "FLAT",
+        "value": "25",
+        "tax": "MANUAL",
+        "rate": "0.05"
+      }
+    },
+    {
+      "name": "tax calculated",
+      "ok": true,
+      "detail": {
+        "currency": "USD",
+        "subtotal": "1956.4",
+        "freight": "25",
+        "tax": "97.82",
+        "total": "2079.22",
+        "taxCalculatedAt": "2026-09-24T12:40:42.781Z",
+        "taxStale": false,
+        "taxNote": "Manual rate 5.000%, freight untaxed"
+      }
+    },
+    {
+      "name": "exclude line persisted for every unpriced line",
+      "ok": true,
+      "detail": [
+        "1190500:in",
+        "B12LTH:in"
+      ]
+    },
+    {
+      "name": "submitted",
+      "ok": true,
+      "detail": {
+        "status": "APPROVED",
+        "pending": []
+      }
+    },
+    {
+      "name": "no approvals needed (within authority)",
+      "ok": true
+    },
+    {
+      "name": "proposal approved",
+      "ok": true,
+      "detail": "APPROVED"
+    },
+    {
+      "name": "quote export: button enabled once approved",
+      "ok": true
+    },
+    {
+      "name": "quote export: PDF download triggered from the button",
+      "ok": true,
+      "detail": "Crosswalk_Quote_PRP-0002-v2_Memorial_Sloan_Kettering_20260924_1240.pdf"
+    },
+    {
+      "name": "quote export pdf",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "type": "application/pdf",
+        "disposition": "attachment; filename=\"Crosswalk_Quote_PRP-0002-v2_Memorial_Sloan_Kettering_20260924_1240.pdf\"",
+        "bytes": 3539
+      }
+    },
+    {
+      "name": "quote export xlsx",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "disposition": "attachment; filename=\"Crosswalk_Quote_PRP-0002-v2_Memorial_Sloan_Kettering_20260924_1240.xlsx\"",
+        "bytes": 7652
+      }
+    },
+    {
+      "name": "quote export csv",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "type": "text/csv; charset=utf-8",
+        "disposition": "attachment; filename=\"Crosswalk_Quote_PRP-0002-v2_Memorial_Sloan_Kettering_20260924_1240.csv\"",
+        "bytes": 620
+      }
+    },
+    {
+      "name": "record outcome offered",
+      "ok": true
+    },
+    {
+      "name": "outcome dialog: focus inside",
+      "ok": true
+    },
+    {
+      "name": "outcome recorded (WON)",
+      "ok": true,
+      "detail": {
+        "status": "WON",
+        "outcome": {
+          "id": "cmufisqza004i9z7dmxize4jr",
+          "proposalId": "cmufirc77003r9z7dauc8b7fa",
+          "outcome": "WON",
+          "competitorId": null,
+          "priceReason": "ws3 won on price",
+          "commercialReason": "",
+          "finalValue": 1956.4,
+          "currency": "USD",
+          "decidedAt": "2026-09-24T12:40:47.254Z",
+          "recordedByUserId": "cmufihc4j00008b7djobbjx4f",
+          "notes": null
+        }
+      }
+    },
+    {
+      "name": "new version offered",
+      "ok": true
+    },
+    {
+      "name": "new version created (v+1, DRAFT)",
+      "ok": true,
+      "detail": {
+        "v": 3,
+        "status": "DRAFT"
+      }
+    },
+    {
+      "name": "no page errors",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "http": [
+    {
+      "url": "/api/proposals/cmufirc77003r9z7dauc8b7fa/lines/cmufirc7c003s9z7davitxzck",
+      "status": 400
+    }
+  ]
+}

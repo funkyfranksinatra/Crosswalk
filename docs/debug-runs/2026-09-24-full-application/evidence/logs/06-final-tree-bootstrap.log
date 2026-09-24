@@ -1,0 +1,6 @@
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+All migrations have been successfully applied.
+Upserted 10 own products + prices from the legacy BAT report
+Demo commercial data ready (MSK, Premier Tier 2, local override, 3-hospital price intelligence).

@@ -1,0 +1,12 @@
+23:30:31 web up
+23:30:33 enqueued 5000-line request cmug60cr80sr19p7d2zk7vt51
+23:30:48 state before SIGTERM: running Matching against our catalog (247/5000) 62 1 bin
+23:30:49 web stopped after 2s; last server log lines: 
+running|Matching against our catalog (915/5000)|67|1|t
+active|1
+23:30:51 web restarted; health=ready
+23:32:58 final: complete Complete 100 2 match
+5000|5000
+0
+0
+completed|1

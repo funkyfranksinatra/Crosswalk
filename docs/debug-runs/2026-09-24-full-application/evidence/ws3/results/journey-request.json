@@ -1,0 +1,288 @@
+{
+  "requestId": "cmufiocsa000i9z7dsmlpj5s7",
+  "proposalId": "cmufiooza00219z7dne148xx2",
+  "results": [
+    {
+      "name": "preview: 5 distinct codes",
+      "ok": true,
+      "detail": "5 codes"
+    },
+    {
+      "name": "preview: 1 duplicate row merged",
+      "ok": true,
+      "detail": "1 duplicate rows merged"
+    },
+    {
+      "name": "preview: summary/junk rows skipped",
+      "ok": true,
+      "detail": "1 rows skipped"
+    },
+    {
+      "name": "preview: IN-12-4 kept as a code",
+      "ok": true
+    },
+    {
+      "name": "preview: merged quantity 15 for 1190500",
+      "ok": true
+    },
+    {
+      "name": "wizard: pricebook options listed",
+      "ok": true,
+      "detail": [
+        "List price only",
+        "HOSPITAL LIST PRICE (7 priced)",
+        "SAP-MOCK list · US-LIST (0 priced)",
+        "VIZIENT HERNIA MECH TIER 1 (1 priced)"
+      ]
+    },
+    {
+      "name": "submit: only one POST /api/requests on a double click",
+      "ok": true,
+      "detail": {
+        "posts": 1
+      }
+    },
+    {
+      "name": "submit: exactly one request created on a double click",
+      "ok": true,
+      "detail": {
+        "before": 0,
+        "after": 1,
+        "id": "cmufiocsa000i9z7dsmlpj5s7"
+      }
+    },
+    {
+      "name": "run: reached complete",
+      "ok": true,
+      "detail": "complete after 0 s"
+    },
+    {
+      "name": "run: 5 lines persisted",
+      "ok": true,
+      "detail": [
+        "1190500:resolved",
+        "B12LTH:resolved",
+        "TLC75:resolved",
+        "C0121:resolved",
+        "IN-12-4:resolved"
+      ]
+    },
+    {
+      "name": "run: 1190500 quantity merged to 15",
+      "ok": true
+    },
+    {
+      "name": "run: progress polling stopped (status not running)",
+      "ok": true
+    },
+    {
+      "name": "filter: All selectable",
+      "ok": true,
+      "detail": "5 rows"
+    },
+    {
+      "name": "filter: Needs attention selectable",
+      "ok": true,
+      "detail": "3 rows"
+    },
+    {
+      "name": "filter: Flagged selectable",
+      "ok": true,
+      "detail": "0 rows"
+    },
+    {
+      "name": "filter: Exact selectable",
+      "ok": true,
+      "detail": "2 rows"
+    },
+    {
+      "name": "filter: Close selectable",
+      "ok": true,
+      "detail": "2 rows"
+    },
+    {
+      "name": "filter: Alternative selectable",
+      "ok": true,
+      "detail": "1 rows"
+    },
+    {
+      "name": "filter: Already ours selectable",
+      "ok": true,
+      "detail": "0 rows"
+    },
+    {
+      "name": "bulk: review_exact marks the exact lines reviewed",
+      "ok": true,
+      "detail": {
+        "exact": 2,
+        "reviewed": 2
+      }
+    },
+    {
+      "name": "bulk: review_matched marks every matched line",
+      "ok": true,
+      "detail": {
+        "matched": 5,
+        "reviewed": 5
+      }
+    },
+    {
+      "name": "bulk: unreview_all clears reviewed",
+      "ok": true
+    },
+    {
+      "name": "bulk: flag_verify sets flags",
+      "ok": true,
+      "detail": {
+        "flagged": 3
+      }
+    },
+    {
+      "name": "bulk: clear_flags clears every flag",
+      "ok": true
+    },
+    {
+      "name": "bulk: select_top re-selects a candidate",
+      "ok": true
+    },
+    {
+      "name": "line with candidates exists",
+      "ok": true
+    },
+    {
+      "name": "select candidate: radio reflects the click at once (optimistic)",
+      "ok": true
+    },
+    {
+      "name": "select candidate persisted",
+      "ok": true,
+      "detail": {
+        "want": "PCO2520X"
+      }
+    },
+    {
+      "name": "rep note persisted",
+      "ok": true,
+      "detail": "ws3 rep note"
+    },
+    {
+      "name": "customer note persisted",
+      "ok": true,
+      "detail": "ws3 customer note"
+    },
+    {
+      "name": "est. competitor price persisted",
+      "ok": true,
+      "detail": 123.45
+    },
+    {
+      "name": "flag persisted",
+      "ok": true,
+      "detail": "verify"
+    },
+    {
+      "name": "reviewed persisted",
+      "ok": true
+    },
+    {
+      "name": "side-by-side: attribute rows rendered",
+      "ok": true,
+      "detail": "18 rows"
+    },
+    {
+      "name": "side-by-side: focus moved into the dialog",
+      "ok": true
+    },
+    {
+      "name": "side-by-side: Escape closes",
+      "ok": true
+    },
+    {
+      "name": "side-by-side: focus restored to the opener",
+      "ok": true,
+      "detail": "Side-by-side"
+    },
+    {
+      "name": "download: xref xlsx",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "disposition": "attachment; filename=\"Crosswalk_XrefReport_REQ-0001_20260924_1237.xlsx\"",
+        "bytes": 14304
+      }
+    },
+    {
+      "name": "download: xref csv",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "type": "text/csv; charset=utf-8",
+        "disposition": "attachment; filename=\"Crosswalk_XrefReport_REQ-0001_20260924_1237.csv\"",
+        "bytes": 3494
+      }
+    },
+    {
+      "name": "download: offer xlsx",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "disposition": "attachment; filename=\"Medtronic_Proposal_WS3_Journey_Hospital_20260924_1237.xlsx\"",
+        "bytes": 7998
+      }
+    },
+    {
+      "name": "download: offer csv",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "type": "text/csv; charset=utf-8",
+        "disposition": "attachment; filename=\"Medtronic_Proposal_WS3_Journey_Hospital_20260924_1237.csv\"",
+        "bytes": 1138
+      }
+    },
+    {
+      "name": "download: offer pdf",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "type": "application/pdf",
+        "disposition": "attachment; filename=\"Medtronic_Contract_Offer_WS3_Journey_Hospital_20260924_1237.pdf\"",
+        "bytes": 3829
+      }
+    },
+    {
+      "name": "download menu: five entries",
+      "ok": true
+    },
+    {
+      "name": "download menu: Escape closes",
+      "ok": true
+    },
+    {
+      "name": "proposal created from the request",
+      "ok": true,
+      "detail": {
+        "pid": "cmufiooza00219z7dne148xx2",
+        "lines": 5,
+        "status": "DRAFT"
+      }
+    },
+    {
+      "name": "no page errors during the journey",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "no CSP violations during the journey",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "log": {
+    "errors": [],
+    "csp": [],
+    "http": []
+  }
+}

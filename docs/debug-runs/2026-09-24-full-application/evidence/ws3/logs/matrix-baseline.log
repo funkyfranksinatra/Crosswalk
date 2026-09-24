@@ -1,0 +1,273 @@
+SIGNED_OUT / → 200 1199ms 
+SIGNED_OUT /requests → 200 1116ms 
+SIGNED_OUT /requests/new → 200 1090ms 
+SIGNED_OUT /requests/[id] → 200 1103ms 
+SIGNED_OUT /proposals → 200 1092ms 
+SIGNED_OUT /proposals/[id] → 200 1175ms 
+SIGNED_OUT /approvals → 200 1098ms 
+SIGNED_OUT /accounts → 200 1114ms 
+SIGNED_OUT /accounts/[id] → 200 1091ms 
+SIGNED_OUT /contracts → 200 1082ms 
+SIGNED_OUT /contracts/[id] → 200 1133ms 
+SIGNED_OUT /intelligence → 200 1088ms 
+SIGNED_OUT /intelligence/bids → 200 1097ms 
+SIGNED_OUT /intelligence/extractions/[id] → 200 1095ms 
+SIGNED_OUT /analytics → 200 1092ms 
+SIGNED_OUT /catalog → 200 1209ms 
+SIGNED_OUT /catalog/gudid → 200 4528ms 
+SIGNED_OUT /crosses → 200 4591ms 
+SIGNED_OUT /notifications → 200 4550ms 
+SIGNED_OUT /settings → 200 4553ms 
+SIGNED_OUT /settings/integrations → 200 1087ms 
+SIGNED_OUT /settings/pricing → 200 1111ms 
+SALES_REP / → 200 1300ms Competitive cross reference
+SALES_REP /requests → 200 1204ms Cross-reference requests
+SALES_REP /requests/new → 200 1295ms Competitive cross reference
+SALES_REP /requests/[id] → 200 4562ms 
+SALES_REP /proposals → 200 1227ms Commercial proposals
+SALES_REP /proposals/[id] → 200 1296ms 
+SALES_REP /approvals → 200 1215ms Pricing approvals
+SALES_REP /accounts → 200 1209ms Accounts & GPO membership
+SALES_REP /accounts/[id] → 200 1245ms Hospital A — Mount Vernon Gene
+SALES_REP /contracts → 200 1218ms Contracts & price context
+SALES_REP /contracts/[id] → 200 1258ms MSK-LOCAL-2026 · MSK local mes
+SALES_REP /intelligence → 200 1216ms Competitor pricing
+SALES_REP /intelligence/bids → 200 1225ms Public bids and awards
+SALES_REP /intelligence/extractions/[id] → 200 1201ms Extraction
+SALES_REP /analytics → 200 1197ms 
+SALES_REP /catalog → 200 1432ms Our catalog
+SALES_REP /catalog/gudid → 200 1266ms GUDID library
+SALES_REP /crosses → 200 4791ms Crosswalk
+SALES_REP /notifications → 200 4529ms Notifications
+SALES_REP /settings → 200 4576ms Settings
+SALES_REP /settings/integrations → 200 4593ms Settings
+SALES_REP /settings/pricing → 200 4557ms Pricing policies
+sign-in rate limited, waiting 11000 ms
+REGIONAL_MANAGER / → 200 1409ms Competitive cross reference
+REGIONAL_MANAGER /requests → 200 1227ms Cross-reference requests
+REGIONAL_MANAGER /requests/new → 200 1405ms Competitive cross reference
+REGIONAL_MANAGER /requests/[id] → 200 4561ms 
+REGIONAL_MANAGER /proposals → 200 1315ms Commercial proposals
+REGIONAL_MANAGER /proposals/[id] → 200 1373ms 
+REGIONAL_MANAGER /approvals → 200 1250ms Pricing approvals
+REGIONAL_MANAGER /accounts → 200 1276ms Accounts & GPO membership
+REGIONAL_MANAGER /accounts/[id] → 200 1245ms Hospital A — Mount Vernon Gene
+REGIONAL_MANAGER /contracts → 200 1282ms Contracts & price context
+REGIONAL_MANAGER /contracts/[id] → 200 1296ms MSK-LOCAL-2026 · MSK local mes
+REGIONAL_MANAGER /intelligence → 200 1340ms Competitor pricing
+REGIONAL_MANAGER /intelligence/bids → 200 1299ms Public bids and awards
+REGIONAL_MANAGER /intelligence/extractions/[id] → 200 1185ms Extraction
+REGIONAL_MANAGER /analytics → 200 1197ms Commercial feedback loop
+REGIONAL_MANAGER /catalog → 200 1380ms Our catalog
+REGIONAL_MANAGER /catalog/gudid → 200 1186ms GUDID library
+REGIONAL_MANAGER /crosses → 200 1505ms Crosswalk
+REGIONAL_MANAGER /notifications → 200 1299ms Notifications
+REGIONAL_MANAGER /settings → 200 4557ms Settings
+REGIONAL_MANAGER /settings/integrations → 200 4588ms Settings
+REGIONAL_MANAGER /settings/pricing → 200 4579ms Pricing policies
+sign-in rate limited, waiting 19000 ms
+CONTRACTING_MANAGER / → 200 1505ms Competitive cross reference
+CONTRACTING_MANAGER /requests → 200 1320ms Cross-reference requests
+CONTRACTING_MANAGER /requests/new → 200 1236ms Competitive cross reference
+CONTRACTING_MANAGER /requests/[id] → 200 4558ms 
+CONTRACTING_MANAGER /proposals → 200 1309ms Commercial proposals
+CONTRACTING_MANAGER /proposals/[id] → 200 1384ms 
+CONTRACTING_MANAGER /approvals → 200 1580ms Pricing approvals
+CONTRACTING_MANAGER /accounts → 200 1355ms Accounts & GPO membership
+CONTRACTING_MANAGER /accounts/[id] → 200 1504ms Hospital A — Mount Vernon Gene
+CONTRACTING_MANAGER /contracts → 200 1430ms Contracts & price context
+CONTRACTING_MANAGER /contracts/[id] → 200 1372ms MSK-LOCAL-2026 · MSK local mes
+CONTRACTING_MANAGER /intelligence → 200 1300ms Competitor pricing
+CONTRACTING_MANAGER /intelligence/bids → 200 1736ms Public bids and awards
+CONTRACTING_MANAGER /intelligence/extractions/[id] → 200 1386ms Extraction
+CONTRACTING_MANAGER /analytics → 200 1456ms Commercial feedback loop
+CONTRACTING_MANAGER /catalog → 200 1790ms Our catalog
+CONTRACTING_MANAGER /catalog/gudid → 200 1370ms GUDID library
+CONTRACTING_MANAGER /crosses → 200 1814ms Crosswalk
+CONTRACTING_MANAGER /notifications → 200 1394ms Notifications
+CONTRACTING_MANAGER /settings → 200 4597ms Settings
+CONTRACTING_MANAGER /settings/integrations → 200 4648ms Settings
+CONTRACTING_MANAGER /settings/pricing → 200 4596ms Pricing policies
+sign-in rate limited, waiting 16000 ms
+PRICING_ANALYST / → 200 1262ms Competitive cross reference
+PRICING_ANALYST /requests → 200 1173ms Cross-reference requests
+PRICING_ANALYST /requests/new → 200 1204ms Competitive cross reference
+PRICING_ANALYST /requests/[id] → 200 4543ms 
+PRICING_ANALYST /proposals → 200 1234ms Commercial proposals
+PRICING_ANALYST /proposals/[id] → 200 1236ms 
+PRICING_ANALYST /approvals → 200 1213ms Pricing approvals
+PRICING_ANALYST /accounts → 200 1322ms Accounts & GPO membership
+PRICING_ANALYST /accounts/[id] → 200 1270ms Hospital A — Mount Vernon Gene
+PRICING_ANALYST /contracts → 200 1208ms Contracts & price context
+PRICING_ANALYST /contracts/[id] → 200 1273ms MSK-LOCAL-2026 · MSK local mes
+PRICING_ANALYST /intelligence → 200 1222ms Competitor pricing
+PRICING_ANALYST /intelligence/bids → 200 1240ms Public bids and awards
+PRICING_ANALYST /intelligence/extractions/[id] → 200 1200ms Extraction
+PRICING_ANALYST /analytics → 200 1276ms Commercial feedback loop
+PRICING_ANALYST /catalog → 200 1411ms Our catalog
+PRICING_ANALYST /catalog/gudid → 200 1208ms GUDID library
+PRICING_ANALYST /crosses → 200 1545ms Crosswalk
+PRICING_ANALYST /notifications → 200 1178ms Notifications
+PRICING_ANALYST /settings → 200 4558ms Settings
+PRICING_ANALYST /settings/integrations → 200 4654ms Settings
+PRICING_ANALYST /settings/pricing → 200 4608ms Pricing policies
+sign-in rate limited, waiting 19000 ms
+PRICING_DIRECTOR / → 200 1313ms Competitive cross reference
+PRICING_DIRECTOR /requests → 200 1201ms Cross-reference requests
+PRICING_DIRECTOR /requests/new → 200 1284ms Competitive cross reference
+PRICING_DIRECTOR /requests/[id] → 200 4585ms 
+PRICING_DIRECTOR /proposals → 200 1264ms Commercial proposals
+PRICING_DIRECTOR /proposals/[id] → 200 1252ms 
+PRICING_DIRECTOR /approvals → 200 1256ms Pricing approvals
+PRICING_DIRECTOR /accounts → 200 1266ms Accounts & GPO membership
+PRICING_DIRECTOR /accounts/[id] → 200 1256ms Hospital A — Mount Vernon Gene
+PRICING_DIRECTOR /contracts → 200 1296ms Contracts & price context
+PRICING_DIRECTOR /contracts/[id] → 200 1264ms MSK-LOCAL-2026 · MSK local mes
+PRICING_DIRECTOR /intelligence → 200 1337ms Competitor pricing
+PRICING_DIRECTOR /intelligence/bids → 200 1355ms Public bids and awards
+PRICING_DIRECTOR /intelligence/extractions/[id] → 200 1459ms Extraction
+PRICING_DIRECTOR /analytics → 200 1274ms Commercial feedback loop
+PRICING_DIRECTOR /catalog → 200 1522ms Our catalog
+PRICING_DIRECTOR /catalog/gudid → 200 1357ms GUDID library
+PRICING_DIRECTOR /crosses → 200 1711ms Crosswalk
+PRICING_DIRECTOR /notifications → 200 1237ms Notifications
+PRICING_DIRECTOR /settings → 200 4544ms Settings
+PRICING_DIRECTOR /settings/integrations → 200 4558ms Integrations
+PRICING_DIRECTOR /settings/pricing → 200 4611ms Pricing policies
+sign-in rate limited, waiting 18000 ms
+PRICING_COMMITTEE / → 200 1277ms Competitive cross reference
+PRICING_COMMITTEE /requests → 200 1190ms 
+PRICING_COMMITTEE /requests/new → 200 1162ms Competitive cross reference
+PRICING_COMMITTEE /requests/[id] → 200 4538ms 
+PRICING_COMMITTEE /proposals → 200 1274ms Commercial proposals
+PRICING_COMMITTEE /proposals/[id] → 200 1204ms 
+PRICING_COMMITTEE /approvals → 200 1213ms Pricing approvals
+PRICING_COMMITTEE /accounts → 200 1277ms Accounts & GPO membership
+PRICING_COMMITTEE /accounts/[id] → 200 1203ms Hospital A — Mount Vernon Gene
+PRICING_COMMITTEE /contracts → 200 1197ms Contracts & price context
+PRICING_COMMITTEE /contracts/[id] → 200 1247ms MSK-LOCAL-2026 · MSK local mes
+PRICING_COMMITTEE /intelligence → 200 1212ms Competitor pricing
+PRICING_COMMITTEE /intelligence/bids → 200 1219ms Public bids and awards
+PRICING_COMMITTEE /intelligence/extractions/[id] → 200 1205ms Extraction
+PRICING_COMMITTEE /analytics → 200 1181ms Commercial feedback loop
+PRICING_COMMITTEE /catalog → 200 1446ms Our catalog
+PRICING_COMMITTEE /catalog/gudid → 200 1178ms GUDID library
+PRICING_COMMITTEE /crosses → 200 1515ms Crosswalk
+PRICING_COMMITTEE /notifications → 200 1174ms Notifications
+PRICING_COMMITTEE /settings → 200 4528ms Settings
+PRICING_COMMITTEE /settings/integrations → 200 4544ms Settings
+PRICING_COMMITTEE /settings/pricing → 200 4556ms Pricing policies
+sign-in rate limited, waiting 20000 ms
+PRODUCT_MARKETING / → 200 1249ms Competitive cross reference
+PRODUCT_MARKETING /requests → 200 1165ms Cross-reference requests
+PRODUCT_MARKETING /requests/new → 200 1272ms Competitive cross reference
+PRODUCT_MARKETING /requests/[id] → 200 4749ms 
+PRODUCT_MARKETING /proposals → 200 1315ms Commercial proposals
+PRODUCT_MARKETING /proposals/[id] → 200 1287ms 
+PRODUCT_MARKETING /approvals → 200 1334ms Pricing approvals
+PRODUCT_MARKETING /accounts → 200 1465ms Accounts & GPO membership
+PRODUCT_MARKETING /accounts/[id] → 200 1382ms Hospital A — Mount Vernon Gene
+PRODUCT_MARKETING /contracts → 200 1320ms Contracts & price context
+PRODUCT_MARKETING /contracts/[id] → 200 1370ms MSK-LOCAL-2026 · MSK local mes
+PRODUCT_MARKETING /intelligence → 200 1321ms Competitor pricing
+PRODUCT_MARKETING /intelligence/bids → 200 1327ms Public bids and awards
+PRODUCT_MARKETING /intelligence/extractions/[id] → 200 1326ms Extraction
+PRODUCT_MARKETING /analytics → 200 1356ms Commercial feedback loop
+PRODUCT_MARKETING /catalog → 200 1651ms Our catalog
+PRODUCT_MARKETING /catalog/gudid → 200 1189ms GUDID library
+PRODUCT_MARKETING /crosses → 200 1496ms Crosswalk
+PRODUCT_MARKETING /notifications → 200 1282ms Notifications
+PRODUCT_MARKETING /settings → 200 4549ms Settings
+PRODUCT_MARKETING /settings/integrations → 200 4614ms Settings
+PRODUCT_MARKETING /settings/pricing → 200 4553ms Pricing policies
+sign-in rate limited, waiting 18000 ms
+CLINICAL_REVIEWER / → 200 1297ms Competitive cross reference
+CLINICAL_REVIEWER /requests → 200 1111ms 
+CLINICAL_REVIEWER /requests/new → 200 1138ms Competitive cross reference
+CLINICAL_REVIEWER /requests/[id] → 200 4626ms 
+CLINICAL_REVIEWER /proposals → 200 1138ms 
+CLINICAL_REVIEWER /proposals/[id] → 200 1140ms 
+CLINICAL_REVIEWER /approvals → 200 4543ms Pricing approvals
+CLINICAL_REVIEWER /accounts → 200 1123ms 
+CLINICAL_REVIEWER /accounts/[id] → 200 1098ms 
+CLINICAL_REVIEWER /contracts → 200 1125ms 
+CLINICAL_REVIEWER /contracts/[id] → 200 1221ms 
+CLINICAL_REVIEWER /intelligence → 200 1137ms Competitor pricing
+CLINICAL_REVIEWER /intelligence/bids → 200 1185ms Public bids and awards
+CLINICAL_REVIEWER /intelligence/extractions/[id] → 200 1136ms Extraction
+CLINICAL_REVIEWER /analytics → 200 1124ms 
+CLINICAL_REVIEWER /catalog → 200 1394ms Our catalog
+CLINICAL_REVIEWER /catalog/gudid → 200 1162ms GUDID library
+CLINICAL_REVIEWER /crosses → 200 1490ms Crosswalk
+CLINICAL_REVIEWER /notifications → 200 1224ms Notifications
+CLINICAL_REVIEWER /settings → 200 4584ms Settings
+CLINICAL_REVIEWER /settings/integrations → 200 4580ms Settings
+CLINICAL_REVIEWER /settings/pricing → 200 4579ms Pricing policies
+sign-in rate limited, waiting 17000 ms
+FINANCE / → 200 1252ms Competitive cross reference
+FINANCE /requests → 200 1186ms 
+FINANCE /requests/new → 200 1185ms Competitive cross reference
+FINANCE /requests/[id] → 200 4539ms 
+FINANCE /proposals → 200 1273ms Commercial proposals
+FINANCE /proposals/[id] → 200 1198ms 
+FINANCE /approvals → 200 1209ms Pricing approvals
+FINANCE /accounts → 200 1250ms Accounts & GPO membership
+FINANCE /accounts/[id] → 200 1207ms Hospital A — Mount Vernon Gene
+FINANCE /contracts → 200 1241ms Contracts & price context
+FINANCE /contracts/[id] → 200 1364ms MSK-LOCAL-2026 · MSK local mes
+FINANCE /intelligence → 200 1228ms Competitor pricing
+FINANCE /intelligence/bids → 200 1228ms Public bids and awards
+FINANCE /intelligence/extractions/[id] → 200 1165ms Extraction
+FINANCE /analytics → 200 1178ms Commercial feedback loop
+FINANCE /catalog → 200 1410ms Our catalog
+FINANCE /catalog/gudid → 200 1186ms GUDID library
+FINANCE /crosses → 200 1545ms Crosswalk
+FINANCE /notifications → 200 1220ms Notifications
+FINANCE /settings → 200 4561ms Settings
+FINANCE /settings/integrations → 200 4556ms Settings
+FINANCE /settings/pricing → 200 4554ms Pricing policies
+ADMIN / → 200 4594ms Competitive cross reference
+ADMIN /requests → 200 4578ms Cross-reference requests
+ADMIN /requests/new → 200 4565ms Competitive cross reference
+ADMIN /requests/[id] → 200 4594ms 
+ADMIN /proposals → 200 4548ms Commercial proposals
+ADMIN /proposals/[id] → 200 1373ms 
+ADMIN /approvals → 200 1270ms Pricing approvals
+ADMIN /accounts → 200 1316ms Accounts & GPO membership
+ADMIN /accounts/[id] → 200 1318ms Hospital A — Mount Vernon Gene
+ADMIN /contracts → 200 1329ms Contracts & price context
+ADMIN /contracts/[id] → 200 1331ms MSK-LOCAL-2026 · MSK local mes
+ADMIN /intelligence → 200 1372ms Competitor pricing
+ADMIN /intelligence/bids → 200 1270ms Public bids and awards
+ADMIN /intelligence/extractions/[id] → 200 1213ms Extraction
+ADMIN /analytics → 200 1243ms Commercial feedback loop
+ADMIN /catalog → 200 1581ms Our catalog
+ADMIN /catalog/gudid → 200 1184ms GUDID library
+ADMIN /crosses → 200 1507ms Crosswalk
+ADMIN /notifications → 200 1186ms Notifications
+ADMIN /settings → 200 4546ms Settings
+ADMIN /settings/integrations → 200 1284ms Integrations
+ADMIN /settings/pricing → 200 1249ms Pricing policies
+EXECUTIVE / → 200 1354ms Competitive cross reference
+EXECUTIVE /requests → 200 1352ms 
+EXECUTIVE /requests/new → 200 4595ms Competitive cross reference
+EXECUTIVE /requests/[id] → 200 4690ms 
+EXECUTIVE /proposals → 200 4576ms Commercial proposals
+EXECUTIVE /proposals/[id] → 200 4611ms 
+EXECUTIVE /approvals → 200 4583ms Pricing approvals
+EXECUTIVE /accounts → 200 4575ms Accounts & GPO membership
+EXECUTIVE /accounts/[id] → 200 4593ms Hospital A — Mount Vernon Gene
+EXECUTIVE /contracts → 200 1278ms Contracts & price context
+EXECUTIVE /contracts/[id] → 200 1223ms MSK-LOCAL-2026 · MSK local mes
+EXECUTIVE /intelligence → 200 1340ms Competitor pricing
+EXECUTIVE /intelligence/bids → 200 1250ms Public bids and awards
+EXECUTIVE /intelligence/extractions/[id] → 200 1198ms Extraction
+EXECUTIVE /analytics → 200 1300ms Commercial feedback loop
+EXECUTIVE /catalog → 200 1391ms Our catalog
+EXECUTIVE /catalog/gudid → 200 1267ms GUDID library
+EXECUTIVE /crosses → 200 1710ms Crosswalk
+EXECUTIVE /notifications → 200 1237ms Notifications
+EXECUTIVE /settings → 200 4528ms Settings
+EXECUTIVE /settings/integrations → 200 4569ms Settings
+EXECUTIVE /settings/pricing → 200 1259ms Pricing policies
+wrote docs/debug-runs/2026-09-24-full-application/evidence/ws3/out/matrix-baseline.csv (264 rows)

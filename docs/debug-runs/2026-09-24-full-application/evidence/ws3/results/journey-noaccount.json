@@ -1,0 +1,43 @@
+[
+  {
+    "name": "request created without an account number",
+    "ok": true,
+    "detail": {
+      "id": "cmufioptz002e9z7d62ev25ce",
+      "lines": 2
+    }
+  },
+  {
+    "name": "request ran to complete",
+    "ok": true,
+    "detail": "complete"
+  },
+  {
+    "name": "API without accountId refuses with the account message",
+    "ok": true
+  },
+  {
+    "name": "account picker opens instead of failing",
+    "ok": true
+  },
+  {
+    "name": "search lists matching accounts",
+    "ok": true,
+    "detail": {
+      "hits": 1
+    }
+  },
+  {
+    "name": "proposal created for the chosen account",
+    "ok": true,
+    "detail": {
+      "account": "Memorial Sloan Kettering",
+      "lines": 2
+    }
+  },
+  {
+    "name": "no page errors",
+    "ok": true,
+    "detail": []
+  }
+]

@@ -59,6 +59,10 @@ No schema migration was added; `prisma/schema.prisma` changed in comments only (
 
 B-01 model-eval baseline at bins v8 (needs a key; CI red at `eval:gate` until accepted) · B-02 container build/boot · B-03 every live provider, IdP, mail/Teams, Google Drive, AvaTax, SAM/USAspending · B-04 macOS · B-05 Firefox/WebKit · B-06 Neon crosswalk re-publish check · B-07 B12LTH optical decision · B-08 scope-rule decision · B-09 Thoracoport + 14 curated rows · B-10 historical benchmark lists · B-11 5,000-line profile and a timed soak · B-12 push/deploy (Alex's credentials). None of these is relabelled complete.
 
+## Addendum (continuation, 2026-09-24 21:50–23:35 UTC)
+
+The commit itself (fresh clone, no reference data) passes CI's `check` job through Vitest 698/698 with `eval:gate` failing by design; Firefox 142 and WebKit 26 now cover the page×role matrix, responsive/axe, keyboard, navigation and the proposal journey with no application defect (one Linux-WebKit engine abort remains a coverage gap for real Safari — CW-DBG-0010); a 5,000-distinct-code run completes in 25.7 s warm (111 s cold, library-first); a 30-minute soak with a web SIGTERM restart and a Postgres restart, plus a mid-run SIGTERM of a 5,000-line run, all end complete and consistent. B-05 and B-11 are closed; the verdict stays **VERIFICATION INCOMPLETE** for B-01/B-02/B-03/B-04/B-06–B-09 (`COMPLETION_CHECKLIST.md` says what runs where and who unblocks it). Workspace-only evidence is backed up (`BACKUPS_OF_WORKSPACE_EVIDENCE.md`) and the run's command logs are tracked from this commit on.
+
 ## Reproduce
 
 ```

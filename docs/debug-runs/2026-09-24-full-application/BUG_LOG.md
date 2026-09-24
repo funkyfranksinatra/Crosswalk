@@ -2,14 +2,14 @@
 
 Statuses: OPEN · REPRODUCED · FIX_IN_PROGRESS · FIXED_AWAITING_VERIFICATION · VERIFIED_FIXED · BLOCKED · NOT_REPRODUCIBLE_WITH_EVIDENCE · NOT_A_DEFECT_WITH_RATIONALE. Types: DEFECT · TEST_DEFECT · DATA_QUALITY · SPEC_AMBIGUITY · COVERAGE_GAP · FEATURE_REQUEST · PREREQUISITE · HYGIENE · HARDENING · DOCS. Machine-readable copy: `BUG_LOG.json` (same rows). Full per-finding detail (reproduction, root cause, fix files, regression test, pre/post evidence) lives in the source named in the last column: the five workstream reports and `REVIEW.md`; the CW-DBG rows are the coordinator's own.
 
-**Totals: 151 findings** — BLOCKED 2, NOT_A_DEFECT_WITH_RATIONALE 11, OPEN 4, VERIFIED_FIXED 134.
+**Totals: 154 findings** — BLOCKED 2, NOT_A_DEFECT_WITH_RATIONALE 11, OPEN 6, VERIFIED_FIXED 135.
 
 | Severity | BLOCKED | NOT_A_DEFECT_WITH_RATIONALE | OPEN | VERIFIED_FIXED |
 |---|---|---|---|---|
 | P0 | 0 | 0 | 0 | 1 |
 | P1 | 1 | 0 | 0 | 18 |
 | P2 | 1 | 0 | 1 | 57 |
-| P3 | 0 | 11 | 3 | 58 |
+| P3 | 0 | 11 | 5 | 59 |
 
 | ID | KN | Sev | Type | Title | Status | Closure / note | Detail in |
 |---|---|---|---|---|---|---|---|
@@ -164,3 +164,6 @@ Statuses: OPEN · REPRODUCED · FIX_IN_PROGRESS · FIXED_AWAITING_VERIFICATION �
 | REV-13 |  | P2 | SPEC_AMBIGUITY | B12LTH → NONB12STF (evidence) vs three curated sheets calling the optical ONB12STF Exact | OPEN | sheet owner to confirm B12LTH is non-optical (ENDOPATH XCEL Bladeless, no OPTIVIEW) — BLOCKERS B-07; code follows MATCH_QUALITY_MODEL §4/§5 | REVIEW.md |
 | REV-14 |  | P3 | DOCS | BUILD_NOTES §8/§21/§26 stale after the fixes | VERIFIED_FIXED | §8, §21 rows, §26 headings, §5, §23, §28 updated | REVIEW.md |
 | REV-15 |  | P3 | DEFECT | recordOutcome: a reopen racing between finalizeCheck and the WON claim could close a DRAFT as won | VERIFIED_FIXED | WON claim requires status APPROVED (or WON) inside the transaction | REVIEW.md |
+| CW-DBG-0009 |  | P3 | TEST_DEFECT | WS3 browser harness was Chromium-only in four ways: hard-coded engine; Secure cookie injected over http (WebKit drops it); fullPage screenshots above the 32,767 px Firefox/WebKit cap; a scrollable <nav> counted as a broken tab order; WebKit reports navigation-cancelled fetches as page errors | VERIFIED_FIXED | lib.js PW_BROWSER switch + per-engine out/ dirs, cookie Secure flag follows the scheme, screenshot fallback, engine-aware tab-order and pageerror classification; all scripts green on Chromium/Firefox/WebKit except the WebKit engine abort below | TEST_RESULTS.md §7 |
+| CW-DBG-0010 |  | P3 | COVERAGE_GAP | WebKit (Playwright Linux port 26.0) WebProcess aborts with a libstdc++ std::optional assertion on the client-side navigation from the request page to a new proposal after the full request journey; no JS error; not reproducible with the short sequence; Safari on macOS untested | OPEN | engine/environment limitation (no GPU, Mesa/ZINK errors at launch); the same navigation passes in journey-proposal and a direct probe; rerun journey-request in real Safari on a Mac (B-04/B-05) | TEST_RESULTS.md §7 |
+| CW-DBG-0011 |  | P3 | FEATURE_REQUEST | Resolution stage writes per line (5,004 SELECT CompetitorProduct + 5,001 UPDATE RequestLine on a 5,000-line run): batching would cut the warm 25.7 s / 12,037 queries further | OPEN | efficiency opportunity, target (5,000 lines warm < 60 s) met; no behaviour defect | TEST_RESULTS.md §7 |

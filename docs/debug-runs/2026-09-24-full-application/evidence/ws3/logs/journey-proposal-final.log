@@ -1,0 +1,37 @@
+PASS proposal loaded — {"status":"DRAFT","lines":5}
+PASS an included, priced line exists — {"code":"1190500","sku":"PCO2520X","proposed":1015,"list":1015}
+PASS inline price edit persisted (777.77) — 777.77
+PASS negative price refused and reported — price must be positiveDismiss
+PASS drawer tab Recommendation
+PASS drawer tab Price waterfall
+PASS drawer tab Competitor prices
+PASS drawer tab Cost basis
+PASS drawer tab Cross evidence
+PASS drawer tab Approvals
+PASS re-recommend applied (recommendation JSON present) — {"proposed":461.76,"recommended":461.76}
+PASS line customer note persisted — ws3 proposal customer note
+PASS scenario created — ["Aggressive"]
+PASS scenario view banner
+PASS scenario applied to proposal prices — {"scenarioPrice":"461.76","now":461.76}
+PASS scenario deleted
+PASS logistics saved (flat freight 25, manual tax 5 %) — {"freight":"FLAT","value":"25","tax":"MANUAL","rate":"0.05"}
+PASS tax calculated — {"currency":"USD","subtotal":"8473.92","freight":"25","tax":"423.7","total":"8922.62","taxCalculatedAt":"2026-09-24T10:42:01.345Z","taxStale":false,"taxNote":"Manual rate 5.000%, freight untaxed"}
+PASS submit: disabled while included lines are unpriced, with the reason — 3 included lines have no proposed price — price or exclude them first
+PASS below-floor price accepted in the draft and flagged for approval — {"price":461.76,"floor":513.07,"needs":"PRICING_COMMITTEE"}
+PASS below-floor input marked aria-invalid
+PASS exclude line persisted for every unpriced line — ["1190500:in","B12LTH:in","TLC75:out","C0121:out","IN-12-4:out"]
+PASS submitted — {"status":"APPROVED","pending":[]}
+PASS no approvals needed (within authority)
+PASS proposal approved — APPROVED
+PASS quote export: button enabled once approved
+PASS quote export: PDF download triggered from the button — Crosswalk_Quote_PRP-0035_WS3_Journey_Hospital_20260924_1043.pdf
+PASS quote export pdf — {"status":200,"type":"application/pdf","disposition":"attachment; filename=\"Crosswalk_Quote_PRP-0035_WS3_Journey_Hospital_20260924_1043.pdf\"","bytes":4108}
+PASS quote export xlsx — {"status":200,"type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","disposition":"attachment; filename=\"Crosswalk_Quote_PRP-0035_WS3_Journey_Hospital_20260924_1043.xlsx\"","bytes":7675}
+PASS quote export csv — {"status":200,"type":"text/csv; charset=utf-8","disposition":"attachment; filename=\"Crosswalk_Quote_PRP-0035_WS3_Journey_Hospital_20260924_1043.csv\"","bytes":676}
+PASS record outcome offered
+PASS outcome dialog: focus inside
+PASS outcome recorded (WON) — {"status":"WON","outcome":{"id":"cmufem4bw0054k57ds2w8xeyw","proposalId":"cmufejry60041k57dwr6rvl6x","outcome":"WON","competitorId":null,"priceReason":"ws3 won on price","commercialReason":"","finalValue":8473.92,"curren
+PASS new version offered
+PASS new version created (v+1, DRAFT) — {"v":2,"status":"DRAFT"}
+PASS no page errors — []
+36 checks, 0 failures

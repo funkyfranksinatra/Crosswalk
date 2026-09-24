@@ -1,0 +1,19 @@
+sign-in rate limited, waiting 45000 ms
+FAIL SALES_REP /settings model call stats / endpoint: found=true expected=false
+FAIL REGIONAL_MANAGER /settings model call stats / endpoint: found=true expected=false
+FAIL CONTRACTING_MANAGER /settings model call stats / endpoint: found=true expected=false
+FAIL PRICING_ANALYST /settings model call stats / endpoint: found=true expected=false
+FAIL PRICING_COMMITTEE /requests/new pricebook names: found=true expected=false
+FAIL PRICING_COMMITTEE /settings model call stats / endpoint: found=true expected=false
+FAIL PRODUCT_MARKETING /settings model call stats / endpoint: found=true expected=false
+FAIL CLINICAL_REVIEWER /catalog list price $655.00 (174006): found=true expected=false
+FAIL CLINICAL_REVIEWER /catalog list price $794.21 (ABSTACK30X): found=true expected=false
+FAIL CLINICAL_REVIEWER /catalog pricebook name in table: found=true expected=false
+FAIL CLINICAL_REVIEWER /catalog any $ amount: found=true expected=false
+FAIL CLINICAL_REVIEWER /requests/new pricebook names: found=true expected=false
+FAIL CLINICAL_REVIEWER /settings model call stats / endpoint: found=true expected=false
+FAIL FINANCE /requests/new pricebook names: found=true expected=false
+FAIL FINANCE /settings model call stats / endpoint: found=true expected=false
+FAIL EXECUTIVE /requests/new pricebook names: found=true expected=false
+FAIL EXECUTIVE /settings model call stats / endpoint: found=true expected=false
+110 checks, 17 failures

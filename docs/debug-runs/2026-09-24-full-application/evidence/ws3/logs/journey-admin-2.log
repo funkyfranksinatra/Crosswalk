@@ -1,0 +1,39 @@
+PASS gudid: plan preview shows a record count — 230 records across 1 labeler name · about 1 openFDA requests · 230 already in the library
+PASS gudid: import skipped — the library already holds this labeler (rerun) — 230 already
+PASS gudid: cancel path skipped (set GUDID_CANCEL_TEST=1 to run a second live import) — skipped
+PASS gudid: panel back to idle after the import
+PASS crosses: rep proposal accepted by the API — {"id":"cmufdf6j50093np7dftdntf18","ownSku":"174006","ownDescription":null,"category":null,"competitorName":"Ethicon","competitorCode":"WS3Xmufdf6iq","competitorCodeNorm":"WS3XMUFDF6IQ","competitorDescription":null,"matchType":"Close Match",
+PASS crosses: PRODUCT_MARKETING sees the queued cross (or an honest fetch error, never a silent empty queue) — queue rendered
+PASS crosses: marketing approval persisted — {"m":"APPROVED","c":"PENDING"}
+PASS crosses: Approve stays disabled until clinical review too
+PASS crosses: CLINICAL_REVIEWER queue (WS4 route change present) — queue rendered
+PASS crosses: CLINICAL_REVIEWER page carries no prices
+PASS crosses: clinical approval persisted
+PASS crosses: final approval persisted
+PASS notifications: inbox rendered — {"unread":21}
+PASS notifications: mark all read persisted
+PASS notifications: preference toggle persisted — {"userId":"cmuf6hhnk0009ks7d9izncxsa","kind":"RUN_COMPLETE","inApp":false,"email":true,"teams":false}
+PASS notifications: e-mail column disabled when SMTP is not configured
+PASS settings: weights and candidates persisted — {"before":{"bin":0.5,"price":0.2,"cogs":0.15,"margin":0.15},"after":{"bin":0.5,"price":0.7,"cogs":0.15,"margin":0.15},"max":6}
+PASS settings: oversized logo rejected with the size — ["Logo must be under 300 KB (this file is 400 KB)"]
+PASS settings: small logo persisted — data:image/png;base64,iVBORw0K
+PASS settings: server also refuses an oversized logo — {"status":400,"error":"logo must be under 300 KB"}
+PASS settings: evaluate alerts reported
+PASS settings/pricing: invalid rules JSON flagged and Save disabled
+PASS settings/pricing: draft persisted — {"v":1,"status":"DRAFT"}
+PASS settings/pricing: activation persisted
+PASS settings/pricing: analyst's New draft is disabled with the reason
+PASS settings/pricing: analyst sees no Activate / New version
+PASS integrations: mock provider listed — [{"v":"salesforce","disabled":false},{"v":"mock","disabled":false}]
+PASS integrations: save reported — Saved — configuration v1, status configured. Test the connection next. 
+PASS integrations: test connection reported — MOCK Salesforce: connected (no real org){
+ "scenario": "ok",
+ "accounts": 3
+} 
+PASS integrations: validate mapping reported — Mapping valid 
+PASS integrations: test-record sync reported — Test record sync succeeded: 2 received · 2 created · 0 updated · 0 unchanged · 0 errors · 0 to review 
+PASS integrations: config persisted with the mock provider — {"key":"salesforce","provider":"mock","status":"CONNECTED"}
+PASS integrations: non-admin is redirected to /settings — http://localhost:3103/settings
+PASS no page errors — []
+PASS no CSP violations — []
+35 checks, 0 failures

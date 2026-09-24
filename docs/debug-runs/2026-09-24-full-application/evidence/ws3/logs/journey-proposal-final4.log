@@ -1,0 +1,38 @@
+PASS proposal loaded — {"status":"DRAFT","lines":2}
+PASS an included, priced line exists — {"code":"1190500","sku":"PPM4530","proposed":550,"list":590.36}
+PASS inline price edit persisted (777.77) — 777.77
+PASS negative price refused and reported — price must be positiveDismiss
+PASS drawer tab Recommendation
+PASS drawer tab Price waterfall
+PASS drawer tab Competitor prices
+PASS drawer tab Cost basis
+PASS drawer tab Cross evidence
+PASS drawer tab Approvals
+PASS re-recommend applied (recommendation JSON present) — {"proposed":448.67,"recommended":448.67}
+PASS line customer note persisted — ws3 proposal customer note
+PASS scenario created — ["Aggressive"]
+PASS scenario view banner
+PASS scenario applied to proposal prices — {"scenarioPrice":"448.67","now":448.67}
+PASS scenario deleted
+PASS logistics saved (flat freight 25, manual tax 5 %) — {"freight":"FLAT","value":"25","tax":"MANUAL","rate":"0.05"}
+PASS tax calculated — {"currency":"USD","subtotal":"1956.4","freight":"25","tax":"97.82","total":"2079.22","taxCalculatedAt":"2026-09-24T12:39:31.987Z","taxStale":false,"taxNote":"Manual rate 5.000%, freight untaxed"}
+PASS below-floor price accepted in the draft and flagged for approval — {"price":233.28,"floor":259.2,"needs":"PRICING_COMMITTEE"}
+PASS below-floor input marked aria-invalid
+PASS exclude line persisted for every unpriced line — ["1190500:in","B12LTH:in"]
+PASS submitted — {"status":"APPROVED","pending":[]}
+PASS no approvals needed (within authority)
+PASS proposal approved — APPROVED
+PASS quote export: button enabled once approved
+PASS quote export: stale-tax refusal shown in the workspace (no navigation) — Tax was calculated before the latest price change — recalculate it (Freight & tax) before exportingDismiss | 
+PASS quote export: Recalculate tax offered after approval
+PASS quote export: PDF download triggered from the button — Crosswalk_Quote_PRP-0002_Memorial_Sloan_Kettering_20260924_1239.pdf
+PASS quote export pdf — {"status":200,"type":"application/pdf","disposition":"attachment; filename=\"Crosswalk_Quote_PRP-0002_Memorial_Sloan_Kettering_20260924_1239.pdf\"","bytes":3533}
+PASS quote export xlsx — {"status":200,"type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","disposition":"attachment; filename=\"Crosswalk_Quote_PRP-0002_Memorial_Sloan_Kettering_20260924_1239.xlsx\"","bytes":7649}
+PASS quote export csv — {"status":200,"type":"text/csv; charset=utf-8","disposition":"attachment; filename=\"Crosswalk_Quote_PRP-0002_Memorial_Sloan_Kettering_20260924_1239.csv\"","bytes":620}
+PASS record outcome offered
+PASS outcome dialog: focus inside
+PASS outcome recorded (WON) — {"status":"WON","outcome":{"id":"cmufirayw003p9z7drwdclzzb","proposalId":"cmufiou8g002p9z7d10wt6dhz","outcome":"WON","competitorId":null,"priceReason":"ws3 won on price","commercialReason":"","finalValue":1094.84,"curren
+PASS new version offered
+PASS new version created (v+1, DRAFT) — {"v":2,"status":"DRAFT"}
+PASS no page errors — []
+37 checks, 0 failures

@@ -1,0 +1,4 @@
+KN-10 baseline: sidebar contains role="group": false | contains "Commercial" heading text: false
+KN-05 baseline: GET /docs/INTEGRATIONS.md → 404
+KN-03 baseline: contracts page has a GPO select: false
+not-found baseline: /nope-such-page → 404 default

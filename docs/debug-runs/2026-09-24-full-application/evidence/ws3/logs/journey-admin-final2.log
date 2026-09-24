@@ -1,0 +1,65 @@
+PASS contracts: popover opens and focuses the first field
+PASS contracts: GPO select rendered for a GPO contract
+PASS contracts: Create disabled until a GPO is chosen
+PASS contracts: end-before-start rejected with a message — ["The end date must be after the start date."]
+PASS contracts: GPO contract persisted with gpoId and tier (KN-03) — {"type":"GPO","gpo":"HealthTrust","tier":"Tier 2","status":"ACTIVE"}
+PASS contracts: unknown account number → clear error, nothing created — ["Account \"0000000000000\" not found in your book"]
+PASS contracts: Escape closes the popover
+PASS contracts: entries persisted (2 known SKUs; unknown reported) — ["ABSTACK30X:780:0–999","174006:640:"]
+PASS contracts: commitment and rebate terms persisted — {"commitments":1,"rebates":1}
+PASS contracts: Terminate persisted and the entries box is disabled — TERMINATED
+PASS contracts: Terminate control gone on a terminated contract
+PASS intelligence: observation recorded — ["123.45:UNVERIFIED"]
+PASS intelligence: Verify persisted — ["VERIFIED"]
+PASS intelligence: Dispute persisted — ["DISPUTED"]
+PASS intelligence: import recorded 2 rows and skipped the blank code — 2 observations recorded from 2 rows
+PASS intelligence: SALES_REP sees no Verify/Dispute (no verify_competitor_pricing)
+PASS intelligence: SALES_REP can still record (import_competitor_pricing)
+PASS intelligence: FINANCE gets a read-only record card and no import controls
+PASS catalog: pricing template csv served — ﻿SKU,Description,Category,List Price,COGS,HOSPITAL LIST PRICE,SAP-MOCK list · US-LIST,VIZIENT HERNIA MECH TIER 1
+PASS catalog: re-imported list price shows ($661.25)
+PASS catalog: restore import applied ($655.00 back)
+PASS catalog: competitor sizes template served — ﻿Competitor Code,Manufacturer,Description,Width,Length,Diameter,Thickness (mm),Unit,Notes,Priority,Lists,Units,Est. spend,Size on file from
+PASS catalog: sizes import reports a result — 1 competitor sizes saved from 1 rows
+PASS catalog: enrich job reachable after start — {"running":true,"done":0,"total":0,"enriched":0,"missing":0,"startedAt":1790249374476}
+PASS catalog: Add SKUs reports present / invalid tokens — 0 added, 1 already present, not catalog numbers: !!!
+PASS gudid: plan preview shows a record count — 230 records across 1 labeler name · about 1 openFDA requests · 0 already in the library
+FAIL gudid: tiny import ran to completion
+PASS gudid: library has records after the import — {"total":230,"byManufacturer":[{"manufacturer":"Medtronic","count":230}],"imports":[{"id":"cmufg9duj0060fc7d5q7c13he","query":"Sofradim","kind":"COMPETITOR","addToOwnCatalog":false,"familiesJson":null,"productCodesJson":"[\"FTL\"]","inDistr
+PASS gudid: cancel path skipped (set GUDID_CANCEL_TEST=1 to run a second live import) — skipped
+FAIL gudid: panel back to idle after the import
+PASS crosses: rep proposal accepted by the API — {"id":"cmufgcf6r00cgfc7d5h860w8p","ownSku":"174006","ownDescription":null,"category":null,"competitorName":"Ethicon","competitorCode":"WS3Xmufgcf6h","competitorCodeNorm":"WS3XMUFGCF6H","competitorDescription":null,"matchType":"Close Match",
+PASS crosses: PRODUCT_MARKETING sees the queued cross (or an honest fetch error, never a silent empty queue) — queue rendered
+PASS crosses: marketing approval persisted — {"m":"APPROVED","c":"PENDING"}
+PASS crosses: Approve stays disabled until clinical review too
+PASS crosses: CLINICAL_REVIEWER queue (WS4 route change present) — queue rendered
+PASS crosses: CLINICAL_REVIEWER page carries no prices
+PASS crosses: clinical approval persisted
+PASS crosses: final approval persisted
+PASS notifications: inbox rendered — {"unread":54}
+PASS notifications: mark all read persisted
+PASS notifications: preference toggle persisted — {"userId":"cmuffqhoe0009fs7dn94dgcxu","kind":"RUN_COMPLETE","inApp":false,"email":true,"teams":false}
+PASS notifications: e-mail column disabled when SMTP is not configured
+PASS settings: weights and candidates persisted — {"before":{"bin":0.5,"price":0.2,"cogs":0.15,"margin":0.15},"after":{"bin":0.5,"price":0.7,"cogs":0.15,"margin":0.15},"max":6}
+PASS settings: oversized logo rejected with the size — ["Logo must be under 300 KB (this file is 400 KB)"]
+PASS settings: small logo persisted — data:image/png;base64,iVBORw0K
+PASS settings: server also refuses an oversized logo — {"status":400,"error":"logo must be under 300 KB"}
+PASS settings: evaluate alerts reported
+PASS settings/pricing: invalid rules JSON flagged and Save disabled
+PASS settings/pricing: draft persisted — {"v":1,"status":"DRAFT"}
+PASS settings/pricing: activation persisted
+PASS settings/pricing: analyst's New draft is disabled with the reason
+PASS settings/pricing: analyst sees no Activate / New version
+PASS integrations: mock provider listed — [{"v":"salesforce","disabled":false},{"v":"mock","disabled":false}]
+PASS integrations: save reported — Saved — configuration v6, status configured. Test the connection next. 
+PASS integrations: test connection reported — MOCK Salesforce: connected (no real org){
+ "scenario": "ok",
+ "accounts": 3
+} 
+PASS integrations: validate mapping reported — Mapping valid 
+PASS integrations: test-record sync reported — Test record sync succeeded: 2 received · 2 created · 0 updated · 0 unchanged · 0 errors · 0 to review 
+PASS integrations: config persisted with the mock provider — {"key":"salesforce","provider":"mock","status":"CONNECTED"}
+PASS integrations: non-admin is redirected to /settings — http://localhost:3103/settings
+PASS no page errors — []
+PASS no CSP violations — []
+61 checks, 2 failures

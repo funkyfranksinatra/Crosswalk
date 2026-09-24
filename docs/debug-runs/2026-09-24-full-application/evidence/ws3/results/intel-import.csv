@@ -1,0 +1,4 @@
+Competitor,Competitor Code,Price,Currency,Source Type
+Ethicon,WS3-OBS-2,99.10,USD,CUSTOMER_INVOICE
+Ethicon,WS3-OBS-3,101.00,USD,REP_OBSERVED
+Ethicon,,5,USD,REP_OBSERVED

@@ -27,3 +27,8 @@ node docs/debug-runs/2026-09-24-full-application/evidence/ws3/<script>.js
 `fixtures/intake.csv` is the wizard upload (duplicate 1190500 rows, a `Total` summary row, a notes row, a blank row, `IN-12-4`).
 `logs/` holds the build/typecheck/vitest output and every script run; `logs/corrupt-next-dev-types/` are the interleaved
 `.next/dev/types` files that broke the build once (see the report).
+
+`results/` is a tracked copy of everything the scripts wrote to `out/` except the screenshots
+(`out` is gitignored repo-wide): matrices, axe.json, journey/keyboard/polling/navigation JSON, the
+offer PDF and the CSV fixtures. The 59 screenshots are in the backup archive
+`crosswalk-debug-run-screenshots-part{1,2}.tgz` (see ../../BACKUPS_OF_WORKSPACE_EVIDENCE.md).

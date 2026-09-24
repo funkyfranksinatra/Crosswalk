@@ -30,8 +30,12 @@ async function main() {
     await page.goto(`/requests/${req.id}`, { waitUntil: "load" });
     await page.waitForSelector("table tbody tr");
     const order = [];
-    for (let i = 0; i < 6; i++) { await page.keyboard.press("Tab"); order.push((await active(page)).text); }
-    check("sidebar Tab order: skip link, logo, Overview, Cross-reference, Proposals, Deal desk", order[0] === "Skip to content" && order[1].startsWith("Crosswalk") && order.slice(2).join(" > ") === "Overview > Cross-reference > Proposals > Deal desk", order);
+    for (let i = 0; i < 7; i++) { await page.keyboard.press("Tab"); order.push((await active(page)).text); }
+    // Firefox (and Chromium 130+ when a scroller has no focusable children) makes the scrollable
+    // <nav> itself a tab stop; that stop reads as the concatenated nav text and is legitimate
+    // (keyboard-reachable scroll region), so it is skipped rather than counted as a link.
+    const stops = order.filter((t) => !/^Overview.*Cross-reference/.test(t));
+    check("sidebar Tab order: skip link, logo, Overview, Cross-reference, Proposals, Deal desk (a scrollable-nav stop is allowed)", stops[0] === "Skip to content" && stops[1].startsWith("Crosswalk") && stops.slice(2, 6).join(" > ") === "Overview > Cross-reference > Proposals > Deal desk", order);
     const rings = [];
     for (let i = 0; i < 4; i++) { await page.keyboard.press("Tab"); rings.push((await active(page)).outline); }
     check("every focused control shows a focus ring", rings.every(Boolean), rings);

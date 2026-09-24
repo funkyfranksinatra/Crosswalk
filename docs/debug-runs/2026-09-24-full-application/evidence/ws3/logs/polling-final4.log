@@ -1,0 +1,10 @@
+PASS bell: no extra poll within 8 s (30 s cadence) — {"requests":0}
+PASS system card: one poll in ~21 s (20 s cadence) — {"requests":1}
+PASS system card: polling stops after navigating away (22 s) — {"requests":0}
+PASS system card: no poll while the tab is hidden (22 s) — {"requests":0}
+PASS system card: catches up when the tab becomes visible — {"requests":1}
+PASS request page: no polling while the run is not active — {"requests":0,"status":"complete"}
+PASS request page: a stale (delayed) reply never overwrites the fresh state — {"gets":3,"sawStale":false}
+FAIL enrich: polls every 1.5 s while the panel is open — {"requests":1}
+PASS enrich: polling stops when the panel closes (Escape) — {"requests":0}
+9 checks, 1 failures
