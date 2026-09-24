@@ -94,7 +94,7 @@ export async function casesFromRequests(minReviewed = 5): Promise<BenchmarkCase[
     if (reviewed.length < minReviewed) continue;
     out.push({
       name: `request:${r.reference}`,
-      intake: { lines: reviewed.map((l, i) => ({ rawCode: l.rawCode, cfnNorm: l.cfnNorm, quantity: l.quantity, estPrice: l.estCompetitorPrice === null ? null : Number(l.estCompetitorPrice), sourceRows: [i + 2] })), sheet: r.reference, skipped: [], duplicatesMerged: 0, source: { kind: "csv", name: r.reference }, detectedColumns: { code: 0, qty: null, price: null, headerRow: null } },
+      intake: { lines: reviewed.map((l, i) => ({ rawCode: l.rawCode, cfnNorm: l.cfnNorm, quantity: l.quantity, estPrice: l.estCompetitorPrice === null ? null : Number(l.estCompetitorPrice), description: l.description ?? null, sourceRows: [i + 2] })), sheet: r.reference, skipped: [], ignored: [], duplicatesMerged: 0, source: { kind: "csv", name: r.reference }, detectedColumns: { code: 0, qty: null, price: null, description: null, headerRow: null }, accounting: { dataRows: reviewed.length, lines: reviewed.length, merged: 0, skipped: 0, ignored: 0 } },
       reference: reviewed.map((l) => ({ code: l.rawCode, norm: l.cfnNorm, expected: [l.candidates[0].ownProduct.sku.toUpperCase()], matchType: l.candidates[0].matchType, family: l.candidates[0].ownProduct.category, notes: l.overrideNote })),
       meta: { account: r.accountName ?? r.accountNumber ?? undefined, source: "reviewed request lines" },
     });
@@ -126,7 +126,7 @@ export async function runBenchmark(cases: BenchmarkCase[], opts: { useLlm?: bool
   const byCase: BenchmarkResult["byCase"] = {};
   for (const c of cases) {
     opts.onProgress?.(`${c.name}: ${c.intake.lines.length} lines`);
-    const request = await prisma.request.create({ data: { companyId: company.id, reference: `BENCH-${c.name.replace(/[^A-Za-z0-9]+/g, "-").slice(0, 40)}-${Date.now().toString(36)}`, accountName: c.meta.account ?? c.name, useLlm, status: "queued", sourceFileName: "benchmark", lines: { create: c.intake.lines.map((l, i) => ({ lineNo: i + 1, rawCode: l.rawCode, cfnNorm: l.cfnNorm, quantity: l.quantity, estCompetitorPrice: l.estPrice })) } } });
+    const request = await prisma.request.create({ data: { companyId: company.id, reference: `BENCH-${c.name.replace(/[^A-Za-z0-9]+/g, "-").slice(0, 40)}-${Date.now().toString(36)}`, accountName: c.meta.account ?? c.name, useLlm, status: "queued", sourceFileName: "benchmark", lines: { create: c.intake.lines.map((l, i) => ({ lineNo: i + 1, rawCode: l.rawCode, cfnNorm: l.cfnNorm, quantity: l.quantity, estCompetitorPrice: l.estPrice, description: l.description ?? null })) } } });
     try {
       await runRequest(request.id);
       const lines = await prisma.requestLine.findMany({ where: { requestId: request.id }, include: { candidates: { orderBy: { rank: "asc" }, take: 3, include: { ownProduct: { select: { sku: true, category: true } } } } } });

@@ -252,7 +252,7 @@ export async function adoptIntoOwnCatalog(rows: DeviceRow[], families: Family[] 
     const r = bySku.get(sku)!;
     const raw = JSON.parse(r.gudidJson) as OpenFdaRecord;
     const s = summarizeRecord(raw);
-    const bin = heuristicBin({ sku, brand: r.brand, description: r.description, gmdnName: r.gmdnName, specialties: s.specialties, sizes: s.sizes, singleUse: s.singleUse, sterile: s.sterile, implantable: s.implantable });
+    const bin = heuristicBin({ sku, manufacturer: r.labeler, brand: r.brand, description: r.description, gmdnName: r.gmdnName, specialties: s.specialties, sizes: s.sizes, singleUse: s.singleUse, sterile: s.sterile, implantable: s.implantable });
     return {
       companyId: company.id, sku, description: r.description ?? sku, category: bin.family, brand: r.brand, labeler: r.labeler, status: r.status,
       gudidDi: r.primaryDi, gmdnName: r.gmdnName, gmdnCode: r.gmdnCode, fdaProductCode: r.fdaProductCode, gudidJson: r.gudidJson, gudidSyncedAt: new Date(),
@@ -285,7 +285,7 @@ export async function pruneAdopted(opts: { families?: string[] | null; dryRun?: 
   const PAGE = 500;
   let cursor: string | undefined;
   for (;;) {
-    const batch = await prisma.ownProduct.findMany({ where: { companyId: company.id, source: "gudid-import", ...(cursor ? { id: { gt: cursor } } : {}) }, orderBy: { id: "asc" }, take: PAGE, select: { id: true, sku: true, brand: true, description: true, gmdnName: true, gudidJson: true, category: true, binJson: true, binSource: true, isActive: true, _count: { select: { candidates: true, proposalLines: true, prices: true, costs: true, purchases: true } } } });
+    const batch = await prisma.ownProduct.findMany({ where: { companyId: company.id, source: "gudid-import", ...(cursor ? { id: { gt: cursor } } : {}) }, orderBy: { id: "asc" }, take: PAGE, select: { id: true, sku: true, brand: true, labeler: true, description: true, gmdnName: true, gudidJson: true, category: true, binJson: true, binSource: true, isActive: true, _count: { select: { candidates: true, proposalLines: true, prices: true, costs: true, purchases: true } } } });
     if (!batch.length) break;
     cursor = batch[batch.length - 1].id;
     const toDelete: string[] = [];
@@ -293,7 +293,7 @@ export async function pruneAdopted(opts: { families?: string[] | null; dryRun?: 
     for (const p of batch) {
       const raw = p.gudidJson ? (JSON.parse(p.gudidJson) as OpenFdaRecord) : null;
       const g = raw ? summarizeRecord(raw) : null;
-      const bin = heuristicBin({ sku: p.sku, brand: p.brand, description: p.description, gmdnName: p.gmdnName, specialties: g?.specialties, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
+      const bin = heuristicBin({ sku: p.sku, manufacturer: p.labeler, brand: p.brand, description: p.description, gmdnName: p.gmdnName, specialties: g?.specialties, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
       const referenced = Object.values(p._count).some((n) => n > 0);
       if (bin.family === "Other" || drop.has(bin.family)) {
         if (referenced) toDeactivate.push(p.id); else toDelete.push(p.id);

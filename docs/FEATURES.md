@@ -32,6 +32,11 @@ record and what each one still needs), `FULL_APPLICATION_DEBUG_REPORT.md` (the
 | Export to workbook or Google Sheets; cost/margin columns hidden by role | `src/lib/excel/export.ts`, `src/lib/sheets/` |
 | Offline deterministic fallback when no model is configured | `src/lib/llm/client.ts` |
 | Accuracy harness against the legacy PACR export (`scripts/eval.ts`) | `docs/REQ-0013_vs_PACR_comparison.md` |
+| Match quality model: provenance-tagged access-product profile (component, diameter set / instrument range, length class, optical, tip, fixation, variant add-ons) built from GUDID sizes → SKU convention → GUDID / curated text → intake description; hard constraints (cannula ≠ trocar, diameter sets) and soft signals cap the grade; score, confidence and classification kept apart; curated crosses are evidence (contradictions ranked and explained, reviewer's preferred cross first); SELF_MATCH with successor SKUs | `docs/MATCH_QUALITY_MODEL.md`, `src/lib/match/{access,brands,component,constraints,line}.ts`, `src/lib/match/score.ts` |
+| Brand → feature registry with provenance and notes (OPTIVIEW / Kii Fios / Visiport ⇒ optical, universal & stability sleeves ⇒ cannula only, Ethicon / VersaOne SKU conventions ⇒ size, length, tip) | `src/lib/match/brands.ts` |
+| Requests priced through the account's contract waterfall (List → National → GPO → IDN → Local) with the applied level / contract and the reason when there is no price, in the review UI and the export | `src/lib/pipeline/run.ts`, `src/lib/contracts/`, `src/lib/excel/export.ts` |
+| Intake accounting: every row with a code is a line, a merged duplicate, a reject with a reason or an ignored summary row; description column carried as matching evidence | `src/lib/excel/intake.ts` |
+| PACR benchmark: seed the REQ-7628 account + contract prices from the PACR export, run the list, measure before/after/PACR (`scripts/seed-sanford-benchmark.ts`, `scripts/eval-pacr.ts`); offline PACR-win regression and adversarial suites | `docs/REQ-7628_Crosswalk_superiority_run.md`, `tests/unit/pacr-regression.test.ts` |
 
 ### 2. GUDID library
 

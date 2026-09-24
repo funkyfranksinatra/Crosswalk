@@ -23,7 +23,10 @@ import { groupSiblings, gradeGroup, applyGroupGrades, type GradeLineInput } from
 import { resolveCfn, buildContext, type ResolutionContext } from "./resolve";
 import { llmConfig, llmPreflight } from "@/lib/llm/client";
 import { parseBin, binSimilarity, type Bin, heuristicBin } from "@/lib/match/bin";
+import { competitorBinForLine, curatedCandidates } from "@/lib/match/line";
 import { scoreCandidates, DEFAULT_WEIGHTS, type Weights, type CandidateInput, type ScoredCandidate } from "@/lib/match/score";
+import { loadPricingContext, type PricingContext } from "@/lib/contracts/context";
+import { D } from "@/lib/money";
 import { embeddingsEnabled, ensureCompetitorEmbedding, nearestOwnProducts, RETRIEVAL_K } from "@/lib/match/embeddings";
 import { getSettings } from "@/lib/settings";
 
@@ -135,7 +138,7 @@ async function setStage(requestId: string, stage: string, progress: number, sign
 }
 
 /** One own product with a usable bin (rebuilt heuristically if stale), for a neighbour outside the preloaded pool. */
-async function loadOwnWithBin(id: string, pricebookId: string | null) {
+async function loadOwnWithBin(id: string, pricebookId: string | null, companyName: string) {
   const p = await prisma.ownProduct.findUnique({ where: { id }, omit: { gudidJson: true }, include: { prices: pricebookId ? { where: { pricebookId } } : false } });
   if (!p || !p.isActive) return null;
   let bin = parseBin(p.binJson);
@@ -143,7 +146,7 @@ async function loadOwnWithBin(id: string, pricebookId: string | null) {
     const full = await prisma.ownProduct.findUnique({ where: { id }, select: { gudidJson: true } });
     const raw = full?.gudidJson ? (JSON.parse(full.gudidJson) as OpenFdaRecord) : null;
     const g = raw ? summarizeRecord(raw) : null;
-    bin = heuristicBin({ sku: p.sku, brand: p.brand, description: g ? `${p.description} ; ${g.description ?? ""}` : p.description, category: p.category, gmdnName: p.gmdnName, specialties: g?.specialties, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
+    bin = heuristicBin({ sku: p.sku, manufacturer: p.labeler ?? companyName, brand: p.brand, description: g ? `${p.description} ; ${g.description ?? ""}` : p.description, category: p.category, gmdnName: p.gmdnName, specialties: g?.specialties, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
   }
   return { p, bin };
 }
@@ -200,7 +203,8 @@ async function notifyFinished(requestId: string) {
 }
 
 async function runRequestInner(requestId: string, runOpts: RunOptions) {
-  const request = await prisma.request.findUniqueOrThrow({ where: { id: requestId }, include: { lines: { orderBy: { lineNo: "asc" } }, company: true } });
+  const request = await prisma.request.findUniqueOrThrow({ where: { id: requestId }, include: { lines: { orderBy: { lineNo: "asc" } }, company: true, pricebook: { select: { name: true } } } });
+  const pbName = request.pricebook?.name ?? null;
   const settings = await getSettings();
   const weights: Weights = { ...DEFAULT_WEIGHTS, ...(request.optionsJson ? JSON.parse(request.optionsJson).weights ?? {} : settings.weights) };
   let useLlm = request.useLlm && llmConfig().available;
@@ -304,7 +308,7 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
     if (!exists) {
       const raw = cp.gudidJson ? (JSON.parse(cp.gudidJson) as OpenFdaRecord) : null;
       const s = raw ? summarizeRecord(raw) : null;
-      const bin = heuristicBin({ sku, brand: cp.brand, description: cp.description, gmdnName: cp.gmdnName, specialties: s?.specialties, sizes: s?.sizes, singleUse: s?.singleUse, sterile: s?.sterile, implantable: s?.implantable });
+      const bin = heuristicBin({ sku, manufacturer: request.company.name, brand: cp.brand, description: cp.description, gmdnName: cp.gmdnName, specialties: s?.specialties, sizes: s?.sizes, singleUse: s?.singleUse, sterile: s?.sterile, implantable: s?.implantable });
       await prisma.ownProduct.create({ data: { companyId: request.companyId, sku, description: cp.description ?? sku, category: bin.family, brand: cp.brand, labeler: cp.labeler, status: cp.status, gudidDi: cp.gudidDi, gmdnName: cp.gmdnName, gmdnCode: cp.gmdnCode, fdaProductCode: cp.fdaProductCode, gudidJson: cp.gudidJson, gudidSyncedAt: new Date(), binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date() } });
       await log(requestId, `Added our own SKU ${sku} to the catalog (customer already buys it from us)`);
     }
@@ -331,7 +335,7 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
       const s = raw ? summarizeRecord(raw) : null;
       // The curated sheets often describe a competitor code better than its GUDID record (sizes, cannula type…).
       const curatedDescription = curatedKeys(cp).map((k) => curatedByKey.get(k)).find(Boolean) ?? null;
-      const description = [cp.description, curatedDescription].filter((x): x is string => Boolean(x) && !(cp.description ?? "").includes(x!)).join(" ; ");
+      const description = [cp.description, curatedDescription && !(cp.description ?? "").includes(curatedDescription) ? curatedDescription : null].filter((x): x is string => Boolean(x)).join(" ; ");
       // Codes that are our own SKUs (the customer already buys them from us) get the size our
       // catalog-number convention encodes, exactly like the catalog side does.
       const ownSku = cp.manufacturer === request.company.name ? (cp.cfnMatched ?? cp.cfnNorm).toUpperCase() : null;
@@ -341,6 +345,7 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
       const { bin, source } = await binProduct({
         subject: cp.cfnNorm,
         sku: ownSku,
+        code: cp.cfnMatched ?? cp.cfnNorm,
         importedSizes: spec?.dims ?? null,
         name: cp.brand,
         description: description || cp.description,
@@ -386,13 +391,14 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
     const full = await prisma.ownProduct.findUnique({ where: { id: p.id }, select: { gudidJson: true } });
     const raw = full?.gudidJson ? (JSON.parse(full.gudidJson) as OpenFdaRecord) : null;
     const g = raw ? summarizeRecord(raw) : null;
-    const bin = heuristicBin({ sku: p.sku, brand: p.brand, description: g ? `${p.description} ; ${g.description ?? ""}` : p.description, category: p.category, gmdnName: p.gmdnName, specialties: g?.specialties, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
+    const bin = heuristicBin({ sku: p.sku, manufacturer: p.labeler ?? request.company.name, brand: p.brand, description: g ? `${p.description} ; ${g.description ?? ""}` : p.description, category: p.category, gmdnName: p.gmdnName, specialties: g?.specialties, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
     await prisma.ownProduct.update({ where: { id: p.id }, data: { binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date(), ...(p.source === "gudid-import" ? { category: bin.family } : {}) } });
     return { p, bin };
   });
   // Embedding retrieval (Tier 3): when the catalog is embedded, each line's attribute scan is limited to
   // its nearest neighbours instead of the whole pool. Missing vectors fall back to the scan, per line.
   const ownById = new Map(ownWithBins.map((o) => [o.p.id, o]));
+  const idBySku = new Map(ownWithBins.map((o) => [o.p.sku.toUpperCase(), o.p.id]));
   let useEmbeddings = embeddingsEnabled();
   const retrievalStats = { ann: 0, scan: 0 };
   // Per-run memo: one embedding per competitor product however many lines share it (and one lazy load per
@@ -411,7 +417,19 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
   }
 
   const freshLines = await prisma.requestLine.findMany({ where: { requestId }, include: { competitorProduct: true }, orderBy: { lineNo: "asc" } });
-  type LineWork = { line: (typeof freshLines)[number]; scored: ScoredCandidate[]; gradeInput: GradeLineInput | null };
+  // Pricing under the account's contracts (List → National → GPO → IDN → Local), loaded once per run.
+  // Without an account the request's price book / catalog list price applies, as before.
+  let pricing: PricingContext | null = null;
+  if (request.accountId) {
+    pricing = await loadPricingContext({ accountId: request.accountId });
+    await log(requestId, `Pricing context: account ${pricing.account?.name ?? request.accountId}, ${pricing.contracts.filter((c) => c.status === "ACTIVE").length} active contracts (${[...new Set(pricing.contracts.filter((c) => c.status === "ACTIVE").map((c) => c.name))].join(", ") || "none"})${pricing.primaryGpo ? `, GPO ${pricing.primaryGpo.name}${pricing.primaryGpo.tier ? ` ${pricing.primaryGpo.tier}` : ""}` : ""}${request.pricebookId ? "; list prices from the selected price book" : ""}`);
+  }
+  // SELF_MATCH: codes that are our own SKU. An active SKU is retained as itself; a discontinued one with a
+  // successor on file is offered the successor; without one the line falls through to attribute matching.
+  const selfCodes = [...new Set(freshLines.filter((l) => l.competitorProduct?.manufacturer === request.company.name).map((l) => (l.competitorProduct!.cfnMatched ?? l.competitorProduct!.cfnNorm).toUpperCase()))];
+  const selfRows = selfCodes.length ? await prisma.ownProduct.findMany({ where: { companyId: request.companyId, sku: { in: selfCodes, mode: "insensitive" } }, select: { sku: true, isActive: true, status: true, successorSku: true } }) : [];
+  const selfBySku = new Map(selfRows.map((r) => [r.sku.toUpperCase(), r]));
+  type LineWork = { line: (typeof freshLines)[number]; scored: ScoredCandidate[]; gradeInput: GradeLineInput | null; note?: string | null };
   const work: LineWork[] = [];
   let matched = 0;
 
@@ -420,7 +438,10 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
     if (i % 10 === 9) await checkCancelled(requestId, runOpts.signal);
     try {
       const cp = line.competitorProduct;
-      const compBin = cp ? parseBin(cp.binJson, { allowStale: true }) : null;
+      // Line-level evidence: the intake description (the customer's item master) fills what the cached
+      // GUDID-based bin does not know — an Ethicon record without sizes, say — and never overrides it.
+      const cached = cp ? parseBin(cp.binJson, { allowStale: true }) : null;
+      const compBin = cached ? competitorBinForLine(cached, line.description) : null;
       const crosses = [...(crossesByCode.get(line.cfnNorm) ?? []), ...(crossesByCode.get(compactCfn(line.cfnNorm)) ?? [])];
 
       if (!cp || cp.resolution === "not-found" || !compBin) {
@@ -431,18 +452,7 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
       }
 
       // Candidate retrieval: curated crosses + top attribute neighbours in the same family.
-      const candidateIds = new Set<string>();
-      const crossBySku = new Map<string, (typeof crosses)[number]>();
-      for (const k of crosses) {
-        const sku = (k.preferredOwnSku && /^[A-Z0-9-]{4,}$/i.test(k.preferredOwnSku.trim()) ? k.preferredOwnSku : k.ownSku).trim().toUpperCase();
-        const own = ownWithBins.find((o) => o.p.sku.toUpperCase() === sku);
-        if (own) {
-          candidateIds.add(own.p.id);
-          const cur = crossBySku.get(own.p.id);
-          const approved = (x: { approvalStatus: string }) => x.approvalStatus === "APPROVED";
-          if (!cur || (approved(k) && !approved(cur)) || (approved(k) === approved(cur) && betterCross(k.matchType, cur.matchType))) crossBySku.set(own.p.id, k);
-        }
-      }
+      const { ids: candidateIds, crossById: crossBySku } = curatedCandidates(crosses, idBySku);
       if (compBin) {
         // Who to compare: the embedding neighbours when we have them, else the whole family pool.
         let pool = ownWithBins.filter((o) => compBin.family === "Other" || o.bin.family === "Other" || o.bin.family === compBin.family);
@@ -460,9 +470,9 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
               if (!o) {
                 // A neighbour outside the preloaded pool (a GUDID-import row in another family): load its bin lazily, once.
                 let lp = lazyLoads.get(n.id);
-                if (!lp) { lp = loadOwnWithBin(n.id, request.pricebookId) as Promise<(typeof ownWithBins)[number] | null>; lazyLoads.set(n.id, lp); }
+                if (!lp) { lp = loadOwnWithBin(n.id, request.pricebookId, request.company.name) as Promise<(typeof ownWithBins)[number] | null>; lazyLoads.set(n.id, lp); }
                 const extra = await lp;
-                if (extra && !ownById.has(extra.p.id)) { ownById.set(extra.p.id, extra); ownWithBins.push(extra); }
+                if (extra && !ownById.has(extra.p.id)) { ownById.set(extra.p.id, extra); idBySku.set(extra.p.sku.toUpperCase(), extra.p.id); ownWithBins.push(extra); }
                 o = extra ?? undefined;
               }
               if (o && (compBin.family === "Other" || o.bin.family === "Other" || o.bin.family === compBin.family)) loaded.push(o);
@@ -485,7 +495,17 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
         for (const r of ranked) if (r.s >= 0.3) candidateIds.add(r.o.p.id);
       }
 
-      const selfSku = cp?.manufacturer === request.company.name ? (cp.cfnMatched ?? cp.cfnNorm).toUpperCase() : null;
+      const selfCode = cp?.manufacturer === request.company.name ? (cp.cfnMatched ?? cp.cfnNorm).toUpperCase() : null;
+      const selfRow = selfCode ? selfBySku.get(selfCode) : undefined;
+      const discontinued = Boolean(selfRow && (!selfRow.isActive || /not in commercial/i.test(selfRow.status ?? "")));
+      let selfSku: string | null = selfCode && !discontinued ? selfCode : null;
+      let successorOf: string | null = null;
+      let lineNote: string | null = null;
+      if (selfCode && discontinued) {
+        const succ = selfRow?.successorSku?.trim().toUpperCase() ?? null;
+        if (succ && ownWithBins.some((o) => o.p.sku.toUpperCase() === succ)) { selfSku = succ; successorOf = selfCode; }
+        else lineNote = `Our SKU ${selfCode} is discontinued${succ ? ` (successor ${succ} is not an active catalog SKU)` : " (no successor on file)"} — substitutes proposed from the catalog`;
+      }
       if (selfSku) { const self = ownWithBins.find((o) => o.p.sku.toUpperCase() === selfSku); if (self) candidateIds.add(self.p.id); }
       const seenIds = new Set<string>();
       const candidates = ownWithBins.filter((o) => candidateIds.has(o.p.id) && !seenIds.has(o.p.id) && seenIds.add(o.p.id));
@@ -508,26 +528,42 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
         });
       }
 
-      const competitorForScore = { bin: compBin ?? heuristicBin({ description: crosses[0]?.competitorDescription }), description: cp?.description ?? crosses[0]?.competitorDescription ?? "", estPrice: num(line.estCompetitorPrice) };
+      const competitorForScore = { bin: compBin ?? heuristicBin({ description: crosses[0]?.competitorDescription ?? line.description }), description: cp?.description ?? crosses[0]?.competitorDescription ?? line.description ?? "", estPrice: num(line.estCompetitorPrice) };
+      const priceOf = (c: (typeof candidates)[number]): { unitPrice: number | null; source: string } => {
+        const pb = Array.isArray(c.p.prices) ? c.p.prices[0] : undefined;
+        if (!pricing) {
+          if (pb?.price != null) return { unitPrice: num(pb.price), source: `LIST · ${pbName ?? "price book"}` };
+          if (c.p.listPrice != null) return { unitPrice: num(c.p.listPrice), source: "LIST · catalog list price" };
+          return { unitPrice: null, source: request.pricebookId ? "no price: SKU not in the selected price book and no catalog list price" : "no price: no catalog list price (no price book selected)" };
+        }
+        const r = pricing.resolvePrice({ ...c.p, prices: (Array.isArray(c.p.prices) ? c.p.prices : []).map((e) => ({ ...e, pricebook: pbName ? { name: pbName } : null })) }, D(line.quantity));
+        const win = r.steps.find((st) => st.applied);
+        if (r.price != null && win) return { unitPrice: Number(r.price.toString()), source: `${win.level} · ${win.contractName ?? (win.level === "LIST" ? (win.entryId ? pbName ?? "price book" : "catalog list price") : win.level)}${win.volumeTier ? ` (${win.volumeTier})` : ""}` };
+        return { unitPrice: null, source: `no price: ${r.steps.map((st) => `${st.level}${st.contractName ? ` ${st.contractName}` : ""}: ${st.reason}`).join("; ")}`.slice(0, 400) };
+      };
+      const priced = new Map<string, { unitPrice: number | null; source: string }>();
       const inputs: CandidateInput[] = candidates.map((c) => {
         const k = crossBySku.get(c.p.id);
-        const pb = Array.isArray(c.p.prices) ? c.p.prices[0] : undefined;
+        const pr = priceOf(c);
+        priced.set(c.p.id, pr);
         return {
           ownProductId: c.p.id,
           sku: c.p.sku,
           description: c.p.description,
           bin: c.bin,
-          unitPrice: num(pb?.price ?? c.p.listPrice),
+          unitPrice: pr.unitPrice,
           cogs: num(c.p.cogs),
           identity: selfSku != null && c.p.sku.toUpperCase() === selfSku,
+          successorOf: selfSku != null && c.p.sku.toUpperCase() === selfSku ? successorOf : null,
           provenance: c.p.source,
-          knownCross: k ? { matchType: k.matchType, preferredOwnSku: k.preferredOwnSku, additionalProducts: k.additionalProducts, notes: k.notes, source: k.source, approvalStatus: k.approvalStatus, endorsements: k.endorsements } : null,
+          knownCross: k ? { matchType: k.matchType, preferredOwnSku: k.preferredOwnSku, additionalProducts: k.additionalProducts, notes: k.notes, source: k.source, approvalStatus: k.approvalStatus, endorsements: k.endorsements, preferred: k.preferred } : null,
         };
       });
-      const scored = scoreCandidates(competitorForScore, inputs, weights);
+      const scored = scoreCandidates(competitorForScore, inputs, weights).map((sc) => ({ ...sc, priceSource: priced.get(sc.ownProductId)?.source ?? null }));
       work.push({
         line,
         scored,
+        note: lineNote,
         gradeInput: useLlm && cp && compBin ? { lineId: line.id, cfn: line.cfnNorm, manufacturer: cp.manufacturer, brand: cp.brand, description: cp.description, bin: compBin, candidates: scored } : null,
       });
     } catch (e) {
@@ -603,10 +639,12 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
       scoreCogs: s.scoreCogs,
       scoreMargin: s.scoreMargin,
       factorsJson: JSON.stringify(s.factors),
-      rationale: s.rationale,
+      rationale: w.note ? `${w.note}; ${s.rationale}` : s.rationale,
       additionalProducts: (s as { additionalProducts?: string }).additionalProducts ?? s.knownCross?.additionalProducts ?? null,
+      confidence: (s as { confidence?: number }).confidence ?? null,
       unitPrice: toDb(s.unitPrice),
       extended: toDb(times(s.unitPrice, line.quantity)),
+      priceSource: (s as { priceSource?: string | null }).priceSource ?? null,
       isSelected: i === 0 && s.matchType !== "No Match",
     }));
     persistRows.push({ line, rows });
@@ -622,9 +660,5 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
   await notifyFinished(requestId).catch((e) => slog.warn("run.notify_failed", { crossRef: requestId, error: e instanceof Error ? e.message : String(e) }));
 }
 
-function betterCross(a: string, b: string) {
-  const order: Record<string, number> = { "Exact Match": 0, "Close Match": 1, "Alternative Match": 2, "US Downsell Match": 3 };
-  return (order[a] ?? 9) < (order[b] ?? 9);
-}
 
 export type { Bin };

@@ -3,9 +3,14 @@
  * that are actually available for it. Missing factors don't silently
  * punish a product — the weights renormalise — and the factor set used is
  * stored on the candidate so the UI can show *why* something ranked first.
+ *
+ * Three things come out per candidate and they are kept apart (docs/MATCH_QUALITY_MODEL.md §1):
+ * the match score (similarity on the evidence), the classification (Exact / Close / Alternative /
+ * No Match) and the confidence (how much evidence supports that classification).
  */
 import type { Bin } from "./bin";
 import { binSimilarity, matchTypeFromScore } from "./bin";
+import type { Grade } from "./constraints";
 
 export type Weights = { bin: number; price: number; cogs: number; margin: number };
 export const DEFAULT_WEIGHTS: Weights = { bin: 0.5, price: 0.2, cogs: 0.15, margin: 0.15 };
@@ -23,9 +28,11 @@ export type CandidateInput = {
   unitPrice: number | null; // from selected pricebook or list price
   cogs: number | null;
   identity?: boolean; // the competitor code *is* this SKU
+  /** identity via succession: the competitor code is our discontinued SKU and this is its successor */
+  successorOf?: string | null;
   /** "seed" | "manual" | "gudid-import" — imported SKUs rank below curated ones at equal match quality */
   provenance?: string | null;
-  knownCross?: { matchType: string; preferredOwnSku?: string | null; additionalProducts?: string | null; notes?: string | null; source: string; /** DRAFT / IN_REVIEW rep proposals are a soft prior, never a tier floor */ approvalStatus?: string; endorsements?: number } | null;
+  knownCross?: { matchType: string; preferredOwnSku?: string | null; additionalProducts?: string | null; notes?: string | null; source: string; /** DRAFT / IN_REVIEW rep proposals are a soft prior, never a tier floor */ approvalStatus?: string; endorsements?: number; /** the reviewer's preferred cross for this competitor code, across every curated row */ preferred?: boolean } | null;
 };
 
 /** How much a rep-proposed (unreviewed) cross lifts the bin score: enough to surface it, never enough to change the tier on its own. */
@@ -39,9 +46,14 @@ export type ScoredCandidate = CandidateInput & {
   scorePrice: number | null;
   scoreCogs: number | null;
   scoreMargin: number | null;
-  factors: { used: string[]; weights: Weights; notes: string[] };
+  /** evidence strength for `matchType`, 0..1 — below 0.75 the rep is asked to verify */
+  confidence: number;
+  factors: { used: string[]; weights: Weights; notes: string[]; evidence?: { kind: string; field: string; text: string }[]; curated?: { source: string; grade: string; effective: string; contradicted: boolean; preferred: boolean }; /** best grade the hard/soft constraints allow — binds the model grader too */ cap?: string };
   rationale: string;
 };
+
+const GRADE_RANK: Record<string, number> = { "Exact Match": 0, "Close Match": 1, "Alternative Match": 2, "No Match": 3 };
+const worse = (a: string, b: string): string => (GRADE_RANK[a] >= GRADE_RANK[b] ? a : b);
 
 export function scoreCandidates(
   competitor: { bin: Bin; description: string; estPrice: number | null },
@@ -54,34 +66,65 @@ export function scoreCandidates(
 
   const scored = candidates.map<ScoredCandidate>((c) => {
     const sim = binSimilarity(competitor.bin, c.bin, competitor.description, c.description);
+    const rawSim = sim.score;
     let scoreBin = sim.score;
-    let matchType = matchTypeFromScore(scoreBin, sim.dimensions, sim.cap);
+    // Attributes alone: Exact needs most of the decisive fields known (constraints.ts attributeCap).
+    let matchType = matchTypeFromScore(scoreBin, sim.dimensions, sim.access?.attributeCap ?? sim.cap);
     let source: ScoredCandidate["source"] = "attribute";
     const notes = [...sim.notes];
+    const evidence = sim.access?.findings ?? [];
+    const hard = sim.access?.hard ?? 0;
+    const soft = sim.access?.soft ?? 0;
+    let curated: ScoredCandidate["factors"]["curated"];
     if (c.provenance === "gudid-import") notes.push("SKU added from a GUDID import — not in the curated catalog, no price on file");
+
+    // ---- confidence (docs/MATCH_QUALITY_MODEL.md §6) ---------------------------------------
+    let base = 0.8;
+    // How much of the decisive evidence is known on both sides.
+    const coverage = sim.access ? 0.6 + 0.4 * sim.access.coverage : sim.dimensions === null ? 0.7 : sim.dimensions <= 0.35 && /unknown on one side/.test(notes.join(" ")) ? 0.75 : 1;
 
     if (c.identity) {
       scoreBin = 1;
       matchType = "Exact Match";
       source = "identity";
-      notes.unshift("this is already our product — retain");
+      base = 1;
+      notes.unshift(c.successorOf ? `successor to our discontinued SKU ${c.successorOf} — the customer already buys this from us` : "this is already our product — retain");
     }
 
     const unreviewed = c.knownCross && c.knownCross.approvalStatus !== undefined && c.knownCross.approvalStatus !== "APPROVED";
     if (c.knownCross && !c.identity && !unreviewed) {
-      const floor = KNOWN_CROSS_FLOOR[c.knownCross.matchType] ?? 0.6;
-      scoreBin = Math.max(scoreBin, floor);
-      matchType = c.knownCross.matchType === "US Downsell Match" ? "Alternative Match" : c.knownCross.matchType;
+      // The sheet is evidence, not an override: its grade holds unless a hard or soft constraint says
+      // otherwise, and then the explanation names both the sheet and the contradiction.
+      const sheetGrade = c.knownCross.matchType === "US Downsell Match" ? "Alternative Match" : c.knownCross.matchType;
+      const effective = worse(sheetGrade, sim.cap as Grade);
+      const contradicted = effective !== sheetGrade;
       source = "known-cross";
-      notes.unshift(`curated cross reference (${c.knownCross.source})`);
+      base = 0.9;
+      if (effective === "No Match") { matchType = "No Match"; scoreBin = rawSim; }
+      else {
+        matchType = effective;
+        const floor = KNOWN_CROSS_FLOOR[effective] ?? 0.6;
+        // The floor carries the sheet's judgement; the attributes still order candidates inside a grade.
+        scoreBin = floor + (1 - floor) * rawSim;
+      }
+      curated = { source: c.knownCross.source, grade: sheetGrade, effective, contradicted, preferred: Boolean(c.knownCross.preferred) };
+      notes.unshift(contradicted ? `curated cross (${c.knownCross.source}, ${sheetGrade}) — contradicted by the product attributes; ranked as ${effective}` : `curated cross (${c.knownCross.source}, ${sheetGrade})${c.knownCross.preferred ? ", reviewer's preferred cross" : ""}`);
     } else if (c.knownCross && !c.identity && unreviewed) {
       // Learning loop: a rep chose this SKU for this code before. It earns a place on the shortlist and
       // a small lift, but the tier still comes from the attributes until clinical/marketing review approves it.
       scoreBin = Math.min(1, scoreBin + REP_PRIOR_BOOST);
-      matchType = matchTypeFromScore(scoreBin, sim.dimensions, sim.cap);
+      matchType = matchTypeFromScore(scoreBin, sim.dimensions, sim.access?.attributeCap ?? sim.cap);
+      base = 0.6;
       const n = c.knownCross.endorsements ?? 1;
       notes.unshift(`chosen by ${n === 1 ? "a rep" : `${n} reps`} before (pending review)`);
+    } else if (!c.identity) {
+      notes.unshift(matchType === "No Match" ? "no acceptable match on the attributes" : "attribute match");
     }
+    // A contradiction is uncertainty about a *curated* grade (the sheet said Exact, the attributes disagree).
+    // On the attribute path the mismatch is already the reason for the grade, so it does not lower confidence.
+    const contradiction = c.identity || source !== "known-cross" ? 0 : Math.min(0.9, 0.25 * soft + 0.5 * hard + (sim.access?.techniqueDiffers ? 0.125 : 0));
+    let confidence = c.identity ? 1 : Math.max(0, Math.min(1, base * coverage * (1 - contradiction)));
+    if (matchType === "No Match") confidence = Math.min(confidence, 0.5);
 
     // Price competitiveness: how does our price compare with what they pay today?
     let scorePrice: number | null = null;
@@ -131,24 +174,43 @@ export function scoreCandidates(
       scorePrice,
       scoreCogs,
       scoreMargin,
-      factors: { used, weights, notes },
-      rationale: notes.slice(0, 4).join("; "),
+      confidence,
+      factors: { used, weights, notes, evidence, curated, cap: c.identity ? "Exact Match" : sim.cap },
+      rationale: notes.slice(0, 5).join("; "),
     };
   });
 
-  // Order: match quality, then evidence strength, then composite score.
+  // Order: match quality, then identity, then evidence strength (confidence: a curated cross with the
+  // attributes behind it beats one whose SKU we know little about, and an attribute match with every
+  // dimension confirmed beats a thin curated row), then the reviewer's preferred cross, then score.
   const SOURCE_ORDER: Record<string, number> = { identity: 0, "known-cross": 1, attribute: 2 };
   // Curated / hand-added SKUs are verified commercial products; SKUs adopted from a GUDID import are
   // not (unpriced, uncurated) and lose ties.
   const provenanceRank = (c: ScoredCandidate) => (c.provenance === "gudid-import" ? 1 : 0);
+  // Confidence orders candidates only where it is measured on the decisive attributes (the access
+  // model); families without a profile keep the curated-first, then score order.
+  const accessAware = (c: ScoredCandidate) => Boolean(c.factors.evidence?.length);
   scored.sort((a, b) => {
     const m = (MATCH_ORDER[a.matchType] ?? 3) - (MATCH_ORDER[b.matchType] ?? 3);
     if (m !== 0) return m;
-    const so = (SOURCE_ORDER[a.source] ?? 2) - (SOURCE_ORDER[b.source] ?? 2);
-    if (so !== 0) return so;
+    const ident = Number(b.source === "identity") - Number(a.source === "identity");
+    if (ident !== 0) return ident;
     const pr = provenanceRank(a) - provenanceRank(b);
     if (pr !== 0) return pr;
-    return b.score - a.score;
+    const pf = Number(Boolean(b.knownCross?.preferred)) - Number(Boolean(a.knownCross?.preferred));
+    if (pf !== 0) return pf;
+    if (accessAware(a) && accessAware(b) && Math.abs(a.confidence - b.confidence) > 0.02) return b.confidence - a.confidence;
+    const so = (SOURCE_ORDER[a.source] ?? 2) - (SOURCE_ORDER[b.source] ?? 2);
+    if (so !== 0) return so;
+    if (Math.abs(a.score - b.score) > 1e-6) return b.score - a.score;
+    // Equal on every attribute (two platforms' same-spec SKUs): the one this customer has a price for is the offer.
+    return Number(b.unitPrice != null) - Number(a.unitPrice != null);
   });
+  // A near tie inside the top grade (two platforms' same-spec SKUs) is not doubt about the grade; the
+  // explanation names the runner-up so the rep can pick the platform the customer prefers.
+  if (scored.length > 1 && scored[0].matchType !== "No Match" && scored[1].matchType === scored[0].matchType && scored[0].source !== "identity" && scored[1].source !== "identity" && scored[0].score - scored[1].score < 0.02 && !scored[0].knownCross?.preferred) {
+    scored[0].factors.notes.splice(1, 0, `${scored[1].sku} is an equivalent ${scored[0].matchType.replace(" Match", "").toLowerCase()} match`);
+    scored[0].rationale = scored[0].factors.notes.slice(0, 5).join("; ");
+  }
   return scored;
 }

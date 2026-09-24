@@ -25,7 +25,7 @@ export async function enrichOwnProducts(companyId: string, onProgress?: (msg: st
         await prisma.ownProduct.update({ where: { id: p.id }, data: { gudidSyncedAt: new Date() } });
       } else {
         const s = summarizeRecord(best);
-        const bin = heuristicBin({ sku: p.sku, brand: s.brand, description: `${p.description} ; ${s.description ?? ""}`, category: p.category, gmdnName: s.gmdnName, specialties: s.specialties, sizes: s.sizes, singleUse: s.singleUse, sterile: s.sterile, implantable: s.implantable });
+        const bin = heuristicBin({ sku: p.sku, manufacturer: s.manufacturer, brand: s.brand, description: `${p.description} ; ${s.description ?? ""}`, category: p.category, gmdnName: s.gmdnName, specialties: s.specialties, sizes: s.sizes, singleUse: s.singleUse, sterile: s.sterile, implantable: s.implantable });
         await prisma.ownProduct.update({
           where: { id: p.id },
           data: {

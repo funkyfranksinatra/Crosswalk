@@ -60,9 +60,9 @@ export function MatchChip({ type, full = false }: { type: string; full?: boolean
   );
 }
 
-export function Chip({ children, tone = "neutral", className = "" }: { children: ReactNode; tone?: "neutral" | "accent" | "info" | "alt" | "none" | "exact"; className?: string }) {
+export function Chip({ children, tone = "neutral", className = "", title }: { children: ReactNode; tone?: "neutral" | "accent" | "info" | "alt" | "none" | "exact"; className?: string; title?: string }) {
   const cls = { neutral: "bg-line-2 text-ink-2", accent: "bg-accent-soft text-accent-ink", info: "bg-info-soft text-info", alt: "bg-alt-soft text-alt", none: "bg-none-soft text-none", exact: "bg-exact-soft text-exact" }[tone];
-  return <span className={`chip ${cls} ${className}`}>{children}</span>;
+  return <span className={`chip ${cls} ${className}`} title={title}>{children}</span>;
 }
 
 export function ScoreBar({ value, tone = "accent", width = 64 }: { value: number | null | undefined; tone?: string; width?: number }) {

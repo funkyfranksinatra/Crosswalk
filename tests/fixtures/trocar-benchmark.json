@@ -1,0 +1,4797 @@
+{
+ "note": "Medtronic trocar-family catalog rows (public GUDID descriptions), the REQ-7628 competitor codes as resolved from GUDID with their intake descriptions, and the curated cross rows for them. Regenerate: npx tsx scripts/eval-pacr.ts fixture docs/eval/after.json [--codes A,B,…]",
+ "catalog": [
+  {
+   "sku": "171313",
+   "description": "MiniSite Miniport™ 2 mm Single Use Introducer",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "171315",
+   "description": "MiniSite MiniPort™ 2 mm Short Single Use Introducer",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "172015",
+   "description": "Surgineedle™ 120 mm Needle",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "172016",
+   "description": "Surgineedle™ 150 mm Long Needle",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "175772P",
+   "description": "VersaSeal Plus — Cannula Seal",
+   "brand": "VersaSeal Plus",
+   "labeler": "Covidien LP",
+   "gmdnName": "Laparoscopic access cannula seal reducer, single-use",
+   "sizes": [
+    {
+     "type": "Outer Diameter",
+     "value": "12",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Outer Diameter",
+     "value": "5",
+     "unit": "Millimeter"
+    }
+   ]
+  },
+  {
+   "sku": "176626P",
+   "description": "Bluntport™ Plus Single Use Converterless 5mm-12mm Trocar with Foamgrip™ Single Use Anchoring Device",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "176673P",
+   "description": "Visiport™ Plus RPF 5 mm - 11 mm with Smooth Cannula; Size: 11 mm; Length 110 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "176674P",
+   "description": "Visiport™ Plus RPF 5 mm - 11 mm with Smooth Cannula; Size: 12 mm; Length 110 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "176674PF",
+   "description": "Visiport™ Plus RPF 5 mm - 11 mm with Fixation Cannula; Size: 12 mm; Length 110 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "177090P",
+   "description": "Versaport™ Plus 5 mm - 11 mm Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "177090PF",
+   "description": "Versaport™ Plus 11 mm Fixation Cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "177091P",
+   "description": "Versaport™ Plus 5 mm - 12 mm Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "177091PF",
+   "description": "Versaport™ Plus 12 mm Fixation Cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "177092",
+   "description": "Versaport™ 5 mm Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "177092F",
+   "description": "Versaport™ 5 mm Fixation Cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "177992P",
+   "description": "Versaport™ V2 5 mm - 11 mm Smooth Cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "177995P",
+   "description": "Versaport™ V2 5 mm - 12 mm Smooth Cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179076P",
+   "description": "Versaport™ Plus RPF 5-10mm Trocar with 100mm Radiolucent Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179077P",
+   "description": "Versaport™ Plus RPF 5-10mm Long Trocar with 150mm Radiolucent Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179078P",
+   "description": "Versaport Plus — Pyramidal Bladed Trocar",
+   "brand": "Versaport Plus",
+   "labeler": "Covidien LP",
+   "gmdnName": "Laparoscopic multi-instrument access port, single-use",
+   "sizes": [
+    {
+     "type": "Outer Diameter",
+     "value": "15",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Outer Diameter",
+     "value": "10",
+     "unit": "Millimeter"
+    }
+   ]
+  },
+  {
+   "sku": "179078PF",
+   "description": "VRSAPORT PLUS TRCR 15MM W/FIX",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179093",
+   "description": "Versaport™ V2 5 mm 70 mm Length Trocar",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179093F",
+   "description": "Versaport™ V2 5 mm Short Trocar",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179094",
+   "description": "Versaport™ V² 5 mm Trocar",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179094F",
+   "description": "Versaport™ V² Trocar with Fixation Cannula; Length 5 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179095P",
+   "description": "Versaport™ Plus V2 5 mm-11 mm Trocar with Universal Seal",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179096P",
+   "description": "Versaport™ Plus V² 5 - 12 mm Trocar",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179096PF",
+   "description": "Versaport™ V² 12 mm Trocar with Fixation Cannula and Universal Seal",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179097P",
+   "description": "Versaport™ Plus V² 5 - 12 mm Long Trocar",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179097PF",
+   "description": "Versaport™ V² 5 mm - 12 mm Long Trocar with Fixation Cannula and Universal Seal",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179100",
+   "description": "Versaport™ V2 RT 5 mm Short Obturator with 5 mm Seal",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179101",
+   "description": "Versaport™ V2 RT 5 mm Obturator with 5 mm Seal",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179102P",
+   "description": "Versaport™ Plus V2 RT 11 mm Obturator with 5 mm-11 mm VersaSeal™ Plus",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179301",
+   "description": "Thoracoport™ 10.5 mm for instrument up to 11 mm; Single Use Trocar; Non-conductive Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179303",
+   "description": "Thoracoport™ 11.5 mm for instrument up to 12 mm; Single Use Trocar; Non-conductive Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179305",
+   "description": "Thoracoport™ 5.5 mm for instrument up to 6 mm; Single Use Trocar; Non Conductive Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179307",
+   "description": "Thoracoport™ 15 mm for instrument up to 16.5 mm; Single Use Trocar; Non-conductive Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179308",
+   "description": "Thoracoport™ 5 mm Soft Trocar",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179309",
+   "description": "Thoracoport™ 12 mm Soft Trocar",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "179310",
+   "description": "Thoracoport™ 15 mm Soft Trocar",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "21-345",
+   "description": "CLEARIFY VISUALIZATION SYSTEM",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "220-50",
+   "description": "Dexide™ Fred™ Single Use Anti-Fog Kit Bulk Pack",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "24055-",
+   "description": "Single Use 5.5 mm Locking Trocar Cannula with Woodford Spike™; Length: 5.5 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "4216",
+   "description": "Dexide™ 5 mm Threaded Trocar: 2 Sleeves with Woodford Spike™ Trocar and Insufflation Port; Length: 65 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "B11STF",
+   "description": "VersaOne™ Bladed Trocar with Fixation Cannula; 11 mm x 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "B11STS",
+   "description": "VersaOne™ Bladed Trocar with Smooth Cannula; 11 mm x 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "B12LGF",
+   "description": "VersaOne™ Bladed Trocar with Fixation Cannula; 12 mm x 150 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "B12LGS",
+   "description": "VersaOne™ Bladed Trocar with Smooth Cannula; 12 mm x 150 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "B12STF",
+   "description": "VersaOne™ Bladed Trocar with Fixation Cannula; 12 mm x 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "B12STFCS",
+   "description": "VersaOne™ Fascial Closure System Bladed Trocar",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "B12STS",
+   "description": "VersaOne™ Bladed Trocar with Smooth Cannula; 12 mm x 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "B5SHF",
+   "description": "VersaOne™ Bladed Trocar with Fixation Cannula; 5 mm x 70 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "B5SHS",
+   "description": "VersaOne™ Bladed Trocar with Smooth Cannula; 5 mm x 70 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "B5STF",
+   "description": "VersaOne™ Bladed Trocar with Fixation Cannula; 5 mm x 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "B5STS",
+   "description": "VersaOne™ Bladed Trocar with Smooth Cannula; 5 mm x 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "BPT12STS",
+   "description": "VersaOne™ Blunt Trocar with Threaded Anchor; 12 mm x 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "MS100703",
+   "description": "Mini Step™ Short 2 mm/3 mm Cannula and Dilator with Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "MS100705",
+   "description": "Mini Step™ Short 5 mm Cannula and Dilator with Radially Expandable Sleeve and 5 - 2/3 mm Reducer",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "MS100708",
+   "description": "Mini Step™ Short 7/8 mm Cannula and Dilator with Radially Expandable Sleeve and 7/8 - 5 mm Reducer",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "MS101003",
+   "description": "Mini Step™ 2/3 mm cannula and dilator with radially expandable sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "MS101005",
+   "description": "Mini Step™ 5 mm cannula and dilator with radially expandable sleeve and 5 - 2/3 mm reducer",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "MS101008",
+   "description": "Mini Step™ 7 mm/8 mm cannula and dilator with radially expandable sleeve and 7/8 - 5 mm reducer",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NB11STF",
+   "description": "Versaport™ Plus Bladeless 11 mm 100 mm Trocar with Fixation Cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NB12LGF",
+   "description": "Versaport™ Plus Bladeless 12 mm Long length with fixation cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NB12SHF",
+   "description": "Versaport™ Plus Bladeless 12 mm Short with fixation cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NB12STF",
+   "description": "Versaport™ Plus Bladeless 12 mm Standard length with fixation cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NB12STS",
+   "description": "Versaport™ Plus Bladeless 12 mm Standard length with smooth cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NB15LGF",
+   "description": "Versaport™ Plus Bladeless 15 mm Long with fixation cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NB15STF",
+   "description": "Versaport™ Plus Bladeless 15 mm Standard length with fixation cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NB3SHFLP",
+   "description": "VersaOne™ Bladeless 2/3 mm Short LP Trocar with low profile fixation cannula.",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NB5LGF",
+   "description": "Versaport™ Bladeless 5 mm Long length with fixation cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NB5SHF",
+   "description": "Versaport™ Bladeless 5 mm Short 70 mm Trocar with Fixation Cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NB5SHFLP",
+   "description": "Versaport™ Bladeless 5 mm Short 70 mm Low Profile Trocar with Fixation Cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NB5STF",
+   "description": "Versaport™ Bladeless 5 mm 100 mm Trocar with Fixation Cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NB5STFLP",
+   "description": "Versaport™ Bladeless 5 mm 100 mm Low Profile Trocar with Fixation Cannula",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NBFCA11ST",
+   "description": "11mm ST Fixation Sleeve Assembly for Versaport™ Bladeless",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NBFCA12ST",
+   "description": "Single use fixation cannula with 5 mm - 12 mm Versaseal™ Plus seal for use with Versaport™ Plus Bladeless trocar",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NONB11STF",
+   "description": "VersaOne™ Bladeless Trocar with Fixation Cannula; Size: 11 mm; Length: 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NONB12LGF",
+   "description": "VersaOne™ Bladeless Trocar with Smooth Cannula; Size: 12 mm; Length: 150 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NONB12SHF",
+   "description": "VersaOne™ Bladeless Trocar with Smooth Cannula; Size: 12 mm; Length: 70 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NONB12STF",
+   "description": "VersaOne™ Bladeless Trocar with Fixation Cannula; Size: 12 mm; Length: 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NONB12STS",
+   "description": "VersaOne™ Bladeless Trocar with Smooth Cannula; Size: 12 mm; Length: 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NONB15LGF",
+   "description": "VersaOne™ Bladeless Trocar with Smooth Cannula; Size: 15 mm; Length: 150 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NONB15STF",
+   "description": "VersaOne™ Bladeless Trocar with Smooth Cannula; Size: 15 mm; Length: 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NONB5LGF",
+   "description": "VersaOne™ Bladeless Trocar with Fixation Cannula; Size: 5 mm; Length: 150 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NONB5SHF",
+   "description": "VersaOne™ Bladeless Trocar with Fixation Cannula; Size: 5 mm; Length: 70 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NONB5STF",
+   "description": "VersaOne™ Bladeless Trocar with Fixation Cannula; Size: 5 mm; Length: 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "NONB8STF",
+   "description": "VersaOne™ Bladeless Trocar with Fixation Cannula; Size: 8 mm; Length: 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "OMS-T10BT",
+   "description": "10 mm Blunt Tip Trocar; built-in converters; sizes 5 mm and 7/8 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "OMS-T10BTNL",
+   "description": "10 mm Blunt Tip Trocar; standard length; built-in converters; sizes 5 mm and 7/8 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "OMS-T10BTS",
+   "description": "10 mm Blunt Tip Trocar; short length; built-in converters; sizes 5 mm and 7/8 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "OMS-T10BTSNL",
+   "description": "10 mm Blunt Tip Trocar; short length; built-in converters; sizes 5 mm and 7/8 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "OMS-T12BT",
+   "description": "12 mm Blunt Tip Trocar; built-in converters; sizes 5 mm and 10 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "OMS-T12BTNL",
+   "description": "12 mm Blunt Tip Trocar; standard length; built-in converters; sizes 5 mm and 7/8 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB11LGF",
+   "description": "VersaOne™ Optical Trocar with Fixation Cannula; 11 mm x 150 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB11STF",
+   "description": "VersaOne™ Optical Trocar with Fixation Cannula; 11 mm x 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB12LGF",
+   "description": "VersaOne™ Optical Trocar with Fixation Cannula; 12 mm x 150 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB12SHF",
+   "description": "VersaOne™ Optical Trocar with Fixation Cannula; 12 mm x 70 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB12STF",
+   "description": "VersaOne™ Optical Trocar with Fixation Cannula; 12 mm x 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB12STF-NSB",
+   "description": "NSB VPORT V2 BLDLESS OPT 12",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB12STFCS",
+   "description": "VersaOne™ Fascial Closure System Optical Trocar",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB12STS",
+   "description": "VersaOne™ Optical Trocar with Smooth Cannula; 12 mm x 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB15STF",
+   "description": "VersaOne™ Optical Trocar with Fixation Cannula; 15 mm x 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB5LGB",
+   "description": "VersaOne — Optical Trocar with Fixation Balloon Cannula;Long",
+   "brand": "VersaOne",
+   "labeler": "Covidien LP",
+   "gmdnName": "Laparoscopic multi-instrument access port, single-use",
+   "sizes": [
+    {
+     "type": "Device Size Text, specify",
+     "text": "Diameter,5,Millimeter;"
+    }
+   ]
+  },
+  {
+   "sku": "ONB5LGF",
+   "description": "VersaOne™ Optical Trocar with Fixation Cannula; 5 mm x 150 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB5SHB",
+   "description": "VersaOne — Optical Trocar with Fixation Balloon Cannula;Short",
+   "brand": "VersaOne",
+   "labeler": "Covidien LP",
+   "gmdnName": "Laparoscopic multi-instrument access port, single-use",
+   "sizes": [
+    {
+     "type": "Device Size Text, specify",
+     "text": "Diameter,5,Millimeter;"
+    }
+   ]
+  },
+  {
+   "sku": "ONB5SHF",
+   "description": "VersaOne™ Optical Trocar with Fixation Cannula; 5 mm x 70 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB5STB",
+   "description": "VersaOne — Optical Trocar with Fixation Balloon Cannula;Standard",
+   "brand": "VersaOne",
+   "labeler": "Covidien LP",
+   "gmdnName": "Laparoscopic multi-instrument access port, single-use",
+   "sizes": [
+    {
+     "type": "Device Size Text, specify",
+     "text": "Diameter,5,Millimeter;"
+    }
+   ]
+  },
+  {
+   "sku": "ONB5STF",
+   "description": "VersaOne™ Optical Trocar with Fixation Cannula; 5 mm x 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB5STF-NSB",
+   "description": "OPT BL VP V2 5MM STD W/FX",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONB5STF2C",
+   "description": "VersaOne™ Optical Trocar with Dual Fixation Cannula; 5 mm x 150 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "ONBFCA11ST",
+   "description": "11mm standard cannula only",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "S100000",
+   "description": "Step™ Insufflation/Access Needle; 14-Gauge; Compatible with Step™ and VersaStep™ Plus Access Systems",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "S100700",
+   "description": "Step™ Short Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "S100705",
+   "description": "Step™ Short; 5 mm cannula and dilator with radially expandable sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "S100710",
+   "description": "Step™ Short; 10 mm cannula and dilator with radially expandable sleeve and 5 - 10 mm reducer",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "S100712",
+   "description": "Step™ Short; 12 mm cannula and dilator with radially expandable sleeve and 12 - 15 mm reducer",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "S101000",
+   "description": "Step™ Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "S101005",
+   "description": "Step™ 5 mm cannula and dilator with radially expandable sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "S101010",
+   "description": "Step™ 10 mm cannula and dilator with radially expandable sleeve and 5 - 10 mm reducer",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "S101012",
+   "description": "Step™ 12 mm cannula and dilator with radially expandable sleeve and 12 - 15 mm reducer",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "S110000",
+   "description": "Step™ Short Insufflation/Access Needle; 14-Gauge; Compatible with Step™ and VersaStep™ Access System",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "SILSPT12TA",
+   "description": "SILS Port 12MM",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "SILSPT5TA",
+   "description": "SILS™ Flexible Port 5 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "UNVCA11STF",
+   "description": "VersaOne™ Universal Fixation Cannula; Size: 11 mm; Length: 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "UNVCA12LGF",
+   "description": "VersaOne™ Universal Smooth Cannula; Size: 12 mm; Length: 150 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "UNVCA12STF",
+   "description": "VersaOne™ Universal Fixation Cannula; Size: 12 mm; Length: 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "UNVCA12STF-NSB",
+   "description": "NSB UNIV 12MM STD FIX CAN",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "UNVCA12STS",
+   "description": "VersaOne™ Universal Smooth Cannula; Size: 12 mm; Length: 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "UNVCA5LGF",
+   "description": "VersaOne™ Universal Fixation Cannula; Size: 5 mm; Length: 150 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "UNVCA5SHF",
+   "description": "VersaOne™ Universal Fixation Cannula; Size: 5 mm; Length: 70 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "UNVCA5STB",
+   "description": "VersaOne — Universal Fixation Balloon Cannula;Standard",
+   "brand": "VersaOne",
+   "labeler": "Covidien LP",
+   "gmdnName": "Laparoscopic multi-instrument access port, single-use",
+   "sizes": [
+    {
+     "type": "Device Size Text, specify",
+     "text": "Diameter,5,Millimeter;"
+    }
+   ]
+  },
+  {
+   "sku": "UNVCA5STF",
+   "description": "VersaOne™ Universal Fixation Cannula; Size: 5 mm; Length: 100 mm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS070000",
+   "description": "VersaStep™ Short Insufflation/Access Needle; 14-Gauge",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS100700",
+   "description": "VersaStep™ Short Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS100705",
+   "description": "VersaStep™ Short 5 mm Cannula and Dilator with Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS100711P",
+   "description": "VersaStep™ Plus Short 11 mm Cannula and Dilator with Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS100712P",
+   "description": "VersaStep™ Plus Short 12 mm Cannula and Dilator with Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS101000",
+   "description": "VersaStep™ Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS101005",
+   "description": "VersaStep™ Standard 5 mm Cannula and Dilator with Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS101011P",
+   "description": "VersaStep™ Plus Standard 11 mm Cannula and Dilator with Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS101012P",
+   "description": "VersaStep™ Plus Standard 12 mm Cannula and Dilator with Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS101015P",
+   "description": "VersaStep™ Plus Standard 15 mm Cannula and Dilator with Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS101500",
+   "description": "VersaStep™ Long Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS101505",
+   "description": "VersaStep™ Long 5 mm Cannula and Dilator with Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS101512P",
+   "description": "VersaStep™ Plus Long 12 mm Cannula & Dilator with Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VS150000",
+   "description": "VersaStep™ Long Insufflation/Access Needle; 14-Gauge",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VSR100005",
+   "description": "VersaStep™ Reposable 5 mm VersaSeal™ Seal with Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "VSR100812P",
+   "description": "VersaStep™ Plus Reposable 5 mm-12 mm VersaSeal™ Plus Seal with Radially Expandable Sleeve",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "WPMD509",
+   "description": "Wound Protector Medium Incision Size 5 - 9 cm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "WPSM256",
+   "description": "Wound Protector Small Incision Size 2.5 - 6 cm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  },
+  {
+   "sku": "WPXSM24",
+   "description": "Wound Protector Extra Small Incision Size 2 - 4 cm",
+   "brand": null,
+   "labeler": null,
+   "gmdnName": null,
+   "sizes": []
+  }
+ ],
+ "competitors": [
+  {
+   "code": "40811R",
+   "manufacturer": "Teleflex",
+   "brand": "TAUT",
+   "description": "TAUT — WECKVISTA PORT 8 MILLIMETER X 100 MILLIMETER RIDGED",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [
+    {
+     "type": "Width",
+     "value": "8",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Length",
+     "value": "100",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "TROCAR BLADELESS ACCESS POR RIDGED CANNULA 5/8MM X 100 MM DISPOSABLE 6 EA/BX"
+  },
+  {
+   "code": "C0124",
+   "manufacturer": "Applied Medical",
+   "brand": "Optical Separator® System",
+   "description": "Optical Separator® System — Optical Separator Trocar",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [
+    {
+     "type": "Length",
+     "value": "100",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Lumen/Inner Diameter",
+     "value": "12",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "12 mm x 100 mm Non-Threaded Optical Separator System with Universal Seal"
+  },
+  {
+   "code": "CTF74",
+   "manufacturer": "Applied Medical",
+   "brand": "Kii Fios First Entry",
+   "description": "Kii Fios First Entry — Trocar",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [
+    {
+     "type": "Length",
+     "value": "100",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Lumen/Inner Diameter",
+     "value": "12",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "12 x 100 mm Kii Fios first entry access system, handled Z-Threaded"
+  },
+  {
+   "code": "YA05VSS01",
+   "manufacturer": "Surgical Innovations",
+   "brand": "YelloPort Plus - Laparoscopic Port Access System",
+   "description": "YelloPort Plus - Laparoscopic Port Access System — 5mm Single Use Duckbill Valve",
+   "gmdnName": "Laparoscopic access cannula seal, single-use",
+   "sizes": [],
+   "intake": "Not Found"
+  },
+  {
+   "code": "B12LTH",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL",
+   "description": "ENDOPATH XCEL — Endopath XCEL Bladeless Trocars with Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Bladeless Trocars 12 mm, 100 mm length handled"
+  },
+  {
+   "code": "CFF01",
+   "manufacturer": "Applied Medical",
+   "brand": "Kii Fios First Entry",
+   "description": "Kii Fios First Entry — Trocar",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [
+    {
+     "type": "Lumen/Inner Diameter",
+     "value": "5",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Length",
+     "value": "150",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "5 mm x 150 mm Kii® Fios First Entry (Advanced Fixation)"
+  },
+  {
+   "code": "CTF04",
+   "manufacturer": "Applied Medical",
+   "brand": "Kii Fios First Entry",
+   "description": "Kii Fios First Entry — Trocar",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [
+    {
+     "type": "Lumen/Inner Diameter",
+     "value": "5",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Length",
+     "value": "100",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "5 x 100 mm Kii Fios first entry access system, handled Z-Threaded"
+  },
+  {
+   "code": "2CB12LT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL OPTIVIEW",
+   "description": "ENDOPATH XCEL OPTIVIEW — Endopath Xcel with OPTIVIEW Technology Universal Trocar Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm, 100 mm length"
+  },
+  {
+   "code": "FP007",
+   "manufacturer": "Ethicon",
+   "brand": "FLEXIPATH",
+   "description": "FLEXIPATH — Flexipath Flexible Surgical Trocars",
+   "gmdnName": "Subcutaneous tunneller, single-use",
+   "sizes": [],
+   "intake": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "code": "2B5ST",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL OPTIVIEW",
+   "description": "ENDOPATH XCEL OPTIVIEW — Endopath Xcel with OPTIVIEW Technology Bladeless Trocars with Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm, 75 mm length"
+  },
+  {
+   "code": "D12LT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL",
+   "description": "ENDOPATH XCEL — Endopath XCEL Dilating Tip Trocars with Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Dilating Tip; 100 mm x 12 mm"
+  },
+  {
+   "code": "2CB5LT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL OPTIVIEW",
+   "description": "ENDOPATH XCEL OPTIVIEW — Endopath Xcel with OPTIVIEW Technology Universal Trocar Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Universal Sleeve with OPTIVIEW® Technology 5 mm, 100 mm length"
+  },
+  {
+   "code": "C2201",
+   "manufacturer": "Applied Medical",
+   "brand": "Insufflation Needle",
+   "description": "Insufflation Needle — Insufflation needle to establish pneumoperitoneum.",
+   "gmdnName": "Spring-loaded pneumoperitoneum needle, single-use",
+   "sizes": [
+    {
+     "type": "Length",
+     "value": "120",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "Disposable Insufflation Needle 13 gauge, 120 mm"
+  },
+  {
+   "code": "B11LPH",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL",
+   "description": "ENDOPATH XCEL — Endopath Xcel Bladeless Trocars with Smooth Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Bladeless; 100 mm x 11 mm"
+  },
+  {
+   "code": "2B5LT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL OPTIVIEW",
+   "description": "ENDOPATH XCEL OPTIVIEW — Endopath Xcel with OPTIVIEW Technology Bladeless Trocars with Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology, 5 mm, 100 mm length"
+  },
+  {
+   "code": "CB11LT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL",
+   "description": "ENDOPATH XCEL — ENDOPATH XCEL Universal Trocar Stablility Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Universal Sleeves, 100 mm, 11 mm length"
+  },
+  {
+   "code": "2B5XT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL OPTIVIEW",
+   "description": "ENDOPATH XCEL OPTIVIEW — Endopath Xcel with OPTIVIEW Technology Bladeless Trocars with Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology, 5 mm, 100 mm length"
+  },
+  {
+   "code": "CB12LT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL",
+   "description": "ENDOPATH XCEL — ENDOPATH XCEL Universal Trocar Stablility Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Universal Sleeves 12 mm, 100 mm length"
+  },
+  {
+   "code": "175772P",
+   "manufacturer": "Medtronic",
+   "brand": "VersaSeal Plus",
+   "description": "VersaSeal Plus — Cannula Seal",
+   "gmdnName": "Laparoscopic access cannula seal reducer, single-use",
+   "sizes": [
+    {
+     "type": "Outer Diameter",
+     "value": "12",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Outer Diameter",
+     "value": "5",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "VersaSeal™ Plus 5 mm-12 mm Seal Only"
+  },
+  {
+   "code": "CB5LT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL",
+   "description": "ENDOPATH XCEL — ENDOPATH XCEL Universal Trocar Stablility Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Universal Sleeve, 5 mm, 100 mm length"
+  },
+  {
+   "code": "D11LT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL",
+   "description": "ENDOPATH XCEL — Endopath XCEL Dilating Tip Trocars with Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "code": "2B12XT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL OPTIVIEW",
+   "description": "ENDOPATH XCEL OPTIVIEW — Endopath Xcel with OPTIVIEW Technology Bladeless Trocars with Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm, 150 mm length"
+  },
+  {
+   "code": "CFR33",
+   "manufacturer": "Applied Medical",
+   "brand": "Kii Optical Access System",
+   "description": "Kii Optical Access System — Trocar",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [
+    {
+     "type": "Length",
+     "value": "100",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Lumen/Inner Diameter",
+     "value": "11",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "11 mm x 100 mm Kii® Optical Access System (Advanced Fixation)"
+  },
+  {
+   "code": "CTB11LT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH BASX",
+   "description": "ENDOPATH BASX — Endopath BASX Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH BASX® Universal Sleeves, 100 mm, 11 mm length"
+  },
+  {
+   "code": "C0R47",
+   "manufacturer": "Applied Medical",
+   "brand": "Kii® Balloon Blunt Tip System",
+   "description": "Kii® Balloon Blunt Tip System — Trocars",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [
+    {
+     "type": "Length",
+     "value": "100",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Lumen/Inner Diameter",
+     "value": "12",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "code": "B5XT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL",
+   "description": "ENDOPATH XCEL — Endopath XCEL Bladeless Trocars with Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Bladeless Trocars, 5 mm, 100 mm length"
+  },
+  {
+   "code": "CTR03",
+   "manufacturer": "Applied Medical",
+   "brand": "Kii® Optical Access System",
+   "description": "Kii® Optical Access System — Laparoscopic Trocar Sleeve/Single Use",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [
+    {
+     "type": "Lumen/Inner Diameter",
+     "value": "5",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Length",
+     "value": "100",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "code": "CTF71",
+   "manufacturer": "Applied Medical",
+   "brand": "Kii Fios First Entry",
+   "description": "Kii Fios First Entry — Trocar",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [
+    {
+     "type": "Length",
+     "value": "150",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Lumen/Inner Diameter",
+     "value": "12",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "12 x 150 mm Kii optical access system, Z-Threaded"
+  },
+  {
+   "code": "C0Q20",
+   "manufacturer": "Applied Medical",
+   "brand": "Kii® Balloon Blunt Tip System",
+   "description": "Kii® Balloon Blunt Tip System",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [
+    {
+     "type": "Length",
+     "value": "100",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Lumen/Inner Diameter",
+     "value": "5",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "5 x 100 mm Kii® Balloon blunt Tip system"
+  },
+  {
+   "code": "CB5ST",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL",
+   "description": "ENDOPATH XCEL — ENDOPATH XCEL Universal Trocar Stablility Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Universal Sleeves; 75 mm x 5 mm"
+  },
+  {
+   "code": "CTF73",
+   "manufacturer": "Applied Medical",
+   "brand": "Kii Fios First Entry",
+   "description": "Kii Fios First Entry — Trocar",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [
+    {
+     "type": "Length",
+     "value": "100",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Lumen/Inner Diameter",
+     "value": "12",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "12 x 100 mm Kii Fios first entry access system Z-Threaded"
+  },
+  {
+   "code": "MDO12-100",
+   "manufacturer": "Medical Disposables",
+   "brand": "MD EndoGuidance",
+   "description": "MD EndoGuidance — Optical Trocar 12mm x 100mm",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "Not Found"
+  },
+  {
+   "code": "CTB12LT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH BASX",
+   "description": "ENDOPATH BASX — Endopath BASX Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH BASX® Universal Sleeves 12 mm, 100 mm length"
+  },
+  {
+   "code": "CFS22",
+   "manufacturer": "Applied Medical",
+   "brand": "Kii Sleeve",
+   "description": "Kii Sleeve — Trocar",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [
+    {
+     "type": "Length",
+     "value": "100",
+     "unit": "Millimeter"
+    },
+    {
+     "type": "Lumen/Inner Diameter",
+     "value": "12",
+     "unit": "Millimeter"
+    }
+   ],
+   "intake": "12 mm x 100 mm Kii® Advanced Fixation Cannula"
+  },
+  {
+   "code": "D5LT",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH XCEL",
+   "description": "ENDOPATH XCEL — Endopath XCEL Dilating Tip Trocars with Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH XCEL® Dilating Tip Trocars 5 mm, 100 mm length"
+  },
+  {
+   "code": "TB5ST",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH BASX",
+   "description": "ENDOPATH BASX — Endopath BASX Bladeless Trocars with Stability Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH BASX® Bladeless; 75 mm x 5 mm"
+  },
+  {
+   "code": "23NBL",
+   "manufacturer": "Ethicon",
+   "brand": "ENDOPATH",
+   "description": "ENDOPATH — Endopath Bladeless Trocars with Smooth Sleeves",
+   "gmdnName": "Laparoscopic access cannula, single-use",
+   "sizes": [],
+   "intake": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm, 100 mm length"
+  }
+ ],
+ "crosses": [
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "VS101505",
+   "preferredOwnSku": "ONB5LGF",
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "C2201",
+   "ownSku": "S100000",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "Disposable Insufflation Needle 13 gauge; 120 mm"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": "ONB5SHF",
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "VS101005",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "UNVCA12LGF",
+   "preferredOwnSku": "UNVCA12STF",
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB11LT",
+   "ownSku": "UNVCA12STF",
+   "preferredOwnSku": "UNVCA11STF",
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "B11LPH",
+   "ownSku": "176673P",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B12STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "NONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB12LT",
+   "ownSku": "NBFCA12ST",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB11LT",
+   "ownSku": "177992P",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "NONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "NONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB12LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB5LT",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve with OPTIVIEW® Technology 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "ONB5SHF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "D12LT",
+   "ownSku": "B12STS",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 12 mm"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "UNVCA12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "NBFCA12ST",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5ST",
+   "ownSku": "ONB5SHF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 75 mm x 5 mm"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "NONB5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "UNVCA5SHF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTF74",
+   "ownSku": "NB12STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "12 x 100 mm Kii Fios first entry access system; handled Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "MS100705",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "VS101505",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "ONB5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5LT",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "ONB12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "OMS-T12BTNL",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "176674PF",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "C2201",
+   "ownSku": "VS070000",
+   "preferredOwnSku": "172015",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "Disposable Insufflation Needle 13 gauge; 120 mm"
+  },
+  {
+   "competitorCodeNorm": "CFR33",
+   "ownSku": "VS101011P",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "11 mm x 100 mm Kii® Optical Access System (Advanced Fixation)"
+  },
+  {
+   "competitorCodeNorm": "CTF04",
+   "ownSku": "ONB5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "5 x 100 mm Kii Fios first entry access system; handled Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "CTF71",
+   "ownSku": "NB12LGF",
+   "preferredOwnSku": "ONB12LGF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "12 x 150 mm Kii optical access system; Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "VS100705",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "VS101005",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "177092F",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "MS101005",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "S101005",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "177092",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "MS100705",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "MS101003",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B12XT",
+   "ownSku": "ONB12LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm; 150 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B12XT",
+   "ownSku": "ONB12STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm; 150 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "NONB5STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "MS100705",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "VS101005",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "VS101505",
+   "preferredOwnSku": "ONB5LGF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "UNVCA5SHF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "NONB5STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "NONB5LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "ONB5LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "ONB12SHF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "176674PF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "NB12STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "ONB12LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "NONB5STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "NONB5LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "ONB5LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB11LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB11LT",
+   "ownSku": "177090P",
+   "preferredOwnSku": "UNVCA11STF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB11LT",
+   "ownSku": "UNVCA12STF",
+   "preferredOwnSku": "UNVCA11STF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB11LT",
+   "ownSku": "177992P",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB11LT",
+   "ownSku": "UNVCA12STF",
+   "preferredOwnSku": "B11STF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B11STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B12STF",
+   "preferredOwnSku": "B11STF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B12STS",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B12LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "D12LT",
+   "ownSku": "B12STS",
+   "preferredOwnSku": "B12STF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 12 mm"
+  },
+  {
+   "competitorCodeNorm": "D5LT",
+   "ownSku": "B5STF",
+   "preferredOwnSku": "B5STF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip Trocars 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "FP007",
+   "ownSku": "179301",
+   "preferredOwnSku": "179305",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "competitorCodeNorm": "FP007",
+   "ownSku": "179309",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "competitorCodeNorm": "C0124",
+   "ownSku": "176674PF",
+   "preferredOwnSku": "B12STS",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "12 mm x 100 mm Non-Threaded Optical Separator System with Universal Seal"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "OMS-T12BTNL",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "C2201",
+   "ownSku": "VS070000",
+   "preferredOwnSku": "172015",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "Disposable Insufflation Needle 13 gauge; 120 mm"
+  },
+  {
+   "competitorCodeNorm": "CTF04",
+   "ownSku": "ONB5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "5 x 100 mm Kii Fios first entry access system; handled Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "CTF71",
+   "ownSku": "NB12LGF",
+   "preferredOwnSku": "ONB12LGF",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "12 x 150 mm Kii optical access system; Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "VS100705",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "VS101005",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "MS100703",
+   "preferredOwnSku": "MS101003",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "MS100705",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "MS101005",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B12XT",
+   "ownSku": "NB12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm; 150 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B12XT",
+   "ownSku": "ONB12STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm; 150 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "S100705",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "UNVCA5SHF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "ONB5SHF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": "ONB5SHF",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "NONB5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "NONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB5LT",
+   "ownSku": "ONB5STF2C",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve with OPTIVIEW® Technology 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "UNVCA12STF",
+   "preferredOwnSku": "UNVCA12STF",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "UNVCA12STS",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB5LT",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve with OPTIVIEW® Technology 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB5LT",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve with OPTIVIEW® Technology 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "176674PF",
+   "preferredOwnSku": "176674PF",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "NB12STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "ONB12STF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "ONB12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "ONB12SHF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "NONB5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "NONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "ONB5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "UNVCA5SHF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB11LT",
+   "ownSku": "UNVCA12STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB11LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": "UNVCA11STF",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "NBFCA12ST",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5LT",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5LT",
+   "ownSku": "ONB5STF2C",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5LT",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5ST",
+   "ownSku": "ONB5SHF",
+   "preferredOwnSku": "UNVCA5SHF",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 75 mm x 5 mm"
+  },
+  {
+   "competitorCodeNorm": "CTB11LT",
+   "ownSku": "177090P",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB11LT",
+   "ownSku": "177992P",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B12STS",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "D12LT",
+   "ownSku": "179096P",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 12 mm"
+  },
+  {
+   "competitorCodeNorm": "D12LT",
+   "ownSku": "B12STS",
+   "preferredOwnSku": "B12STF",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 12 mm"
+  },
+  {
+   "competitorCodeNorm": "D5LT",
+   "ownSku": "B5STF",
+   "preferredOwnSku": "B5STF",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip Trocars 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "FP007",
+   "ownSku": "179301",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "competitorCodeNorm": "C0124",
+   "ownSku": "176674PF",
+   "preferredOwnSku": "B12STS",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "12 mm x 100 mm Non-Threaded Optical Separator System with Universal Seal"
+  },
+  {
+   "competitorCodeNorm": "CTF74",
+   "ownSku": "NB12STF",
+   "preferredOwnSku": "ONB12STF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "12 x 100 mm Kii Fios first entry access system; handled Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "MS100703",
+   "preferredOwnSku": "MS101003",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "ONB12STF",
+   "preferredOwnSku": "176674PF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "S100705",
+   "preferredOwnSku": "ONB5SHF",
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "177091P",
+   "preferredOwnSku": "UNVCA12STF",
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "177092F",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "OMS-T12BT",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "ONB12STF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "UNVCA12STS",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "OMS-T10BT",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "UNVCA5SHF",
+   "preferredOwnSku": "ONB5LGF",
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "VS100705",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB12LT",
+   "ownSku": "UNVCA12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "UNVCA12STF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B12XT",
+   "ownSku": "ONB12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm; 150 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "MS101005",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "176674PF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "177091P",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "BPT12STS",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "CB11LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B12XT",
+   "ownSku": "NONB12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm; 150 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTF04",
+   "ownSku": "NONB5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "5 x 100 mm Kii Fios first entry access system; handled Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "UNVCA5SHF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5LT",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "FP007",
+   "ownSku": "179305",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "competitorCodeNorm": "CFR33",
+   "ownSku": "S101010",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "11 mm x 100 mm Kii® Optical Access System (Advanced Fixation)"
+  },
+  {
+   "competitorCodeNorm": "D12LT",
+   "ownSku": "179096PF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 12 mm"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "S101005",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "C2201",
+   "ownSku": "172015",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "Disposable Insufflation Needle 13 gauge; 120 mm"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "MS100705",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "FP007",
+   "ownSku": "179308",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "competitorCodeNorm": "D5LT",
+   "ownSku": "179094F",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip Trocars 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB11LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "UNVCA12STF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "UNVCA12STS",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "MS101003",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "MS101005",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "176674P",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "D12LT",
+   "ownSku": "179096P",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 12 mm"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B11STF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B11STS",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "S101005",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Sheet1",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "OMS-T12BT",
+   "preferredOwnSku": "OMS-T12BTNL",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "OMS-T10BT",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "BPT12STS",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "176674P",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "C2201",
+   "ownSku": "S100000",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "Disposable Insufflation Needle 13 gauge; 120 mm"
+  },
+  {
+   "competitorCodeNorm": "C2201",
+   "ownSku": "172015",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "Disposable Insufflation Needle 13 gauge; 120 mm"
+  },
+  {
+   "competitorCodeNorm": "CFR33",
+   "ownSku": "S101010",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "11 mm x 100 mm Kii® Optical Access System (Advanced Fixation)"
+  },
+  {
+   "competitorCodeNorm": "CTF04",
+   "ownSku": "NONB5LGF",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "5 x 100 mm Kii Fios first entry access system; handled Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "2B12XT",
+   "ownSku": "NONB12LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm; 150 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "S101005",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "MS101005",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "S100705",
+   "preferredOwnSku": "ONB5SHF",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "VS100705",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "MS100705",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "UNVCA5SHF",
+   "preferredOwnSku": "ONB5LGF",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "177091P",
+   "preferredOwnSku": "UNVCA12STF",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "UNVCA12LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "UNVCA12STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "UNVCA12STS",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "ONB12STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "UNVCA12LGF",
+   "preferredOwnSku": "UNVCA12STF",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "UNVCA12STS",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "UNVCA12STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "177091P",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5LT",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB11LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB12LT",
+   "ownSku": "UNVCA12LGF",
+   "preferredOwnSku": "B12STF",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B11STS",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "D12LT",
+   "ownSku": "179096PF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 12 mm"
+  },
+  {
+   "competitorCodeNorm": "D12LT",
+   "ownSku": "179096P",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 12 mm"
+  },
+  {
+   "competitorCodeNorm": "D5LT",
+   "ownSku": "179094F",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip Trocars 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "FP007",
+   "ownSku": "179305",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "competitorCodeNorm": "FP007",
+   "ownSku": "179308",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "176674P",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "176674PF",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "BPT12STS",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "OMS-T10BT",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "OMS-T12BT",
+   "preferredOwnSku": "OMS-T12BTNL",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "C2201",
+   "ownSku": "S100000",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "Disposable Insufflation Needle 13 gauge; 120 mm"
+  },
+  {
+   "competitorCodeNorm": "CFR33",
+   "ownSku": "S101010",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "11 mm x 100 mm Kii® Optical Access System (Advanced Fixation)"
+  },
+  {
+   "competitorCodeNorm": "CTF04",
+   "ownSku": "NONB5LGF",
+   "preferredOwnSku": "ONB5STF",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "5 x 100 mm Kii Fios first entry access system; handled Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "177092F",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "MS101005",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "S101005",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "MS101003",
+   "preferredOwnSku": "MS101003",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B12XT",
+   "ownSku": "NONB12LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm; 150 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B12XT",
+   "ownSku": "ONB12LGF",
+   "preferredOwnSku": "ONB12LGF",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm; 150 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "MS101005",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "S101005",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "MS100705",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "VS100705",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "UNVCA5SHF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "177091P",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "UNVCA12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "177091P",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "UNVCA12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "UNVCA12STF",
+   "preferredOwnSku": "UNVCA12STF",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "UNVCA12STS",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5LT",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB11LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": "UNVCA11STF",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB12LT",
+   "ownSku": "UNVCA12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B11STF",
+   "preferredOwnSku": "B11STF",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B11STS",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "D12LT",
+   "ownSku": "179096PF",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 12 mm"
+  },
+  {
+   "competitorCodeNorm": "D5LT",
+   "ownSku": "179094F",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip Trocars 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "FP007",
+   "ownSku": "179305",
+   "preferredOwnSku": null,
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "competitorCodeNorm": "FP007",
+   "ownSku": "179308",
+   "preferredOwnSku": "179308",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "competitorCodeNorm": "C2201",
+   "ownSku": "172015",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Exact Match",
+   "source": "Access-PACR",
+   "competitorDescription": "Disposable Insufflation Needle 13 gauge; 120 mm"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "177091P",
+   "preferredOwnSku": "UNVCA12STF",
+   "matchType": "Exact Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "OMS-T12BT",
+   "preferredOwnSku": "OMS-T12BTNL",
+   "matchType": "Exact Match",
+   "source": "Access-BAT",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": "ONB5STF",
+   "matchType": "Exact Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "S100705",
+   "preferredOwnSku": "ONB5SHF",
+   "matchType": "Exact Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB5LT",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": "UNVCA5STF",
+   "matchType": "Exact Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve with OPTIVIEW® Technology 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "UNVCA12LGF",
+   "preferredOwnSku": "UNVCA12STF",
+   "matchType": "Exact Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB12LT",
+   "ownSku": "UNVCA12LGF",
+   "preferredOwnSku": "B12STF",
+   "matchType": "Exact Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "NONB5LGF",
+   "preferredOwnSku": "ONB5LGF",
+   "matchType": "Exact Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB11LT",
+   "ownSku": "177090P",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "MS100703",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "C2201",
+   "ownSku": "VS070000",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "Disposable Insufflation Needle 13 gauge; 120 mm"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "VS100705",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "FP007",
+   "ownSku": "179301",
+   "preferredOwnSku": "179305",
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "ONB5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": "ONB5SHF",
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "NONB5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5LT",
+   "ownSku": "ONB5STF2C",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB5LT",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve with OPTIVIEW® Technology 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "C0124",
+   "ownSku": "176674PF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "12 mm x 100 mm Non-Threaded Optical Separator System with Universal Seal"
+  },
+  {
+   "competitorCodeNorm": "FP007",
+   "ownSku": "179309",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "competitorCodeNorm": "2B12XT",
+   "ownSku": "NB12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm; 150 mm length"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "ONB12SHF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "NONB5SHF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTF73",
+   "ownSku": "NB12STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "12 x 100 mm Kii Fios first entry access system Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "CB5LT",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "176674PF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "CTF04",
+   "ownSku": "ONB5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "5 x 100 mm Kii Fios first entry access system; handled Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "ONB5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B12STS",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "D5LT",
+   "ownSku": "B5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip Trocars 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "NONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB11LT",
+   "ownSku": "UNVCA12STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "B12LTH",
+   "ownSku": "NB12STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars 12 mm; 100 mm length handled"
+  },
+  {
+   "competitorCodeNorm": "C0R47",
+   "ownSku": "OMS-T12BTNL",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "12 x 100 mm Kii balloon blunt-tip access system"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "MS101005",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB11LT",
+   "ownSku": "177992P",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B12XT",
+   "ownSku": "ONB12STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm; 150 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB11LT",
+   "ownSku": "177090P",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "177092",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "MS100705",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CFR33",
+   "ownSku": "VS101011P",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "11 mm x 100 mm Kii® Optical Access System (Advanced Fixation)"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "VS101005",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB5LT",
+   "ownSku": "ONB5STF2C",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve with OPTIVIEW® Technology 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "VS100705",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTF71",
+   "ownSku": "NB12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "12 x 150 mm Kii optical access system; Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B12LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Sheet1",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "C0124",
+   "ownSku": "176674PF",
+   "preferredOwnSku": "B12STS",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "12 mm x 100 mm Non-Threaded Optical Separator System with Universal Seal"
+  },
+  {
+   "competitorCodeNorm": "CTF73",
+   "ownSku": "NB12STF",
+   "preferredOwnSku": "ONB12STF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "12 x 100 mm Kii Fios first entry access system Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "CTF74",
+   "ownSku": "NB12STF",
+   "preferredOwnSku": "ONB12STF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "12 x 100 mm Kii Fios first entry access system; handled Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "MS100703",
+   "preferredOwnSku": "MS101003",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "23NBL",
+   "ownSku": "MS101005",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH® Mini/Micro Trocars Nonoptical Bladeless 2 mm/3 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B12XT",
+   "ownSku": "NB12LGF",
+   "preferredOwnSku": "ONB12LGF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm; 150 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "VS100705",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "ONB5LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": "ONB5SHF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": "ONB5SHF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "NONB5STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "ONB5SHF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "NONB5SHF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB5LT",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve with OPTIVIEW® Technology 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB5LT",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve with OPTIVIEW® Technology 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB5LT",
+   "ownSku": "ONB5STF2C",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve with OPTIVIEW® Technology 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B11LPH",
+   "ownSku": "176673P",
+   "preferredOwnSku": "NONB11STF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "UNVCA5SHF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "VS101505",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB12LT",
+   "ownSku": "NBFCA12ST",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5LT",
+   "ownSku": "ONB5STF2C",
+   "preferredOwnSku": "UNVCA5STF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5LT",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5LT",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5ST",
+   "ownSku": "ONB5SHF",
+   "preferredOwnSku": "UNVCA5SHF",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 75 mm x 5 mm"
+  },
+  {
+   "competitorCodeNorm": "CTB11LT",
+   "ownSku": "177992P",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB11LT",
+   "ownSku": "177090P",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB12LT",
+   "ownSku": "NBFCA12ST",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB12LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": "DUPLICATE",
+   "matchType": "Close Match",
+   "source": "Access-Nikki-Mike",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CFR33",
+   "ownSku": "VS101011P",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "11 mm x 100 mm Kii® Optical Access System (Advanced Fixation)"
+  },
+  {
+   "competitorCodeNorm": "CTF73",
+   "ownSku": "NB12STF",
+   "preferredOwnSku": "ONB12STF",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "12 x 100 mm Kii Fios first entry access system Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "CTF74",
+   "ownSku": "NB12STF",
+   "preferredOwnSku": "ONB12STF",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "12 x 100 mm Kii Fios first entry access system; handled Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "177092",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "CTR03",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": "REPEAT",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "5 x 100 mm Kii optical access system Z-Thread"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "MS100705",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "NONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "ONB5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "VS100705",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5LT",
+   "ownSku": "VS101005",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "NONB5SHF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5ST",
+   "ownSku": "NONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars with OPTIVIEW® Technology 5 mm; 75 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "ONB5LGF",
+   "preferredOwnSku": "ONB5LGF",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "ONB5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "UNVCA5LGF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "VS101505",
+   "preferredOwnSku": "ONB5LGF",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "2CB12LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves with OPTIVIEW® Technology 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B12STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "B11LPH",
+   "ownSku": "176673P",
+   "preferredOwnSku": "NONB11STF",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "UNVCA5STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B5XT",
+   "ownSku": "VS101505",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB11LT",
+   "ownSku": "177090P",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB11LT",
+   "ownSku": "177992P",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB11LT",
+   "ownSku": "UNVCA12STF",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB12LT",
+   "ownSku": "NBFCA12ST",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CTB12LT",
+   "ownSku": "UNVCA11STF",
+   "preferredOwnSku": "UNVCA12STF",
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves 12 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "FP007",
+   "ownSku": "179309",
+   "preferredOwnSku": null,
+   "matchType": "Close Match",
+   "source": "Access-PACR",
+   "competitorDescription": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "competitorCodeNorm": "C2201",
+   "ownSku": "VS070000",
+   "preferredOwnSku": "172015",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "Disposable Insufflation Needle 13 gauge; 120 mm"
+  },
+  {
+   "competitorCodeNorm": "CTF71",
+   "ownSku": "NB12LGF",
+   "preferredOwnSku": "ONB12LGF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "12 x 150 mm Kii optical access system; Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "CTF73",
+   "ownSku": "NB12STF",
+   "preferredOwnSku": "ONB12STF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "12 x 100 mm Kii Fios first entry access system Z-Threaded"
+  },
+  {
+   "competitorCodeNorm": "2B12XT",
+   "ownSku": "NB12LGF",
+   "preferredOwnSku": "ONB12LGF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocar with OPTIVIEW® Technology 12 mm; 150 mm length"
+  },
+  {
+   "competitorCodeNorm": "2B5XT",
+   "ownSku": "VS101505",
+   "preferredOwnSku": "ONB5LGF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless Trocars Stability with OPTIVIEW® Technology; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "B11LPH",
+   "ownSku": "176673P",
+   "preferredOwnSku": "NONB11STF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Bladeless; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "CB11LT",
+   "ownSku": "177090P",
+   "preferredOwnSku": "UNVCA11STF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5LT",
+   "ownSku": "ONB5STF2C",
+   "preferredOwnSku": "UNVCA5STF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeve; 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "CB5ST",
+   "ownSku": "ONB5SHF",
+   "preferredOwnSku": "UNVCA5SHF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Universal Sleeves; 75 mm x 5 mm"
+  },
+  {
+   "competitorCodeNorm": "CTB11LT",
+   "ownSku": "UNVCA12STF",
+   "preferredOwnSku": "B11STF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH BASX® Universal Sleeves; 100 mm; 11 mm length"
+  },
+  {
+   "competitorCodeNorm": "D11LT",
+   "ownSku": "B12STF",
+   "preferredOwnSku": "B11STF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 11 mm"
+  },
+  {
+   "competitorCodeNorm": "D12LT",
+   "ownSku": "B12STS",
+   "preferredOwnSku": "B12STF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip; 100 mm x 12 mm"
+  },
+  {
+   "competitorCodeNorm": "D5LT",
+   "ownSku": "B5STF",
+   "preferredOwnSku": "B5STF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "ENDOPATH XCEL® Dilating Tip Trocars 5 mm; 100 mm length"
+  },
+  {
+   "competitorCodeNorm": "FP007",
+   "ownSku": "179301",
+   "preferredOwnSku": "179305",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "FLEXIPATH® Flexible Thoracic Trocars; 80 mm x 7 mm"
+  },
+  {
+   "competitorCodeNorm": "CTF04",
+   "ownSku": "ONB5LGF",
+   "preferredOwnSku": "ONB5LGF",
+   "matchType": "Close Match",
+   "source": "Access-BAT",
+   "competitorDescription": "5 x 100 mm Kii Fios first entry access system; handled Z-Threaded"
+  }
+ ]
+}

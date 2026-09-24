@@ -11,6 +11,9 @@
 export function normalizeCfn(raw: unknown): string {
   if (raw === null || raw === undefined) return "";
   let s = typeof raw === "number" ? formatNumberCell(raw) : String(raw);
+  // Invisible characters a copy-paste drags along (BOM, zero-width, NBSP) and typographic dashes
+  // ("B12‑LT" pasted from a PDF) are the same catalog number.
+  s = s.replace(/[\u00A0\u2000-\u200D\u202F\u2060\uFEFF]/g, " ").replace(/[\u2010-\u2015\u2212\u2043]/g, "-");
   s = s.trim().toUpperCase();
   // collapse internal whitespace
   s = s.replace(/\s+/g, "");

@@ -238,6 +238,27 @@ Remaining per-line cost is inherent: one cache lookup, the GUDID library lookup(
 competitor-product upsert per resolved code. Model runs are bounded by the provider: grading
 groups run two at a time and are cached by input hash, so a repeat run is free.
 
+## Match quality evaluation (Sept 24, 2026)
+
+`docs/MATCH_QUALITY_MODEL.md` is the specification; three tools measure it.
+
+- `npx tsx scripts/eval-pacr.ts run <PACR export.xlsx> --label <name> [--rebin] [--fresh] [--llm]` seeds the
+  benchmark account (0001583870) and its contract prices from the export, runs the list under that
+  account and writes `docs/eval/<name>.json` (one raw record per line). `--rebin` drops cached bins
+  first so binner changes take effect without a `BIN_VERSION` bump; `--fresh` re-resolves the codes.
+- `npx tsx scripts/eval-pacr.ts report docs/eval/<name>.json --before docs/eval/baseline.json [--out file.md] [--json]`
+  computes every metric (intake accounting, resolution, grades, agreement with PACR, curated-sheet
+  top-1/top-3, diameter and component mismatches measured the same way for both systems, pricing
+  under the account's contracts, the REQ-7628 PACR-win table) from the raw records, so a baseline
+  captured before a change and a run captured after are judged by the same code.
+- `npx tsx scripts/eval.ts --no-crosses [--family "…"]` remains the cross-family attribute-only check
+  against the curated sheets; run it per family before and after any matcher change (generalisation gate).
+- `npx vitest run tests/unit/match-quality.test.ts tests/unit/pacr-regression.test.ts` is the offline gate:
+  size-parser matrix, registry, constraints, scoring, intake accounting, the PACR-win cases and the
+  adversarial cases, judged from `tests/fixtures/trocar-benchmark.json` exactly as the pipeline judges a line.
+
+Run `scripts/seed-sanford-benchmark.ts --clean` to remove the benchmark contracts and price entries.
+
 ## Runbook
 
 **A run is stuck at "Queued".** No worker is picking jobs up: check `JOBS_WORKER` on the

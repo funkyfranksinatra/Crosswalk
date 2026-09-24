@@ -52,6 +52,8 @@ model OwnProduct {
   cogs           Decimal?         @db.Decimal(18, 4) // legacy global standard cost; StandardCost rows take precedence
   currency       String           @default("USD")
   isActive       Boolean          @default(true)
+  /// When this SKU is discontinued, the SKU that replaces it (a customer already buying the old code is offered the successor)
+  successorSku   String?
   /// "seed" (curated sheets) | "manual" (Add SKUs) | "gudid-import" (Catalog → GUDID library)
   source         String           @default("seed")
   /// ---- embedding retrieval (Tier 3) — pgvector column, written/read with raw SQL (src/lib/match/embeddings.ts)
@@ -257,6 +259,8 @@ model RequestLine {
   cfnNorm             String
   quantity            Float
   estCompetitorPrice  Decimal?           @db.Decimal(18, 4)
+  /// The intake sheet's description column for this code (the customer's item master) — evidence for matching, never the identity
+  description         String?
   competitorProductId String?
   competitorProduct   CompetitorProduct? @relation(fields: [competitorProductId], references: [id])
   /// pending | resolved | not-found | error
@@ -294,8 +298,12 @@ model MatchCandidate {
   factorsJson        String? // which factors were available + weights used
   rationale          String?
   additionalProducts String?
+  /// Evidence strength for the classification, 0..1 (docs/MATCH_QUALITY_MODEL.md §6); separate from `score`
+  confidence         Float?
   unitPrice          Decimal?    @db.Decimal(18, 4)
   extended           Decimal?    @db.Decimal(18, 4)
+  /// Where unitPrice came from: "LOCAL · TROCAR - SANFORD HLTH", "LIST · HOSPITAL LIST PRICE", "catalog list price"; or the reason there is none
+  priceSource        String?
   isSelected         Boolean     @default(false)
   createdAt          DateTime    @default(now())
 

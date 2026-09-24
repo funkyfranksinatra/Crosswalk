@@ -60,7 +60,7 @@ export async function POST(req: Request) {
       createdBy: actor.name,
       createdByUserId: actor.id,
       status: "queued",
-      lines: { create: intake.lines.map((l, i) => ({ lineNo: i + 1, rawCode: l.rawCode, cfnNorm: l.cfnNorm, quantity: l.quantity, estCompetitorPrice: l.estPrice })) },
+      lines: { create: intake.lines.map((l, i) => ({ lineNo: i + 1, rawCode: l.rawCode, cfnNorm: l.cfnNorm, quantity: l.quantity, estCompetitorPrice: l.estPrice, description: l.description ?? null })) },
     },
   });
   let jobId: string | null = null;
@@ -70,5 +70,5 @@ export async function POST(req: Request) {
     // The request is kept (marked failed with the reason) so the upload is not lost; the client gets a 503.
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e), id: request.id, reference: request.reference }, { status: 503 });
   }
-  return NextResponse.json({ id: request.id, reference: request.reference, jobId, lines: intake.lines.length, skipped: intake.skipped.length, duplicatesMerged: intake.duplicatesMerged });
+  return NextResponse.json({ id: request.id, reference: request.reference, jobId, lines: intake.lines.length, skipped: intake.skipped.length, ignored: intake.ignored.length, duplicatesMerged: intake.duplicatesMerged, accounting: intake.accounting, skippedRows: intake.skipped.slice(0, 50) });
 }
