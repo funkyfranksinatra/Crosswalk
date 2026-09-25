@@ -1867,7 +1867,8 @@ spreadsheets, `.env`, service-account JSON and bundles stay out of git.
 2. `git fetch .claude-bundles/<bundle> main:refs/bundles/main mac-demo:refs/bundles/mac-demo;
    git reset --hard refs/bundles/main; git branch -f mac-demo refs/bundles/mac-demo`.
 3. `npm install` (when `package.json` changed) → `npm run db:preflight` → `npx prisma migrate deploy`
-   → `npx prisma generate`.
+   → `npx prisma generate`. Restart `next dev` if it was running (`npm run dev:clean` after a
+   branch change — §27.5, stale route tree).
 4. `git push origin main mac-demo` (and any tag). CI runs the check and image jobs.
 5. Currently pending on Neon: `20260924000000_match_quality` (additive). Pending push: `main`
    `1b43393`+, `mac-demo` `21344fc`+.
@@ -1916,6 +1917,7 @@ spreadsheets, `.env`, service-account JSON and bundles stay out of git.
 | Migration hangs on Neon | use the direct host (`DIRECT_DATABASE_URL`); check `pg_locks` for advisory lock 72707369 |
 | Constraint violation on migrate | `npm run db:preflight`, fix the rows, re-run |
 | Dev sign-in refused | production needs `ALLOW_DEV_SIGNIN=true` or SSO |
+| `next dev` answers an existing API route with the app's HTML not-found page (404, ~6 kB gzipped; `/api/auth/dev`, `/api/requests/{id}`…) while other routes work | a stale Turbopack dev cache (`.next/dev/cache/turbopack`) restored a route tree without those routes — seen Sept 25 after bundles were fetched under a stopped server. `npm run dev:clean` (deletes `.next/dev`, then starts); `next.config.ts` now sets `experimental.turbopackFileSystemCacheForDev: false` so a restart always rescans |
 
 
 ## 28. Full-application debugging run (Sept 24)
