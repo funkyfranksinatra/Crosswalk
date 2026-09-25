@@ -272,6 +272,13 @@ notification. Fix the cause (usually openFDA reachability or a bad row) and Re-r
 **The server restarted mid-run / mid-import.** Nothing to do: the row is re-queued on
 start and resumes.
 
+**`next dev` returns the HTML not-found page for an API route that exists** (the request page
+shows no results; DevTools lists `/api/auth/dev` or `/api/requests/{id}` as 404 with a ~6 kB
+HTML body while `/api/notifications` works). The Turbopack dev cache restored a stale route
+tree — it happens when files change under a stopped server (a bundle fetched into a branch,
+a checkout). Stop the server and start it with `npm run dev:clean`. Since Sept 25 the
+persistent dev cache is off in `next.config.ts`, so a plain restart rescans as well.
+
 **A feed is stale.** Settings → System shows the last OK run and the source; check the
 file drop landed and the schedule is not `off`. "Run now" forces an ingestion even when the
 file is unchanged.
