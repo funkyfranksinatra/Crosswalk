@@ -16,6 +16,7 @@ import { parseBin, binSimilarity, heuristicBin, withAccessProfile, type Bin } fr
 import { mergeProfiles, emptyProfile } from "../src/lib/match/access";
 import { scoreCandidates } from "../src/lib/match/score";
 import { binProduct } from "../src/lib/llm/tasks";
+import { loadSiblingIndex } from "../src/lib/pipeline/siblings-index";
 import { summarizeRecord, type OpenFdaRecord } from "../src/lib/gudid/openfda";
 import { llmConfig } from "../src/lib/llm/client";
 import { getCompany } from "../src/lib/settings";
@@ -61,6 +62,8 @@ async function main() {
   const ownBins = own.map((p) => ({ p, bin: parseBin(p.binJson) ?? heuristicBin({ sku: p.sku, manufacturer: p.labeler ?? company.name, brand: p.brand, description: p.description, category: p.category, gmdnName: p.gmdnName }) }));
   const crosses = await prisma.knownCross.findMany({ where: { isActive: true } });
 
+  // Sibling-family evidence, as the run pipeline provides it (loaded per labeler on first use).
+  const siblingIndex = new Map<string, Awaited<ReturnType<typeof loadSiblingIndex>>>();
   let resolved = 0, top1 = 0, top3 = 0, resolvedTop1 = 0;
   const misses: string[] = [];
   const t0 = Date.now();
@@ -70,7 +73,9 @@ async function main() {
     if (cp && cp.resolution !== "not-found" && !bin) {
       const raw = cp.gudidJson ? (JSON.parse(cp.gudidJson) as OpenFdaRecord) : null;
       const s = raw ? summarizeRecord(raw) : null;
-      const b = await binProduct({ subject: item.code, code: cp.cfnMatched ?? cp.cfnNorm, brand: cp.brand, description: cp.description, manufacturer: cp.manufacturer, gmdnName: cp.gmdnName, sizes: s?.sizes, singleUse: s?.singleUse, sterile: s?.sterile, implantable: s?.implantable, useLlm });
+      if (cp.manufacturer && !siblingIndex.has(cp.manufacturer)) siblingIndex.set(cp.manufacturer, await loadSiblingIndex([cp.manufacturer]));
+      const siblings = cp.manufacturer ? siblingIndex.get(cp.manufacturer)!.get(cp.manufacturer, cp.brand) : null;
+      const b = await binProduct({ subject: item.code, code: cp.cfnMatched ?? cp.cfnNorm, brand: cp.brand, description: cp.description, manufacturer: cp.manufacturer, gmdnName: cp.gmdnName, sizes: s?.sizes, singleUse: s?.singleUse, sterile: s?.sterile, implantable: s?.implantable, siblings, useLlm });
       bin = b.bin;
       await prisma.competitorProduct.update({ where: { id: cp.id }, data: { binJson: JSON.stringify(bin), binSource: b.source, binnedAt: new Date() } });
     }

@@ -19,14 +19,15 @@ import { ACCOUNT_TYPES } from "@/lib/accounts/types";
 import { HEALTH_STATES } from "@/lib/integrations/core/health";
 import { REVIEW_KINDS } from "@/lib/integrations/core/review";
 
-export type EnumConstraint = { table: string; column: string; values: readonly string[]; /** 2 = integration layer (separate migration); absent = Tier 0 */ tier?: 2 };
-export type ExprConstraint = { table: string; name: string; expr: string; description: string; tier?: 2 };
+export type EnumConstraint = { table: string; column: string; values: readonly string[]; /** 2 = integration layer, 3 = curated evidence conflicts (each its own migration); absent = Tier 0 */ tier?: 2 | 3 };
+export type ExprConstraint = { table: string; name: string; expr: string; description: string; tier?: 2 | 3 };
 
 export const ENUM_CONSTRAINTS: EnumConstraint[] = [
   { table: "UserRole", column: "role", values: ROLES },
   { table: "Notification", column: "kind", values: KINDS },
   { table: "NotificationPreference", column: "kind", values: [...KINDS, "*"] },
   { table: "KnownCross", column: "approvalStatus", values: ["DRAFT", "IN_REVIEW", "APPROVED", "REJECTED", "RETIRED"] },
+  { table: "KnownCross", column: "conflictStatus", values: ["CONTRADICTED", "KEPT"], tier: 3 },
   { table: "KnownCross", column: "clinicalReviewStatus", values: ["NOT_REQUIRED", "PENDING", "APPROVED", "REJECTED"] },
   { table: "KnownCross", column: "equivalenceLevel", values: EQUIVALENCE },
   { table: "ProposalLine", column: "equivalenceLevel", values: EQUIVALENCE },
@@ -111,8 +112,8 @@ export function constraintExpr(c: EnumConstraint | ExprConstraint): string {
  * checked. Existing rows are still checked — a violating row fails the migration, which is
  * what `npm run db:preflight` exists to catch first.
  */
-export function migrationSql(tier: 0 | 2 = 0): string {
-  const lines = [tier === 2 ? "-- Tier 2: CHECK constraints on the integration layer's state columns." : "-- Tier 0.6: CHECK constraints on state, type and money columns.", "-- Generated from src/lib/db/constraints.ts by scripts/gen-constraints.ts — edit that file, not this one.", ""];
+export function migrationSql(tier: 0 | 2 | 3 = 0): string {
+  const lines = [tier === 2 ? "-- Tier 2: CHECK constraints on the integration layer's state columns." : tier === 3 ? "-- Curated evidence conflicts: CHECK constraint on KnownCross.conflictStatus." : "-- Tier 0.6: CHECK constraints on state, type and money columns.", "-- Generated from src/lib/db/constraints.ts by scripts/gen-constraints.ts — edit that file, not this one.", ""];
   for (const c of [...ENUM_CONSTRAINTS, ...EXPR_CONSTRAINTS].filter((c) => (c.tier ?? 0) === tier)) {
     const name = constraintName(c);
     lines.push(`ALTER TABLE "${c.table}" DROP CONSTRAINT IF EXISTS "${name}";`);

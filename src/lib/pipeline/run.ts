@@ -23,6 +23,8 @@ import { groupSiblings, gradeGroup, applyGroupGrades, type GradeLineInput } from
 import { resolveCfn, buildContext, type ResolutionContext } from "./resolve";
 import { llmConfig, llmPreflight } from "@/lib/llm/client";
 import { parseBin, binSimilarity, type Bin, heuristicBin } from "@/lib/match/bin";
+import { loadSiblingIndex } from "@/lib/pipeline/siblings-index";
+import { recordCuratedConflicts } from "@/lib/xref/conflicts";
 import { competitorBinForLine, curatedCandidates, resolveSelfMatch, type SelfRow } from "@/lib/match/line";
 import { scoreCandidates, DEFAULT_WEIGHTS, type Weights, type CandidateInput, type ScoredCandidate } from "@/lib/match/score";
 import { loadPricingContext, type PricingContext } from "@/lib/contracts/context";
@@ -357,6 +359,9 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
   const curatedByKey = new Map<string, string>();
   for (const r of curatedRows) if (!curatedByKey.has(r.competitorCodeNorm) && r.competitorDescription) curatedByKey.set(r.competitorCodeNorm, r.competitorDescription);
   const specsByCp = new Map((await specsFor(toBin.map((cp) => [cp.cfnNorm, cp.cfnMatched]))).map((spec, i) => [toBin[i].id, spec]));
+  // Sibling-family evidence (src/lib/match/siblings.ts): the labeler's other records in the same
+  // line, from the GUDID library, grouped by brand root once per run.
+  const siblings = await loadSiblingIndex([...uniqueCps.values()].map((cp) => cp.manufacturer));
   await mapLimit([...uniqueCps.values()], 3, async (cp, i) => {
     if (i % 10 === 9) await checkCancelled(requestId, runOpts.signal);
     if (!parseBin(cp.binJson) || (useLlm && cp.binSource !== "llm")) {
@@ -388,6 +393,7 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
         sterile: s?.sterile ?? null,
         implantable: s?.implantable ?? null,
         specialties: s?.specialties ?? null,
+        siblings: siblings.get(cp.manufacturer, cp.brand),
         useLlm,
       });
       await prisma.competitorProduct.update({ where: { id: cp.id }, data: { binJson: JSON.stringify(bin), binSource: source, binnedAt: new Date(), category: cp.category ?? bin.family } });
@@ -583,7 +589,7 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
           identity: selfSku != null && c.p.sku.toUpperCase() === selfSku,
           successorOf: selfSku != null && c.p.sku.toUpperCase() === selfSku ? successorOf : null,
           provenance: c.p.source,
-          knownCross: k ? { matchType: k.matchType, preferredOwnSku: k.preferredOwnSku, additionalProducts: k.additionalProducts, notes: k.notes, source: k.source, approvalStatus: k.approvalStatus, endorsements: k.endorsements, preferred: k.preferred } : null,
+          knownCross: k ? { id: k.id, matchType: k.matchType, preferredOwnSku: k.preferredOwnSku, additionalProducts: k.additionalProducts, notes: k.notes, source: k.source, approvalStatus: k.approvalStatus, endorsements: k.endorsements, preferred: k.preferred, kept: k.conflictStatus === "KEPT" } : null,
         };
       });
       const scored = scoreCandidates(competitorForScore, inputs, weights).map((sc) => ({ ...sc, priceSource: priced.get(sc.ownProductId)?.source ?? null }));
@@ -704,6 +710,10 @@ async function runRequestInner(requestId: string, runOpts: RunOptions) {
     persistRows.push({ line, rows });
   }
   for (let i = 0; i < persistRows.length; i += PERSIST_CHUNK) await persistChunk(persistRows.slice(i, i + PERSIST_CHUNK));
+  // Curated rows the evidence contradicted are queued for review on the row itself (Crosswalk →
+  // Evidence conflicts), with the findings and the SKU the evidence put first — so the sheet owner
+  // decides inside the product, and never has to be found for a run to finish.
+  await recordCuratedConflicts(request.reference, work.map((w) => ({ code: w.line.cfnNorm, scored: graded.get(w.line.id) ?? w.scored })));
   if (reviewCleared.length) await log(requestId, `Review cleared on ${reviewCleared.length} line(s) whose chosen SKU is no longer offered: ${reviewCleared.slice(0, 20).join(", ")}${reviewCleared.length > 20 ? ", …" : ""}`);
 
   const matchedCount = await prisma.requestLine.count({ where: { requestId, matchStatus: "matched" } });

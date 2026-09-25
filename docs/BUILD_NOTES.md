@@ -598,7 +598,7 @@ Bard/BD/Davol → "BD - Bard", …).
 
 ### 9.4 Stage 2 — bin (`src/lib/llm/tasks.ts` `binProduct`, `src/lib/match/bin.ts` `heuristicBin`)
 
-Each distinct competitor product whose cached bin is stale (`v < BIN_VERSION` = 7, or a model bin whose
+Each distinct competitor product whose cached bin is stale (`v < BIN_VERSION` = 9, or a model bin whose
 `hv` < 7) or heuristic while the model is on is (re)binned at concurrency 3. Inputs: GUDID brand +
 description **plus** the curated sheet's description for the code (fetched once per run; a
 long-standing bug that dropped the GUDID text whenever a curated one existed was fixed in `1b43393`),
@@ -1404,7 +1404,7 @@ driver text never reaches the client. Validators: `requireText`,
 | Method & path | Does | Auth |
 |---|---|---|
 | GET `/api/settings` | Settings + `llm {available, model}`; the endpoint (`baseURL`) and per-purpose call statistics only for configure_settings | session |
-| POST `/api/settings` | `{weights, maxCandidates, companyName}` → `saveSettings`; audited | configure_settings |
+| POST `/api/settings` | `{weights, maxCandidates, companyName, scopeUnassignedParent}` → `saveSettings`; audited | configure_settings |
 | GET `/api/settings/branding` | Branding object | view_pricing |
 | PUT `/api/settings/branding` | Full branding body; audited (logo size only) | configure_settings |
 
@@ -1488,9 +1488,10 @@ driver text never reaches the client. Validators: `requireText`,
 
 | Method & path | Does | Auth |
 |---|---|---|
-| GET `/api/crosses` | `?status=&q=` ≤ 200 KnownCross rows (no prices in the payload) | view_pricing or manage_crosswalk or review_crosswalk_clinical |
+| GET `/api/crosses` | `?status=&q=` ≤ 200 KnownCross rows (no prices in the payload); `?conflicts=open` → the Evidence-conflicts queue (`openConflicts`, parsed `conflict` record per row) | view_pricing or manage_crosswalk or review_crosswalk_clinical |
 | POST `/api/crosses` | `proposeCross` (rep-proposed) | run_cross_reference |
 | PATCH `/api/crosses/{id}` | approvalStatus, clinicalReviewStatus (review_crosswalk_clinical or ADMIN), marketingReviewStatus, equivalenceLevel, approvedUsage, justification, effective dates → `setReview` | manage_crosswalk |
+| POST `/api/crosses/{id}/conflict` | `{decision: RETIRE \| REPLACE \| KEEP, note?}` → `decideConflict` (§28.1; audited `CONFLICT_<decision>`) | manage_crosswalk |
 | GET `/api/crosswalk/versions` | Versions with entry / proposal counts, `byStatus` | view_pricing or manage_crosswalk or review_crosswalk_clinical |
 | POST `/api/crosswalk/publish` | `{notes?}` → `publishVersion` | publish_crosswalk |
 
@@ -1630,7 +1631,7 @@ diagnosis).
 
 ## 23. Tests and evaluation harnesses
 
-### 23.1 Vitest (`npm test`; 43 files, 698 cases at run time after the Sept 24 debug run — 13 files / 299 before it)
+### 23.1 Vitest (`npm test`; 45 files, 714 cases after the Sept 25 decisions work — 43 / 698 after the Sept 24 debug run, 13 files / 299 before it)
 
 `vitest.config.mts`: `tests/**/*.test.ts`, setup `tests/setup.ts` (dotenv, `globalThis.__vitest_harness`
 so `scripts/check*.ts` register their cases, `setActorForTests`), 120 s timeouts, `fileParallelism:
@@ -1758,6 +1759,7 @@ and reported afterwards.
 | Sept 24 | Match quality: coverage never gained by guessing; Exact must not get easier; curated data is evidence, not immutable, and never rewritten; no Sanford-specific hard-coding; baseline reproduced first | the PACR superiority run is measured, not asserted |
 | Sept 24 | Score, confidence and classification are separate quantities; the cap binds the LLM grader; curated rows contradicted by evidence are labelled and demoted, not deleted | reviewers see why, and the sheet owner decides |
 | Sept 24 | Runs price through the contract waterfall when the request names a known account; `priceSource` per candidate | PACR priced 101 lines under Sanford contracts where Crosswalk had priced 18 at list |
+| Sept 25 | Owner decisions become product mechanisms: sibling-family evidence from the labeler's catalog (`gudid:siblings`), the Evidence-conflicts queue with Retire / Replace / Keep on the `KnownCross`, and a per-company setting for children of unassigned accounts (§28.1) | Crosswalk is deployed at many companies; nobody there owns a spreadsheet of corrections |
 
 Standing constraints: never sync `.env` between machines; destructive Neon operations only when asked;
 no secrets in docs, logs or reports; DB tests run against local Postgres, never Neon; reference
@@ -1953,7 +1955,38 @@ above were corrected where behaviour changed. Highlights that change how the app
   serves the two allow-listed guides; every control follows role and business state
   (`PermissionsProvider`); sidebar groups; error/not-found boundaries; hooks-order lint gate (`npm run
   lint`, in CI); 0 axe violations and 0 horizontal-scroll pages at four widths; polling stops on unmount.
-- **Still open (owner decisions or missing inputs):** `eval:gate` until the model baseline is
-  re-measured at bins v8 with a key; the B12LTH → NONB12STF evidence-vs-curated call (sheet owner);
-  child-of-unassigned-parent scope rule; Thoracoport component; 14 curated rows flagged inconsistent;
-  Docker image build/boot (no daemon here); live-provider, macOS and browser-matrix verification.
+- **Still open (missing inputs):** `eval:gate` until the model baseline is re-measured at the
+  current bins with a key; Docker image build/boot (no daemon here); live-provider, macOS and
+  browser-matrix verification.
+
+### 28.1 Owner decisions moved into the product (Sept 25)
+
+The run's three "needs an owner" items were decisions Crosswalk asked a person with a spreadsheet to
+make. At the companies it is deployed for nobody owns that spreadsheet, so each became a mechanism:
+
+- **Is B12LTH optical?** — answered from the labeler's own catalog. Ethicon marks optical products in
+  the line as "ENDOPATH XCEL OPTIVIEW" (codes 2B12LT, 2B5ST…); a plain "ENDOPATH XCEL" record carries
+  no marker, and the absence is now evidence with the sibling records as provenance (`gudid:siblings`,
+  `src/lib/match/siblings.ts`, MATCH_QUALITY_MODEL §3.4; BIN_VERSION 9). The run builds the sibling
+  index per competitor manufacturer from `GudidDevice`. Generic: any labeler that marks a binary
+  feature on some of a line's records has said what the others are.
+- **Thoracoport** — GUDID says "Trocar" and "…Single Use Trocar; Non-conductive Sleeve"; the component
+  reading now treats a sleeve named as an attribute of a trocar as a trocar, and a sleeve sold *with*
+  its obturator (Ethicon "Thoracic Trocar Sleeves with Rounded Tip Obturator", TT012) as the complete
+  device (`component.ts`), so the thoracic ports cross to each other (WS1-F27's TT012 concern is
+  gone); "sleeve only" / "sleeve assembly" / "universal sleeve" remain cannula.
+- **The 14 flagged curated rows, and every row like them anywhere** — the **Evidence conflicts** queue
+  (Crosswalk page; `src/lib/xref/conflicts.ts`; `GET /api/crosses?conflicts=open`,
+  `POST /api/crosses/{id}/conflict`). A run that contradicts a curated row marks the `KnownCross`
+  (`conflictStatus`, `conflictJson`, `conflictCount`, `conflictSeenAt`, decided-by/at/note; migrations
+  `20260925000000_curated_conflicts` + tier-3 CHECK). A `manage_crosswalk` reviewer settles it with
+  Retire / Replace with \<SKU\> / Keep (MATCH_QUALITY_MODEL §5.5). Runs never wait; KEEP holds only
+  against soft findings; decisions survive re-runs and re-seeds; audited as `CONFLICT_<decision>`.
+- **Children of an unassigned parent (B-08)** — not derivable from data, so a per-company setting:
+  Settings → "Account visibility" (`scopeUnassignedParent`, `own` by default: a hospital with its own
+  owner stays with that owner while its IDN is unassigned; `inherit` restores the earlier behaviour).
+  `scopeFor` reads it; `accountWhere` builds the parent clause accordingly (DATA_ACCESS_POLICY).
+
+Tests: `tests/unit/decisions-siblings.test.ts`, `tests/db/decisions-conflicts.test.ts`, the scope
+fragment case in `tier0-units`. Deploy note: `npx prisma migrate deploy` now has two migrations to
+apply; re-publish the crosswalk after the first decisions.

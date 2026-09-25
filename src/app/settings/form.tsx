@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui";
 import type { Weights } from "@/lib/match/score";
+import type { ScopeUnassignedParent } from "@/lib/settings";
 
 const LABELS: Record<keyof Weights, [string, string]> = {
   bin: ["Attribute fit", "How closely the product's type, sizes, materials and features match the competitor's."],
@@ -11,10 +12,11 @@ const LABELS: Record<keyof Weights, [string, string]> = {
   margin: ["Margin", "(price − COGS) / price, saturating at 60% (needs both)."],
 };
 
-export function SettingsForm({ weights, maxCandidates, companyName, canEdit = true }: { weights: Weights; maxCandidates: number; companyName: string; canEdit?: boolean }) {
+export function SettingsForm({ weights, maxCandidates, companyName, scopeUnassignedParent = "own", canEdit = true }: { weights: Weights; maxCandidates: number; companyName: string; scopeUnassignedParent?: ScopeUnassignedParent; canEdit?: boolean }) {
   const [w, setW] = useState<Weights>(weights);
   const [max, setMax] = useState(maxCandidates);
   const [name, setName] = useState(companyName);
+  const [scope, setScope] = useState<ScopeUnassignedParent>(scopeUnassignedParent);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -23,7 +25,7 @@ export function SettingsForm({ weights, maxCandidates, companyName, canEdit = tr
     if (busy) return;
     setBusy(true); setErr(null);
     try {
-      const r = await fetch("/api/settings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ weights: w, maxCandidates: max, companyName: name }) });
+      const r = await fetch("/api/settings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ weights: w, maxCandidates: max, companyName: name, scopeUnassignedParent: scope }) });
       if (!r.ok) { const j = await r.json().catch(() => ({})); setErr(j.error ?? `Could not save (${r.status})`); return; }
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
@@ -53,6 +55,14 @@ export function SettingsForm({ weights, maxCandidates, companyName, canEdit = tr
             <label className="label" htmlFor="company-name">Company name</label>
             <input id="company-name" className="input" disabled={!canEdit} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
+        </div>
+        <div className="pt-2 border-t border-line-2">
+          <label className="label" htmlFor="scope-unassigned-parent">Account visibility: hospitals under an IDN nobody owns yet</label>
+          <select id="scope-unassigned-parent" className="input" disabled={!canEdit} value={scope} onChange={(e) => setScope(e.target.value as ScopeUnassignedParent)}>
+            <option value="own">Follow their own owner and territory (recommended)</option>
+            <option value="inherit">Visible to every rep and manager, like the unassigned IDN</option>
+          </select>
+          <div className="text-[12px] text-muted mt-1">Reps and managers always see the accounts they own, their territory, unassigned accounts and the members of an IDN they own or cover. This decides only what happens while the IDN itself is unassigned.</div>
         </div>
       </div>
     </Card>

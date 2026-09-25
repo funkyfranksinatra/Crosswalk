@@ -32,8 +32,14 @@ export function componentOf(...texts: (string | null | undefined)[]): Component 
   // "with" binds to the next few words only ("with fixation cannula", "with 100mm Radiolucent Sleeve"), never
   // across a "for use with" or a seal description.
   const WITH = "(?<!\\bfor\\s)(?<!\\bfor\\suse\\s)\\bwith\\s+(?:[\\w.-]+\\s+){0,4}";
-  const withCannula = new RegExp(`\\btrocars?\\b[^;]*${WITH}(?:cannula|sleeve)s?\\b|\\b(?:cannula|sleeve)s?\\b[^;]*${WITH}trocars?\\b|\\b(?:bladeless|bladed|optical|blunt(?:[\\s-]*tip)?|dilating(?:[\\s-]*tip)?)\\b[^;]*${WITH}(?:cannula|sleeve)s?\\b`, "i").test(t);
+  // A sleeve sold WITH its obturator ("Thoracic Trocar Sleeves with Rounded Tip Obturator") is the complete device too.
+  const withCannula = new RegExp(`\\btrocars?\\b[^;]*${WITH}(?:cannula|sleeve)s?\\b|\\b(?:cannula|sleeve)s?\\b[^;]*${WITH}(?:trocars?|obturators?)\\b|\\b(?:bladeless|bladed|optical|blunt(?:[\\s-]*tip)?|dilating(?:[\\s-]*tip)?)\\b[^;]*${WITH}(?:cannula|sleeve)s?\\b`, "i").test(t);
   if (withCannula) return "trocar";
+  // "Single Use Trocar; Non-conductive Sleeve" (Thoracoport), "Trocar; Smooth Sleeve": a sleeve *quality*
+  // named after the trocar in its own clause describes the trocar's sleeve, not a sleeve SKU. "Sleeve only"
+  // and "sleeve assembly" keep their meaning (read above / below).
+  const sleeveAttribute = /\btrocars?\b[^;]*;\s*(?:(?!only|assembly|universal)[\w-]+\s+){1,2}sleeves?\s*(?:;|$)/i.test(t);
+  if (sleeveAttribute) return "trocar";
   // "trocar with universal seal" names a seal as a part of the trocar, not a seal SKU.
   const accessoryAsPart = /\b(?:trocar|cannula|sleeve|obturator)s?\b[^;]*\bwith\b[^;]*\b(?:seal|valve|reducer|adapt[eo]r|cap)s?\b/i.test(t);
   if (!accessoryAsPart && ACCESSORY.test(t)) return "accessory";

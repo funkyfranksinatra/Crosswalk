@@ -63,6 +63,24 @@ B-01 model-eval baseline at bins v8 (needs a key; CI red at `eval:gate` until ac
 
 The commit itself (fresh clone, no reference data) passes CI's `check` job through Vitest 698/698 with `eval:gate` failing by design; Firefox 142 and WebKit 26 now cover the page×role matrix, responsive/axe, keyboard, navigation and the proposal journey with no application defect (one Linux-WebKit engine abort remains a coverage gap for real Safari — CW-DBG-0010); a 5,000-distinct-code run completes in 25.7 s warm (111 s cold, library-first); a 30-minute soak with a web SIGTERM restart and a Postgres restart, plus a mid-run SIGTERM of a 5,000-line run, all end complete and consistent. B-05 and B-11 are closed; the verdict stays **VERIFICATION INCOMPLETE** for B-01/B-02/B-03/B-04/B-06–B-09 (`COMPLETION_CHECKLIST.md` says what runs where and who unblocks it). Workspace-only evidence is backed up (`BACKUPS_OF_WORKSPACE_EVIDENCE.md`) and the run's command logs are tracked from this commit on.
 
+## Addendum 2 (2026-09-25 00:00–01:30 UTC) — owner decisions become product mechanisms
+
+Alex asked whether B-07/B-08/B-09 could be settled without user input, and otherwise to build the
+process into Crosswalk so no company has to keep a spreadsheet of corrections. Two of the three are
+answered from data the platform already holds: **B12LTH** is non-optical because the labeler's own
+catalog marks the optical variants of the line ("ENDOPATH XCEL OPTIVIEW"; sibling-family evidence,
+`gudid:siblings`, BIN_VERSION 9); **Thoracoport** is a trocar because GUDID says so once a sleeve named
+as an attribute — and a sleeve sold with its obturator (TT012) — is read as the complete device. The
+third, **B-08**, is a policy choice, so it is a per-company setting with the narrower default. For the
+14 flagged rows and every row like them at any company, a run now queues the contradicted `KnownCross`
+under **Crosswalk → Evidence conflicts**, where a reviewer settles it with one click (Retire / Replace
+with the evidence's SKU / Keep); runs never wait, KEEP holds only against soft findings, decisions
+survive re-runs and re-seeds and are audited. Gates on the change: typecheck, lint, check 19/19,
+check:enterprise 21/21, Vitest 45 files / 714, build, eval unchanged line for line against a cleared-bin
+baseline, browser smoke of both new controls (TEST_RESULTS §8). Two migrations to apply on deploy.
+B-07/B-08/B-09 are closed as product mechanisms; the verdict stays **VERIFICATION INCOMPLETE** for
+B-01/B-02/B-03/B-04/B-06 (external inputs) until those are run where they can be.
+
 ## Reproduce
 
 ```

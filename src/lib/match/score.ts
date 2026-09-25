@@ -40,7 +40,7 @@ export type CandidateInput = {
   successorOf?: string | null;
   /** "seed" | "manual" | "gudid-import" — imported SKUs rank below curated ones at equal match quality */
   provenance?: string | null;
-  knownCross?: { matchType: string; preferredOwnSku?: string | null; additionalProducts?: string | null; notes?: string | null; source: string; /** DRAFT / IN_REVIEW rep proposals are a soft prior, never a tier floor */ approvalStatus?: string; endorsements?: number; /** the reviewer's preferred cross for this competitor code, across every curated row */ preferred?: boolean } | null;
+  knownCross?: { id?: string; matchType: string; preferredOwnSku?: string | null; additionalProducts?: string | null; notes?: string | null; source: string; /** DRAFT / IN_REVIEW rep proposals are a soft prior, never a tier floor */ approvalStatus?: string; endorsements?: number; /** the reviewer's preferred cross for this competitor code, across every curated row */ preferred?: boolean; /** a reviewer confirmed this row against soft evidence (Crosswalk → Evidence conflicts → Keep): soft findings no longer demote it; hard ones still do */ kept?: boolean } | null;
 };
 
 /** How much a rep-proposed (unreviewed) cross lifts the bin score: enough to surface it, never enough to change the tier on its own. */
@@ -56,7 +56,7 @@ export type ScoredCandidate = CandidateInput & {
   scoreMargin: number | null;
   /** evidence strength for `matchType`, 0..1 — below 0.75 the rep is asked to verify */
   confidence: number;
-  factors: { used: string[]; weights: Weights; notes: string[]; evidence?: { kind: string; field: string; text: string }[]; curated?: { source: string; grade: string; effective: string; contradicted: boolean; preferred: boolean }; /** best grade the hard/soft constraints allow — binds the model grader too */ cap?: string };
+  factors: { used: string[]; weights: Weights; notes: string[]; evidence?: { kind: string; field: string; text: string }[]; curated?: { source: string; grade: string; effective: string; contradicted: boolean; preferred: boolean; /** the KnownCross row, so a run can queue the contradiction for review */ knownCrossId?: string; /** a reviewer kept the row despite soft findings */ kept?: boolean; /** the findings that contradict the sheet (hard and soft), for the review queue */ findings?: string[] }; /** best grade the hard/soft constraints allow — binds the model grader too */ cap?: string };
   rationale: string;
 };
 
@@ -104,7 +104,10 @@ export function scoreCandidates(
       // The sheet is evidence, not an override: its grade holds unless a hard or soft constraint says
       // otherwise, and then the explanation names both the sheet and the contradiction.
       const sheetGrade = c.knownCross.matchType === "US Downsell Match" ? "Alternative Match" : c.knownCross.matchType;
-      const effective = worse(sheetGrade, sim.cap as Grade);
+      // A row a reviewer KEPT holds its grade against soft findings (length class, optical, tip…);
+      // a hard finding (component, diameter) still caps it — nobody can confirm a sleeve into a trocar.
+      const keptAgainstSoft = Boolean(c.knownCross.kept) && !(sim.access?.hard ?? 0);
+      const effective = keptAgainstSoft ? sheetGrade : worse(sheetGrade, sim.cap as Grade);
       const contradicted = effective !== sheetGrade;
       source = "known-cross";
       base = 0.9;
@@ -115,7 +118,9 @@ export function scoreCandidates(
         // The floor carries the sheet's judgement; the attributes still order candidates inside a grade.
         scoreBin = floor + (1 - floor) * rawSim;
       }
-      curated = { source: c.knownCross.source, grade: sheetGrade, effective, contradicted, preferred: Boolean(c.knownCross.preferred) };
+      const contradictions = (sim.access?.findings ?? []).filter((f) => f.kind === "hard" || f.kind === "soft").map((f) => f.text);
+      curated = { source: c.knownCross.source, grade: sheetGrade, effective, contradicted, preferred: Boolean(c.knownCross.preferred), knownCrossId: c.knownCross.id, kept: keptAgainstSoft || undefined, findings: contradicted ? contradictions : undefined };
+      if (keptAgainstSoft && contradictions.length) notes.push("curated grade kept by a reviewer despite: " + contradictions.join("; "));
       notes.unshift(contradicted ? `curated cross (${c.knownCross.source}, ${sheetGrade}) — contradicted by the product attributes; ranked as ${effective}` : `curated cross (${c.knownCross.source}, ${sheetGrade})${c.knownCross.preferred ? ", reviewer's preferred cross" : ""}`);
     } else if (c.knownCross && !c.identity && unreviewed) {
       // Learning loop: a rep chose this SKU for this code before. It earns a place on the shortlist and

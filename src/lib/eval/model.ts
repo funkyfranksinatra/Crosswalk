@@ -21,6 +21,7 @@ import { parseBin, binSimilarity, heuristicBin, BIN_VERSION, type Bin } from "@/
 import { scoreCandidates, type ScoredCandidate } from "@/lib/match/score";
 import { groupSiblings, gradeGroup, applyGroupGrades, GRADE_PROMPT_VERSION, type GradeLineInput } from "@/lib/match/grading";
 import { binProduct } from "@/lib/llm/tasks";
+import { loadSiblingIndex } from "@/lib/pipeline/siblings-index";
 import { summarizeRecord, type OpenFdaRecord } from "@/lib/gudid/openfda";
 import { llmConfig } from "@/lib/llm/client";
 import { getCompany } from "@/lib/settings";
@@ -71,6 +72,7 @@ export async function evaluateModel(opts: { n?: number; seed?: number; family?: 
   const ownBins = own.map((p) => ({ p, bin: parseBin(p.binJson) ?? heuristicBin({ sku: p.sku, brand: p.brand, description: p.description, category: p.category }) }));
 
   const inputs: (GradeLineInput & { expected: Set<string>; curatedType: string; competitor: string })[] = [];
+  const siblingIndex = new Map<string, Awaited<ReturnType<typeof loadSiblingIndex>>>();
   for (const [i, item] of pool.entries()) {
     opts.onProgress?.(`preparing ${i + 1}/${pool.length} ${item.code}`);
     const cp = await resolveCfn(item.code, { useLlm: false, strict: false });
@@ -79,7 +81,8 @@ export async function evaluateModel(opts: { n?: number; seed?: number; family?: 
     if (!bin) {
       const raw = cp.gudidJson ? (JSON.parse(cp.gudidJson) as OpenFdaRecord) : null;
       const s = raw ? summarizeRecord(raw) : null;
-      const b = await binProduct({ subject: item.code, brand: cp.brand, description: [cp.description, item.desc].filter(Boolean).join(" ; "), manufacturer: cp.manufacturer, gmdnName: cp.gmdnName, sizes: s?.sizes, singleUse: s?.singleUse, sterile: s?.sterile, implantable: s?.implantable, useLlm: true });
+      if (cp.manufacturer && !siblingIndex.has(cp.manufacturer)) siblingIndex.set(cp.manufacturer, await loadSiblingIndex([cp.manufacturer]));
+      const b = await binProduct({ subject: item.code, code: cp.cfnMatched ?? cp.cfnNorm, brand: cp.brand, description: [cp.description, item.desc].filter(Boolean).join(" ; "), manufacturer: cp.manufacturer, gmdnName: cp.gmdnName, sizes: s?.sizes, singleUse: s?.singleUse, sterile: s?.sterile, implantable: s?.implantable, siblings: cp.manufacturer ? siblingIndex.get(cp.manufacturer)!.get(cp.manufacturer, cp.brand) : null, useLlm: true });
       bin = b.bin;
       await prisma.competitorProduct.update({ where: { id: cp.id }, data: { binJson: JSON.stringify(bin), binSource: b.source, binnedAt: new Date() } });
     }

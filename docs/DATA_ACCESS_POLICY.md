@@ -53,9 +53,12 @@ Two layers, both server-side, both on every request:
   `view_margin`): responses are redacted for roles without them, including nested JSON
   (`redactForActor`, `redactJsonForActor`).
 - **Which accounts a role may see** (Tier 0.2) — `SALES_REP` and `REGIONAL_MANAGER` see the
-  accounts they own, accounts in their territory, unassigned accounts, children of visible
-  IDNs, and anything they created; requests, proposals and contracts follow their account.
-  Every other role sees everything. A row outside the caller's scope is a 404, never a 403
+  accounts they own, accounts in their territory, unassigned accounts, children of IDNs they
+  own or cover, and anything they created; requests, proposals and contracts follow their
+  account. Every other role sees everything. Whether the children of an IDN *nobody owns yet*
+  are visible to every scoped user (as the IDN is) or follow their own owner and territory is a
+  per-company choice — Settings → "Account visibility" (`scopeUnassignedParent`, default `own`,
+  the narrower rule); the choice is audited like every setting. A row outside the caller's scope is a 404, never a 403
   (`src/lib/auth/scope.ts`, enforced centrally for every `/api/{accounts,requests,proposals,
   contracts}/<id>/…` route in `src/lib/api.ts`).
 

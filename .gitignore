@@ -65,3 +65,4 @@ scratch/
 
 # uploaded document bytes (DOCUMENT_STORAGE_DIR)
 .data/
+.scratch/

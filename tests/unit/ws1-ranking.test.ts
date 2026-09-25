@@ -61,7 +61,7 @@ describe("ws1 ranking: curated evidence handling", () => {
     expect(res.map((r) => r.sku)).toEqual(["NONB12STF", "UNVCA12STF"]);
     const sleeve = res[1];
     expect(sleeve).toMatchObject({ matchType: "No Match", source: "known-cross" });
-    expect(sleeve.factors.curated).toEqual({ source: "Sheet1", grade: "Exact Match", effective: "No Match", contradicted: true, preferred: false });
+    expect(sleeve.factors.curated).toMatchObject({ source: "Sheet1", grade: "Exact Match", effective: "No Match", contradicted: true, preferred: false, findings: ["cannula only — the competitor line is a trocar"] });
     expect(sleeve.rationale).toMatch(/curated cross \(Sheet1, Exact Match\) — contradicted by the product attributes; ranked as No Match/);
     expect(sleeve.confidence).toBeLessThanOrEqual(0.5);
     expect(sleeve.factors.cap).toBe("No Match");

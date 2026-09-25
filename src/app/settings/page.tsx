@@ -23,7 +23,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader eyebrow="Configuration" title="Settings" description="Ranking weights and model status. Secrets live in .env, never in the database." />
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4 items-start [&>*]:min-w-0">
-        <SettingsForm weights={s.weights} maxCandidates={s.maxCandidates} companyName={s.companyName} canEdit={can(actor, "configure_settings")} />
+        <SettingsForm weights={s.weights} maxCandidates={s.maxCandidates} companyName={s.companyName} scopeUnassignedParent={s.scopeUnassignedParent} canEdit={can(actor, "configure_settings")} />
         <div className="space-y-4">
           <Card title="Model" subtitle="OpenAI-compatible Responses API with structured outputs">
             <dl className="grid grid-cols-[120px_1fr] gap-y-2 text-[13px]">

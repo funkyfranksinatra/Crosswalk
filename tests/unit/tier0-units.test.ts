@@ -46,6 +46,13 @@ describe("0.2 scope fragments", () => {
     expect((contractWhere(s) as { OR: unknown[] }).OR[0]).toEqual({ accountId: null, parentAccountId: null });
     for (const f of [accountWhere, requestWhere, proposalWhere, contractWhere]) expect(f({ mode: "all" })).toEqual({});
   });
+  test("children follow an owned / in-territory parent; an unassigned parent broadens them only under the 'inherit' setting", () => {
+    const s = { mode: "scoped" as const, userId: "u1", territories: ["NE"] };
+    const parent = (scope: typeof s & { unassignedParentBroadens?: boolean }) => ((accountWhere(scope) as { OR: { parent?: { OR: unknown[] } }[] }).OR[3].parent!.OR);
+    expect(parent(s)).toEqual([{ ownerUserId: "u1" }, { territory: { in: ["NE"], mode: "insensitive" } }]);
+    expect(parent({ ...s, unassignedParentBroadens: false })).toHaveLength(2);
+    expect(parent({ ...s, unassignedParentBroadens: true })).toEqual([{ ownerUserId: "u1" }, { territory: { in: ["NE"], mode: "insensitive" } }, { ownerUserId: null, territory: null }]);
+  });
 });
 
 describe("0.1 role mapping and claims", () => {

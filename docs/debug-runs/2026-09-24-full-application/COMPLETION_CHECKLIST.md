@@ -42,6 +42,16 @@ explicit go); **M** = a Mac; **C** = the company's systems (Salesforce/SAP/GPO/O
 
 ## D. Owner decisions (nothing to run until decided)
 
+**2026-09-25 — #13, #14 and #15 no longer need an owner.** Alex asked for the decisions to be
+resolved without user input where the data allows, and built into Crosswalk where it does not
+(the platform serves many companies; nobody at them owns a spreadsheet of corrections). #13 is
+answered by the labeler's own catalog (sibling-family evidence, MATCH_QUALITY_MODEL §3.4); #15 by
+GUDID for Thoracoport plus the in-app **Evidence conflicts** queue for the flagged rows and any like
+them (§5.5); #14 by a per-company Settings switch with the narrower default (DATA_ACCESS_POLICY).
+BLOCKERS B-07/B-08/B-09 carry the detail. What remains for a person: settle the queue on a real
+deployment from the Crosswalk page (one click per row), and pick the visibility rule in Settings
+if the default is not wanted. The rows below are kept as the record of the original question.
+
 | # | Blocker | Decision | Consequence |
 |---|---|---|---|
 | 13 | B-07 | Is Ethicon **B12LTH** (ENDOPATH XCEL Bladeless 12 × 100 mm) non-optical? The GUDID text has no OPTIVIEW/optical marker; three curated sheets cross it to the optical VersaOne ONB12STF as "Exact" | if non-optical: current behaviour stands (NONB12STF first, curated Exact demoted to Close with the "contradicted" label) — record the sign-off in MATCH_QUALITY_MODEL §4; if optical: add a competitor-size/spec row (curated-spec has top priority) and the curated Exact returns |

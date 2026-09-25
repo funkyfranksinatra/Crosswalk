@@ -28,9 +28,10 @@ Every attribute a candidate is judged on carries where it came from. Priority wh
 1. `curated-spec` — sizes the sales team imported for the competitor code (Catalog → Competitor sizes)
 2. `gudid:size` — structured `device_sizes` on the GUDID record
 3. `gudid:description` — the GUDID brand / device description text
-4. `intake:description` — the description column of the rep's intake sheet (the customer's item master)
-5. `brand:<key>` — the brand → feature registry (`src/lib/match/brands.ts`): OPTIVIEW ⇒ optical, Kii Fios ⇒ optical, Visiport ⇒ optical, Stability/Universal Sleeve ⇒ cannula, …
-6. `sku:<key>` — family SKU conventions (Ethicon Xcel `…ST/LT/XT` ⇒ 75/100/150 mm, Medtronic `…SHF/STF/LGF` ⇒ 70/100/150 mm with fixation cannula)
+4. `gudid:siblings` — what the labeler's *other* records in the same line say about this one (§3.4)
+5. `intake:description` — the description column of the rep's intake sheet (the customer's item master)
+6. `brand:<key>` — the brand → feature registry (`src/lib/match/brands.ts`): OPTIVIEW ⇒ optical, Kii Fios ⇒ optical, Visiport ⇒ optical, Stability/Universal Sleeve ⇒ cannula, …
+7. `sku:<key>` — family SKU conventions (Ethicon Xcel `…ST/LT/XT` ⇒ 75/100/150 mm, Medtronic `…SHF/STF/LGF` ⇒ 70/100/150 mm with fixation cannula)
 
 The registry is data (a table of rules with a provenance key and a note), not `includes("OPTIVIEW")`
 calls scattered through the matcher. A rule contributes a feature only when the text does not
@@ -54,6 +55,35 @@ SKU suffix that usually means "fixation".
 
 Other families keep the generic bin similarity (family, product type, dimensions, features,
 materials, text) and their existing construction caps (absorbable, barrier, material).
+
+The component reading has two clauses for common labeler habits. "…Trocar; Non-conductive Sleeve"
+(Covidien Thoracoport, 179301–179307) names the sleeve as an *attribute* of a trocar and reads as
+trocar. "Thoracic Trocar Sleeves **with** Rounded Tip Obturator" (Ethicon TT012) is a sleeve sold with
+its obturator — the complete device — and reads as trocar too, so the thoracic ports cross to each
+other. "Trocar; Sleeve only", "sleeve assembly", "universal sleeve", "Trocar Sleeve; 12 mm" and a
+cannula "for use with" an obturator still read as cannula.
+
+### 3.4 Sibling-family evidence (`gudid:siblings`)
+
+A record that names no visualization is unknown on its own words. But a labeler that marks the
+optical variants of a line explicitly — Ethicon's "ENDOPATH XCEL **OPTIVIEW**" (codes 2B12LT, 2B5ST…)
+next to plain "ENDOPATH XCEL" (B12LTH, B11LTH…); Applied's "Kii **Fios** First Entry" next to "Kii" —
+has said what the plain records are: the marker's absence is evidence, with the marked siblings as
+provenance. `src/lib/match/siblings.ts` turns that into a gap-filling assertion
+(`visualization: non-optical`, via "Ethicon marks optical products in this line (N sibling records,
+e.g. 2B12LT, 2B5ST…); this record carries no marker"). The inference is deliberately narrow:
+
+- only binary features with one explicit marker (today: optical), only within the same brand root
+  (`brandRoot("ENDOPATH XCEL OPTIVIEW") = "ENDOPATH XCEL"`), only among access products;
+- only when at least three siblings carry the marker;
+- never when the record's own text has the marker — explicit text is read earlier and wins;
+- it fills a gap or corroborates a generic prior (`generic.bladeless-nonoptical` → "(corroborated)"
+  in the evidence list); it never overrides a higher source.
+
+The run builds the sibling index once per competitor manufacturer from `GudidDevice` (brand +
+description, ≤ 25 000 records) and passes each line's family to the binning step, so the evidence
+is available offline and reproducible. This is what settles "is B12LTH optical?" without a product
+owner: the labeler's own catalog says it is not.
 
 ## 4. Hard constraints vs soft signals
 
@@ -131,6 +161,29 @@ a price for the customer, then by SKU, so a re-run on unchanged data reproduces 
 The reviewer's *preferred* column redirects a curated row to another SKU only when that value is a
 SKU in our catalog. The same column carries notes (DUPLICATE, DISCONT, HAND, REPEAT, …); a note never
 makes the row vanish from matching and is never published as an own SKU in a crosswalk version.
+
+### 5.5 Evidence conflicts are settled in Crosswalk, not in the sheet
+
+A curated row the product attributes contradict is ranked at the evidence's grade and labelled
+(§5); the sheet is evidence, not an override. The disagreement itself is not left in a spreadsheet
+someone would have to own at every company Crosswalk is deployed for. After a run persists its
+candidates, `recordCuratedConflicts` (`src/lib/xref/conflicts.ts`) marks each contradicted row on the
+`KnownCross` itself — `conflictStatus = CONTRADICTED`, the findings, the grade it was ranked at, the
+SKU the evidence put first, how many runs hit it and which request last did — and the row appears
+under **Crosswalk → Evidence conflicts**. A reviewer with `manage_crosswalk` settles it with one click
+(`POST /api/crosses/{id}/conflict`):
+
+| decision | effect |
+|---|---|
+| **Retire** | the sheet row is wrong: `approvalStatus RETIRED`, `effectiveTo` now; the matcher and the next published version drop it |
+| **Replace with \<SKU\>** | the evidence is right: retire the row and record the evidence-based cross as an approved row (`source: "evidence"`, reviewed by the decider, `evidenceJson` naming the request, line and replaced row); the next run and the next publish carry it |
+| **Keep** | the sheet is right after all: `conflictStatus KEPT`; in later runs the row keeps its grade against **soft** findings (length class, optical, tip…) and the rationale says so. A **hard** finding (component, diameter) still caps it — nobody confirms a sleeve into a trocar |
+
+Runs never wait for a decision. A later run never reopens a KEPT row; re-seeding from the sheets
+(`prisma/seed.ts`) refreshes grade, description and preferred SKU only, so decisions survive it.
+Every decision is audited (`CONFLICT_RETIRE` / `CONFLICT_REPLACE` / `CONFLICT_KEEP`, with the note).
+This is how the 14 rows the REQ-7628 report flagged, and any row like them at another company, get
+settled: the run finds them, the queue shows them with the evidence, one person decides in the app.
 
 ## 6. Confidence
 

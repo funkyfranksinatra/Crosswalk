@@ -154,6 +154,14 @@ model KnownCross {
   effectiveFrom         DateTime?
   effectiveTo           DateTime?
   version               Int       @default(1)
+  // ---- evidence conflicts (a run's product attributes contradicted this row) ----
+  conflictStatus        String? // CONTRADICTED (queued for review) | KEPT (a reviewer confirmed the row; soft findings no longer demote it)
+  conflictJson          String? // { findings: string[], suggestedSku, suggestedGrade, effective, requestReference, lineCode }
+  conflictCount         Int       @default(0) // runs that contradicted it
+  conflictSeenAt        DateTime?
+  conflictDecidedByUserId String?
+  conflictDecidedAt     DateTime?
+  conflictNote          String?
   accountId             String? // rep-sourced crosses can be account-specific
   createdByUserId       String?
   createdAt             DateTime  @default(now())

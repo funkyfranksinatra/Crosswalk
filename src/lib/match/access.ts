@@ -12,7 +12,7 @@
 import { componentOf, type Component } from "./component";
 import { brandAssertions, skuAssertion, type BrandAssertion, type Fixation, type Tip, type Visualization } from "./brands";
 
-export type EvidenceSource = "curated-spec" | "gudid:size" | "gudid:description" | "intake:description" | "catalog:description" | "brand" | "sku" | "bin";
+export type EvidenceSource = "curated-spec" | "gudid:size" | "gudid:description" | "gudid:siblings" | "intake:description" | "catalog:description" | "brand" | "sku" | "bin";
 
 export type SizeParse = {
   diameters: number[];
@@ -167,7 +167,7 @@ export type AccessProfile = {
 export const emptyProfile = (): AccessProfile => ({ component: "unknown", visualization: null, tip: null, fixation: null, lowProfile: null, diameters: [], range: null, lengthMm: null, lengthClass: null, line: null, manufacturer: null, extras: [], evidence: [], conflicts: [] });
 
 /** One text to read, or the SKU convention step (`source: "sku"`, `text` = the catalog number) placed where its priority belongs. */
-export type ProfileSource = { text: string | null | undefined; source: EvidenceSource; sizes?: { type?: string; value?: string; unit?: string }[] | null; dims?: { name: string; value: number; unit: string }[] | null; manufacturer?: string | null; /** GMDN term: read for specific components only */ gmdn?: string | null };
+export type ProfileSource = { text: string | null | undefined; source: EvidenceSource; sizes?: { type?: string; value?: string; unit?: string }[] | null; dims?: { name: string; value: number; unit: string }[] | null; manufacturer?: string | null; /** GMDN term: read for specific components only */ gmdn?: string | null; /** a ready assertion with its provenance (sibling-family evidence): gap-filling only */ assert?: BrandAssertion | null; via?: string | null };
 
 /** What a GMDN term says about the component — only the specific ones; "laparoscopic access cannula" is generic. */
 export function componentFromGmdn(gmdn: string | null | undefined): Component {
@@ -184,6 +184,8 @@ function applyAssertion(p: AccessProfile, a: BrandAssertion, source: EvidenceSou
     const unknown = cur == null || cur === "unknown" || (Array.isArray(cur) && cur.length === 0);
     if (unknown) { (p as Record<string, unknown>)[k] = v; p.evidence.push({ field: k, value: label, source, via }); }
     else if (JSON.stringify(cur) !== JSON.stringify(v) && stated) p.conflicts.push(`${k}: ${label} (${via}) vs ${Array.isArray(cur) ? cur.join("/") : String(cur)}`);
+    // The labeler's sibling records agreeing with a value a generic rule assumed turns the assumption into evidence.
+    else if (JSON.stringify(cur) === JSON.stringify(v) && source === "gudid:siblings") p.evidence.push({ field: k, value: `${label} (corroborated)`, source, via });
   };
   if (a.component) set("component", a.component, a.component);
   if (a.visualization) set("visualization", a.visualization, a.visualization);
@@ -222,6 +224,7 @@ export function buildAccessProfile(sources: ProfileSource[]): AccessProfile {
       if (sa) applyAssertion(p, sa.assert, "sku", sa.key, true);
       continue;
     }
+    if (s.assert) { applyAssertion(p, s.assert, s.source, s.via ?? s.source, false); if (!s.text) continue; }
     // structured sizes first
     const structured: SizeParse = { diameters: [], range: null, diameterFromRange: false, lengthMm: null, lengthClass: null, notes: [] };
     // Structured sizes arrive in whatever unit the source used (GUDID "Centimeter", a curated import that

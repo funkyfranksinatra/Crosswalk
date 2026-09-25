@@ -51,9 +51,9 @@ describe.skipIf(!hasDb)("WS4 — authorization matrix (every route × every role
     fs.writeFileSync(path.join(EVIDENCE, "authz-matrix.csv"), csv + "\n");
   });
 
-  test("the filesystem yields 101 route files and 132 method handlers, every one with a recognisable gate", () => {
-    expect(routes).toHaveLength(101);
-    expect(routes.reduce((n, r) => n + r.methods.length, 0)).toBe(132);
+  test("the filesystem yields 102 route files and 133 method handlers, every one with a recognisable gate", () => {
+    expect(routes).toHaveLength(102);
+    expect(routes.reduce((n, r) => n + r.methods.length, 0)).toBe(133);
     const custom = routes.flatMap((r) => r.methods.filter((m) => gateFor(r, m).kind === "custom").map((m) => `${m} ${r.urlPath}`)).sort();
     // The only handlers without handle()/authorize(): the sign-in routes, liveness, the token-guarded scrape and the HMAC-guarded webhook.
     expect(custom).toEqual(["DELETE /api/auth/dev", "GET /api/auth/dev", "GET /api/auth/me", "GET /api/auth/oidc/callback", "GET /api/auth/oidc/start", "GET /api/health", "GET /api/metrics", "POST /api/auth/dev", "POST /api/auth/oidc/logout", "POST /api/webhooks/salesforce"]);

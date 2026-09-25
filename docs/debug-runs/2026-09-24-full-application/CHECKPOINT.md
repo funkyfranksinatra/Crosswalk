@@ -8,4 +8,4 @@ Completed: baseline, inventory, five workstreams, integration of every cross-own
 
 Pending: see COMPLETION_CHECKLIST.md — B-01 (model key + accept), B-02 (Docker host or a PR so the GH `image` job runs), B-03 (provider credentials), B-04 (a Mac; also the WebKit request-journey rerun in Safari), B-06 (Neon read-only query — awaiting your go), B-07/B-08/B-09 (decisions), B-10 (benchmark lists), B-12 (push/merge/generate). Awaiting your authorisation before any push, merge, Neon access or real external action.
 
-Active defects: none open in code; 4 owner decisions / data items and 2 prerequisites open (BUG_LOG.md).
+Active defects: none open in code; 2026-09-25: the 3 owner decisions (B-07/B-08/B-09) are product mechanisms now (BUILD_NOTES §28.1, TEST_RESULTS §8); 2 coverage/efficiency items and 2 prerequisites open (BUG_LOG.md).

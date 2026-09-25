@@ -14,8 +14,8 @@ const own = (sku: string, description: string, extra: Partial<CandidateInput> = 
 const comp = (code: string, manufacturer: string, description: string) => ({ bin: heuristicBin({ code, manufacturer, description }), description, estPrice: null as number | null });
 const grades = (line: ReturnType<typeof comp>, cands: CandidateInput[]) => Object.fromEntries(scoreCandidates(line, cands).map((c) => [c.sku, { grade: c.matchType, cap: c.factors.cap ?? null, score: c.score }]));
 
-describe("review: adversarial pairs never reach Exact through the WS1 changes (BIN_VERSION 8)", () => {
-  it("BIN_VERSION is 8 (rebuild forced for the negation / component changes)", () => { expect(BIN_VERSION).toBe(8); });
+describe("review: adversarial pairs never reach Exact through the WS1 changes (BIN_VERSION ≥ 8)", () => {
+  it("BIN_VERSION is at least 8 (rebuild forced for the negation / component changes; 9 adds sibling evidence + sleeve-attribute clauses)", () => { expect(BIN_VERSION).toBeGreaterThanOrEqual(8); });
 
   it("cannula vs trocar with identical sizes: hard cap No Match in both directions, in binSimilarity and scoreCandidates", () => {
     const trocarLine = comp("X-TROCAR-12", "Ethicon", "ENDOPATH XCEL Bladeless Trocar 12 mm x 100 mm");

@@ -329,9 +329,9 @@
   "sev": "P3",
   "type": "SPEC_AMBIGUITY",
   "title": "Thoracoport own SKUs 179301/303/305/307 (\"… Single Use Trocar; Non-conductive Sleeve\") classify as cannula; curated TT012 (Endopath thoracic trocar **sleeves**) expects them, so changing it would regress TT012",
-  "status": "OPEN",
+  "status": "VERIFIED_FIXED",
   "source": "workstreams/WS1-report.md",
-  "note": "sheet owner decision (Thoracoport sold as sleeve?)"
+  "note": "2026-09-25: component reading — a sleeve named as an attribute of a trocar (\"…Trocar; Non-conductive Sleeve\") and a sleeve sold with its obturator (\"Trocar Sleeves with Rounded Tip Obturator\") both read as the complete device, so Thoracoport and TT012 are both trocars and cross to each other (no TT012 regression); unit cases in tests/unit/decisions-siblings.test.ts; eval 80/80 · 29/80 · 47/80 unchanged line-for-line"
  },
  {
   "id": "WS1-F28",
@@ -379,9 +379,9 @@
   "sev": "P3",
   "type": "DATA_QUALITY",
   "title": "Eval sample: curated rows whose expected SKU contradicts the competitor text (C0121 \"Cannula Only\" → expects trocars 176674PF/B12LGF; C0Q11 \"Threaded Cannula and Seal\" → expects ONB5LGF trocar; CFI12 \"Threaded sleeve Optical Tip with Handle\" → expects ONB5LGF) stay misses by design (the hard component constraint holds)",
-  "status": "OPEN",
+  "status": "VERIFIED_FIXED",
   "source": "workstreams/WS1-report.md",
-  "note": "sheet owner: inconsistent curated rows"
+  "note": "2026-09-25: rows a run contradicts are queued on the KnownCross (Crosswalk → Evidence conflicts) and settled in-app with Retire / Replace / Keep (src/lib/xref/conflicts.ts; tests/db/decisions-conflicts.test.ts); no spreadsheet owner needed"
  },
  {
   "id": "WS2-F01",
@@ -1079,9 +1079,9 @@
   "sev": "P3",
   "type": "SPEC_AMBIGUITY",
   "title": "Scope rule: a child account under an **unassigned** parent is visible to every rep even when the child itself has an owner and a territory elsewhere (the seeded MSK account under the unassigned NYC IDN is readable by a rep in \"Mars\")",
-  "status": "OPEN",
+  "status": "VERIFIED_FIXED",
   "source": "workstreams/WS4-report.md",
-  "note": "business decision on the scope rule (child of an unassigned parent) — see BLOCKERS B-08"
+  "note": "2026-09-25: per-company setting scopeUnassignedParent (Settings → Account visibility), default \"own\" — a child with its own owner/territory follows it while its parent is unassigned; \"inherit\" restores the earlier rule; unit + DB tests"
  },
  {
   "id": "WS4-F26",
@@ -1456,8 +1456,8 @@
   "sev": "P2",
   "type": "SPEC_AMBIGUITY",
   "title": "B12LTH → NONB12STF (evidence) vs three curated sheets calling the optical ONB12STF Exact",
-  "status": "OPEN",
-  "note": "sheet owner to confirm B12LTH is non-optical (ENDOPATH XCEL Bladeless, no OPTIVIEW) — BLOCKERS B-07; code follows MATCH_QUALITY_MODEL §4/§5",
+  "status": "VERIFIED_FIXED",
+  "note": "2026-09-25: answered from the labeler's catalog — Ethicon marks optical products \"ENDOPATH XCEL OPTIVIEW\"; B12LTH carries no marker; gudid:siblings evidence asserts non-optical (corroborating the SKU rule) with 10 sibling records as provenance; the three curated Exact rows are contradicted and appear in Evidence conflicts for a one-click decision",
   "source": "REVIEW.md"
  },
  {
@@ -1504,5 +1504,14 @@
   "status": "OPEN",
   "note": "efficiency opportunity, target (5,000 lines warm < 60 s) met; no behaviour defect",
   "source": "TEST_RESULTS.md §7"
+ },
+ {
+  "id": "CW-DBG-0012",
+  "sev": "P2",
+  "type": "FEATURE_REQUEST",
+  "title": "Owner decisions (B-07/B-08/B-09) needed a person with a spreadsheet at every company Crosswalk is deployed for",
+  "status": "VERIFIED_FIXED",
+  "note": "Alex: resolve without user input where the data allows, else build the process into the product. Built: sibling-family evidence (gudid:siblings), with-obturator / sleeve-attribute component clauses, the Evidence-conflicts queue on KnownCross with RETIRE/REPLACE/KEEP (migrations 20260925000000/01), the scopeUnassignedParent setting. BUILD_NOTES §28.1",
+  "source": "TEST_RESULTS.md §8"
  }
 ]

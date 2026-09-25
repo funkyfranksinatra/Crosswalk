@@ -1,12 +1,17 @@
 import { defaultLabelers } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
 import { DEFAULT_WEIGHTS, type Weights } from "@/lib/match/score";
+import { SCOPE_UNASSIGNED_PARENT_KEY } from "@/lib/auth/scope";
 
 export type Settings = {
   weights: Weights;
   maxCandidates: number;
   companyName: string;
+  /** Children of an account nobody owns: "own" — the child's own owner/territory governs (default); "inherit" — visible to every scoped user, as the parent is. */
+  scopeUnassignedParent: ScopeUnassignedParent;
 };
+export type ScopeUnassignedParent = "own" | "inherit";
+export const SCOPE_UNASSIGNED_PARENT_VALUES: readonly ScopeUnassignedParent[] = ["own", "inherit"];
 
 export async function getSettings(): Promise<Settings> {
   const rows = await prisma.setting.findMany();
@@ -19,6 +24,7 @@ export async function getSettings(): Promise<Settings> {
     weights,
     maxCandidates: Number(map.maxCandidates ?? 5) || 5,
     companyName: map.companyName ?? process.env.COMPANY_NAME ?? "Medtronic",
+    scopeUnassignedParent: map[SCOPE_UNASSIGNED_PARENT_KEY] === "inherit" ? "inherit" : "own",
   };
 }
 
@@ -52,6 +58,11 @@ export async function saveSettings(patch: Partial<Settings>) {
       await prisma.company.update({ where: { id: current.id }, data: { name } });
     }
     writes.push(["companyName", name]);
+  }
+  if (patch.scopeUnassignedParent !== undefined) {
+    const v = String(patch.scopeUnassignedParent);
+    if (!SCOPE_UNASSIGNED_PARENT_VALUES.includes(v as ScopeUnassignedParent)) throw new Error(`scopeUnassignedParent must be one of ${SCOPE_UNASSIGNED_PARENT_VALUES.join(", ")}`);
+    writes.push([SCOPE_UNASSIGNED_PARENT_KEY, v]);
   }
   for (const [key, value] of writes) {
     await prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
