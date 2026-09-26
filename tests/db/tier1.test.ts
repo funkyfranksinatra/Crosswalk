@@ -104,7 +104,11 @@ describe.skipIf(!hasDb)("Tier 1", () => {
       expect(row.attempt).toBe(1);
       expect(row.jobId).toBe(jobId);
       expect(await prisma.matchCandidate.count({ where: { line: { requestId: r.id } } })).toBeGreaterThan(0);
-      const n = await prisma.notification.findFirst({ where: { userId: rep.id, kind: "RUN_COMPLETE", entityId: r.id } });
+      // The run sets "complete" and then notifies (the notification reads the final status), so the
+      // row can land a moment after the status is visible — wait for it, bounded, instead of racing it
+      // (a slow CI runner lost that race on Sept 26).
+      let n = await prisma.notification.findFirst({ where: { userId: rep.id, kind: "RUN_COMPLETE", entityId: r.id } });
+      for (let i = 0; i < 40 && !n; i++) { await new Promise((x) => setTimeout(x, 250)); n = await prisma.notification.findFirst({ where: { userId: rep.id, kind: "RUN_COMPLETE", entityId: r.id } }); }
       expect(n?.title).toMatch(/is ready/);
       const boss = await getBoss();
       const job = await boss.getJobById("request.run", jobId!);
