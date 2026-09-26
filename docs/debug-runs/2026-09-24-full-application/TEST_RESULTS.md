@@ -12,16 +12,16 @@ Environment for every row unless stated: workspace `/home/claude/cracr`, branch 
 | `npx tsx prisma/seed-enterprise.ts` (demo) | 0 | 15 s | PASS — 11 users, 6 policies, crosswalk v1 (3,561 entries), 19 observations | 00-bootstrap-dbg.log |
 | `npm run typecheck` | 0 | 5 s | PASS | 01-baseline-typecheck.log |
 | `npm run check` | 0 | 2 s | PASS 19/19 | 01-baseline-check.log |
-| `npm run check:enterprise` | 0 | 1 s | PASS 21/21 | 01-baseline-check:enterprise.log |
+| `npm run check:enterprise` | 0 | 1 s | PASS 21/21 | 01-baseline-check_enterprise.log |
 | `npx vitest run` | 1 | 35 s | **FAIL 1 / 298 pass / 0 skipped** (13 files; all DB suites ran) — `tests/db/tier3.test.ts › refreshEmbeddings writes vectors once` expects the second sweep to embed 0 but a fresh catalog still has pending rows (CW-DBG-0001) | 01-baseline-vitest.log |
 | `npm run build` | 0 | 78 s | PASS — 2 Turbopack warnings "Dynamic filesystem access causes tracing of the whole project" | 01-baseline-build.log |
-| `npm run test:adversarial` | 0 | 4 s | PASS 24/24, process exited on its own | 01-baseline-test:adversarial.log |
-| `npm run test:enterprise` | 1 | 19 s | **FAIL 5 / 13 pass**, process exited — first failure: B12LTH top candidate is `NONB12STF`, expectation `ONB12STF`; the other four cascade from `by("ONB12STF")` being undefined (CW-DBG-0002) | 01-baseline-test:enterprise.log |
+| `npm run test:adversarial` | 0 | 4 s | PASS 24/24, process exited on its own | 01-baseline-test_adversarial.log |
+| `npm run test:enterprise` | 1 | 19 s | **FAIL 5 / 13 pass**, process exited — first failure: B12LTH top candidate is `NONB12STF`, expectation `ONB12STF`; the other four cascade from `by("ONB12STF")` being undefined (CW-DBG-0002) | 01-baseline-test_enterprise.log |
 | `npm run eval -- --n 80 --seed 7 --no-crosses` | 0 | 24 s | PASS (measurement): resolution 80/80, top-1 26/80, top-3 46/80 on this seed (denominator: 80 sampled approved crosses; not comparable to the REQ-7628 report's `crosswalk_ref` figures) | 01-baseline-eval-dbg.log |
-| `npm run eval:model` | 1 | 1 s | BLOCKED — no OPENAI_API_KEY; exits with a full stack trace instead of a one-line message (CW-DBG-0005) | 01-baseline-eval:model.log |
-| `npm run eval:gate` | 1 | 1 s | **FAIL** — "BIN_VERSION is 7 but the accepted baseline measured version 6" (hard) and model gpt-5.6-astra vs baseline gpt-6-astra (warning). CI on `main` would fail at this step. Re-measuring needs a model key and an accept decision (CW-DBG-0003, BLOCKED) | 01-baseline-eval:gate.log |
+| `npm run eval:model` | 1 | 1 s | BLOCKED — no OPENAI_API_KEY; exits with a full stack trace instead of a one-line message (CW-DBG-0005) | 01-baseline-eval_model.log |
+| `npm run eval:gate` | 1 | 1 s | **FAIL** — "BIN_VERSION is 7 but the accepted baseline measured version 6" (hard) and model gpt-5.6-astra vs baseline gpt-6-astra (warning). CI on `main` would fail at this step. Re-measuring needs a model key and an accept decision (CW-DBG-0003, BLOCKED) | 01-baseline-eval_gate.log |
 | `npm run benchmark` | 2 | 1 s | NOT_RUN — no cases in `data/benchmark/` and no reviewed requests (expected; historical lists are company-owned) | 01-baseline-benchmark.log |
-| `npm run secrets:check` | 0 | 1 s | PASS (non-production: prints nothing) | 01-baseline-secrets:check.log |
+| `npm run secrets:check` | 0 | 1 s | PASS (non-production: prints nothing) | 01-baseline-secrets_check.log |
 | `npm run profile:run` | — | — | deferred to the performance section (needs a sanitized intake) | — |
 
 ## 2. Workstream runs (07:00–11:00 UTC)
@@ -47,13 +47,13 @@ Fresh `crosswalk_dbg` (empty → `db:preflight` → `migrate deploy` → `seed.t
 | `npm run typecheck` | 0 | 7 s | PASS | 04-final-typecheck.log |
 | `npm run lint` (new rules-of-hooks gate) | 0 | 5 s | PASS | 04-final-lint.log |
 | `npm run check` | 0 | 1 s | PASS 19/19 | 04-final-check.log |
-| `npm run check:enterprise` | 0 | 1 s | PASS 21/21 | 04-final-check:enterprise.log |
+| `npm run check:enterprise` | 0 | 1 s | PASS 21/21 | 04-final-check_enterprise.log |
 | `npx vitest run` | 0 | 174 s | **PASS 43 files / 698 tests / 0 skipped / 0 failed** (13 DB suites all ran) | 04-final-vitest.log |
-| `npm run test:adversarial` | 0 / 0 | 3 s / 3 s | PASS 24/24 with JOBS_WORKER=off and with inline workers; process exits on its own | 04-final-test:adversarial*.log |
-| `npm run test:enterprise` | 0 / 0 | 19 s / 7 s | PASS 18/18 in both worker modes; exits on its own | 04-final-test:enterprise*.log |
+| `npm run test:adversarial` | 0 / 0 | 3 s / 3 s | PASS 24/24 with JOBS_WORKER=off and with inline workers; process exits on its own | 04-final-test_adversarial*.log |
+| `npm run test:enterprise` | 0 / 0 | 19 s / 7 s | PASS 18/18 in both worker modes; exits on its own | 04-final-test_enterprise*.log |
 | `npm run build` (clean `.next`) | 0 | 48 s | PASS (2 pre-existing tracing warnings) | 04-final-build.log |
 | `npm run eval -- --n 80 --seed 7 --no-crosses` | 0 | 22 s | resolution 80/80, top-1 29/80, top-3 46/80 (baseline 26/80, 46/80; every moved line explained in WS1 §K; no line regressed) | 04-final-eval-dbg.log (per-line curated expectations stripped) |
-| `npm run eval:gate` | 1 | 1 s | **BLOCKED** (B-01) — unchanged message, gate not weakened | 04-final-eval:gate.log |
+| `npm run eval:gate` | 1 | 1 s | **BLOCKED** (B-01) — unchanged message, gate not weakened | 04-final-eval_gate.log |
 | `npm run secrets:check` | 0 | 1 s | PASS | — |
 | `sh deploy/entrypoint.sh check` | 0 | 2 s | PASS; with `NODE_ENV=production SESSION_SECRET=short` → exit 1 as required | — |
 | `npm run profile:run` 30 lines / 300 distinct codes | 0 | — | 30 lines 3.2 s cold (2.5 s openFDA) / 37 lines 1.5 s warm; 300 lines 75 s cold (openFDA-bound) / **5.2 s warm, 902 queries, 298/300 matched** | 05-profile-*.log |
