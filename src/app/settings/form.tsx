@@ -12,7 +12,7 @@ const LABELS: Record<keyof Weights, [string, string]> = {
   margin: ["Margin", "(price − COGS) / price, saturating at 60% (needs both)."],
 };
 
-export function SettingsForm({ weights, maxCandidates, companyName, scopeUnassignedParent = "own", canEdit = true }: { weights: Weights; maxCandidates: number; companyName: string; scopeUnassignedParent?: ScopeUnassignedParent; canEdit?: boolean }) {
+export function SettingsForm({ weights, maxCandidates, companyName, scopeUnassignedParent = "inherit", canEdit = true }: { weights: Weights; maxCandidates: number; companyName: string; scopeUnassignedParent?: ScopeUnassignedParent; canEdit?: boolean }) {
   const [w, setW] = useState<Weights>(weights);
   const [max, setMax] = useState(maxCandidates);
   const [name, setName] = useState(companyName);
@@ -59,8 +59,8 @@ export function SettingsForm({ weights, maxCandidates, companyName, scopeUnassig
         <div className="pt-2 border-t border-line-2">
           <label className="label" htmlFor="scope-unassigned-parent">Account visibility: hospitals under an IDN nobody owns yet</label>
           <select id="scope-unassigned-parent" className="input" disabled={!canEdit} value={scope} onChange={(e) => setScope(e.target.value as ScopeUnassignedParent)}>
-            <option value="own">Follow their own owner and territory (recommended)</option>
-            <option value="inherit">Visible to every rep and manager, like the unassigned IDN</option>
+            <option value="inherit">Visible to every rep and manager, like the unassigned IDN (default)</option>
+            <option value="own">Follow their own owner and territory — give managers territories first</option>
           </select>
           <div className="text-[12px] text-muted mt-1">Reps and managers always see the accounts they own, their territory, unassigned accounts and the members of an IDN they own or cover. This decides only what happens while the IDN itself is unassigned.</div>
         </div>

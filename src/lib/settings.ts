@@ -7,7 +7,7 @@ export type Settings = {
   weights: Weights;
   maxCandidates: number;
   companyName: string;
-  /** Children of an account nobody owns: "own" — the child's own owner/territory governs (default); "inherit" — visible to every scoped user, as the parent is. */
+  /** Children of an account nobody owns: "inherit" — visible to every scoped user, as the parent is (default, the behaviour before the setting existed); "own" — the child's own owner/territory governs. */
   scopeUnassignedParent: ScopeUnassignedParent;
 };
 export type ScopeUnassignedParent = "own" | "inherit";
@@ -24,7 +24,7 @@ export async function getSettings(): Promise<Settings> {
     weights,
     maxCandidates: Number(map.maxCandidates ?? 5) || 5,
     companyName: map.companyName ?? process.env.COMPANY_NAME ?? "Medtronic",
-    scopeUnassignedParent: map[SCOPE_UNASSIGNED_PARENT_KEY] === "inherit" ? "inherit" : "own",
+    scopeUnassignedParent: map[SCOPE_UNASSIGNED_PARENT_KEY] === "own" ? "own" : "inherit",
   };
 }
 

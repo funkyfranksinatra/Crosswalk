@@ -1081,7 +1081,7 @@
   "title": "Scope rule: a child account under an **unassigned** parent is visible to every rep even when the child itself has an owner and a territory elsewhere (the seeded MSK account under the unassigned NYC IDN is readable by a rep in \"Mars\")",
   "status": "VERIFIED_FIXED",
   "source": "workstreams/WS4-report.md",
-  "note": "2026-09-25: per-company setting scopeUnassignedParent (Settings → Account visibility), default \"own\" — a child with its own owner/territory follows it while its parent is unassigned; \"inherit\" restores the earlier rule; unit + DB tests"
+  "note": "2026-09-25/26: per-company setting scopeUnassignedParent (Settings → Account visibility); default \"inherit\" (the earlier rule, so an upgrade takes no account out of anyone's view — \"own\" as default broke manager approvals in CI on Sept 26), \"own\" narrows it; unit + DB tests"
  },
  {
   "id": "WS4-F26",

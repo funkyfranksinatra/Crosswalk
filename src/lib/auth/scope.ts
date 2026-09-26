@@ -12,9 +12,11 @@
  * assigned — a fresh intake must not disappear. A child account is visible when its parent is
  * owned or in territory (an IDN's hospitals follow the IDN). Whether an *unassigned* parent also
  * broadens its children is a per-company choice (Settings → Account visibility,
- * `scopeUnassignedParent`): by default it does not — a hospital with its own owner stays with
- * that owner even while its IDN is unassigned — and "inherit" makes such children visible to
- * every scoped user, as the parent is. Requests, proposals, contracts, purchases and outcomes
+ * `scopeUnassignedParent`): by default ("inherit") it does, as it always has — the IDN's members
+ * are visible to every scoped user while the IDN is unassigned; "own" narrows that so a hospital
+ * with its own owner or territory stays with them. The default keeps an upgrade from silently
+ * taking accounts out of anyone's view (a manager with no territory would lose the approvals on
+ * them — CI, Sept 26). Requests, proposals, contracts, purchases and outcomes
  * follow their account; a request with no account yet is visible to its creator.
  *
  * Everything here returns Prisma `where` fragments or throws a 404-style AuthError, so a scoped
@@ -29,7 +31,7 @@ export const SCOPED_ROLES = new Set(["SALES_REP", "REGIONAL_MANAGER"]);
 
 export type Scope = { mode: "all" } | { mode: "scoped"; userId: string; territories: string[]; unassignedParentBroadens?: boolean };
 
-/** Settings key: "own" (default — the child's own owner/territory governs) or "inherit". */
+/** Settings key: "inherit" (default — children of an unassigned parent are visible, as the parent is) or "own" (the child's own owner/territory governs). */
 export const SCOPE_UNASSIGNED_PARENT_KEY = "scopeUnassignedParent";
 
 /**
@@ -44,7 +46,7 @@ export async function scopeFor(actor: Actor): Promise<Scope> {
     prisma.setting.findUnique({ where: { key: SCOPE_UNASSIGNED_PARENT_KEY }, select: { value: true } }),
   ]);
   const territories = (u?.territory ?? "").split(/[,;]/).map((t) => t.trim()).filter(Boolean);
-  return { mode: "scoped", userId: actor.id, territories, unassignedParentBroadens: setting?.value === "inherit" };
+  return { mode: "scoped", userId: actor.id, territories, unassignedParentBroadens: setting?.value !== "own" };
 }
 
 /** Account rows this scope may see (Prisma where fragment; `{}` for "all"). */
@@ -56,9 +58,9 @@ export function accountWhere(scope: Scope): Record<string, unknown> {
   ];
   const unassigned = { ownerUserId: null, territory: null }; // visible until someone owns it
   const own = [...assigned, unassigned];
-  // Children follow an owned / in-territory parent. An unassigned parent broadens its children
-  // only when the company chose "inherit"; otherwise the child's own assignment governs.
-  return { OR: [...own, { parent: { OR: scope.unassignedParentBroadens ? own : assigned } }] };
+  // Children follow an owned / in-territory parent, and an unassigned one unless the company chose
+  // "own" (then the child's own assignment governs). Absent means the default: broadens.
+  return { OR: [...own, { parent: { OR: scope.unassignedParentBroadens === false ? assigned : own } }] };
 }
 
 export function requestWhere(scope: Scope): Record<string, unknown> {

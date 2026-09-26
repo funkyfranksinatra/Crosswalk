@@ -71,7 +71,7 @@ answered from data the platform already holds: **B12LTH** is non-optical because
 catalog marks the optical variants of the line ("ENDOPATH XCEL OPTIVIEW"; sibling-family evidence,
 `gudid:siblings`, BIN_VERSION 9); **Thoracoport** is a trocar because GUDID says so once a sleeve named
 as an attribute — and a sleeve sold with its obturator (TT012) — is read as the complete device. The
-third, **B-08**, is a policy choice, so it is a per-company setting with the narrower default. For the
+third, **B-08**, is a policy choice, so it is a per-company setting (default: the existing behaviour; the narrower rule is opt-in). For the
 14 flagged rows and every row like them at any company, a run now queues the contradicted `KnownCross`
 under **Crosswalk → Evidence conflicts**, where a reviewer settles it with one click (Retire / Replace
 with the evidence's SKU / Keep); runs never wait, KEEP holds only against soft findings, decisions

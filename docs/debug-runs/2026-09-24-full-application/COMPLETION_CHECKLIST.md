@@ -47,7 +47,7 @@ resolved without user input where the data allows, and built into Crosswalk wher
 (the platform serves many companies; nobody at them owns a spreadsheet of corrections). #13 is
 answered by the labeler's own catalog (sibling-family evidence, MATCH_QUALITY_MODEL §3.4); #15 by
 GUDID for Thoracoport plus the in-app **Evidence conflicts** queue for the flagged rows and any like
-them (§5.5); #14 by a per-company Settings switch with the narrower default (DATA_ACCESS_POLICY).
+them (§5.5); #14 by a per-company Settings switch (default keeps the existing behaviour; the narrower rule is opt-in — DATA_ACCESS_POLICY).
 BLOCKERS B-07/B-08/B-09 carry the detail. What remains for a person: settle the queue on a real
 deployment from the Crosswalk page (one click per row), and pick the visibility rule in Settings
 if the default is not wanted. The rows below are kept as the record of the original question.

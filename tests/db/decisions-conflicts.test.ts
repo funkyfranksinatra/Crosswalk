@@ -175,19 +175,20 @@ describe.skipIf(!hasDb)("account visibility: children of an unassigned parent (S
   });
   const visible = async (a: Actor) => (await prisma.account.findMany({ where: { AND: [accountWhere(await scopeFor(a)), { accountNumber: { startsWith: `${RUN}-` } }] }, select: { accountNumber: true } })).map((r) => r.accountNumber!.slice(RUN.length + 1)).sort();
 
-  test("default (own): the unassigned IDN and its unassigned member are visible to everyone; a member with its own owner stays with that owner", async () => {
+  test("default (inherit — the behaviour before the setting existed): every member follows the unassigned IDN", async () => {
     await prisma.setting.deleteMany({ where: { key: SCOPE_UNASSIGNED_PARENT_KEY } });
-    expect((await getSettings()).scopeUnassignedParent).toBe("own");
-    expect(await visible(rep)).toEqual(["freeChild", "idn"]);
+    expect((await getSettings()).scopeUnassignedParent).toBe("inherit");
+    expect(await visible(rep)).toEqual(["freeChild", "idn", "ownedChild"]);
     expect(await visible(other)).toEqual(["freeChild", "idn", "ownedChild"]);
   });
 
-  test("inherit: every member follows the unassigned IDN, as before; the setting is validated", async () => {
-    await saveSettings({ scopeUnassignedParent: "inherit" });
-    expect((await getSettings()).scopeUnassignedParent).toBe("inherit");
-    expect(await visible(rep)).toEqual(["freeChild", "idn", "ownedChild"]);
+  test("own: a member with its own owner stays with that owner while the IDN is unassigned; the setting is validated", async () => {
     await saveSettings({ scopeUnassignedParent: "own" });
+    expect((await getSettings()).scopeUnassignedParent).toBe("own");
     expect(await visible(rep)).toEqual(["freeChild", "idn"]);
+    expect(await visible(other)).toEqual(["freeChild", "idn", "ownedChild"]);
+    await saveSettings({ scopeUnassignedParent: "inherit" });
+    expect(await visible(rep)).toEqual(["freeChild", "idn", "ownedChild"]);
     await expect(saveSettings({ scopeUnassignedParent: "everyone" as never })).rejects.toThrow(/scopeUnassignedParent/);
   });
 });
