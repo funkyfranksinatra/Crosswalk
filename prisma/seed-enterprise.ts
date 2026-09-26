@@ -25,9 +25,15 @@ import { DEFAULT_POLICY } from "../src/lib/pricing/policy-model";
 import { recordObservation } from "../src/lib/intelligence";
 import { audit } from "../src/lib/audit";
 import { normalizeCfn } from "../src/lib/cfn";
+import { defaultCompanyName, defaultLabelers } from "../src/lib/tenancy";
 
 const demo = !process.argv.includes("--no-demo");
-const COMPANY = process.env.COMPANY_NAME ?? "Medtronic";
+const COMPANY = defaultCompanyName();
+
+/** The served company, resolved as the app does (name → oldest row); created with OWN_LABELERS only on an empty database. */
+async function resolveCompany() {
+  return (await prisma.company.findUnique({ where: { name: COMPANY } })) ?? (await prisma.company.findFirst({ orderBy: { createdAt: "asc" } })) ?? (await prisma.company.create({ data: { name: COMPANY, labelers: JSON.stringify(defaultLabelers()) } }));
+}
 const day = (s: string) => new Date(s + "T00:00:00Z");
 const monthsAgo = (n: number) => { const d = new Date(); d.setMonth(d.getMonth() - n); return d; };
 
@@ -52,7 +58,7 @@ async function backfill() {
   }
   console.log(`Users: ${DEV_USERS.length} dev users across ${ROLES.length} roles`);
   // Single tenant: load into the existing company whatever its name (never a second row).
-  const company = (await prisma.company.findUnique({ where: { name: COMPANY } })) ?? (await prisma.company.findFirst({ orderBy: { createdAt: "asc" } })) ?? (await prisma.company.create({ data: { name: COMPANY, labelers: JSON.stringify(["Covidien", "Medtronic", "Sofradim"]) } }));
+  const company = await resolveCompany();
 
   // Legacy COGS → dated StandardCost (global), only where nothing exists.
   const withCogs = await prisma.ownProduct.findMany({ where: { companyId: company.id, cogs: { not: null } }, include: { costs: true } });
@@ -98,7 +104,7 @@ async function backfill() {
 }
 
 async function demoData() {
-  const company = await prisma.company.findUniqueOrThrow({ where: { name: COMPANY } });
+  const company = await resolveCompany();
   const admin = await prisma.user.findUniqueOrThrow({ where: { email: "admin@crosswalk.dev" } });
   const rep = await prisma.user.findUniqueOrThrow({ where: { email: "alex.rep@crosswalk.dev" } });
   const premier = await prisma.gpo.upsert({ where: { name: "Premier" }, create: { name: "Premier", code: "PREM" }, update: {} });
@@ -119,7 +125,9 @@ async function demoData() {
   await prisma.opportunity.upsert({ where: { externalCrmId: "006DEV0000MSK01" }, create: { accountId: msk.id, name: "MSK — Hernia & Endomechanical conversion FY27", stage: "Proposal", ownerUserId: rep.id, closeDate: day("2026-12-15"), amount: "450000", currency: "USD", externalCrmId: "006DEV0000MSK01" }, update: {} });
 
   // Products we price in the demo
-  const skus = ["PPM1106X3", "PPM1510X3", "PPM4530", "PPDS12", "PPDS15", "PPDS1510", "PPDS2015", "PCO9X", "PCO2015X", "PCO2520X", "ABSTACK30X", "174006", "SIG60AMT", "SIG45AMT", "EGIA60AMT", "ONB12STF", "ONB5STF"];
+  // NONB12STF (VersaOne bladeless, non-optical 12 × 100) is the evidence-based cross for the Ethicon B12LTH line the
+  // e2e fixture prices (CW-DBG-0002); its demo list/cost mirror ONB12STF's — fixtures, not company figures.
+  const skus = ["PPM1106X3", "PPM1510X3", "PPM4530", "PPDS12", "PPDS15", "PPDS1510", "PPDS2015", "PCO9X", "PCO2015X", "PCO2520X", "ABSTACK30X", "174006", "SIG60AMT", "SIG45AMT", "EGIA60AMT", "ONB12STF", "ONB5STF", "NONB12STF"];
   // Every SKU the demo prices is ensured to exist: the curated sheets carry most of them, but the demo
   // must stand on its own where they are absent (CI, a fresh clone, a customer deployment before its
   // catalog is loaded). Descriptions here are only a fallback — `create` never overwrites a real row.
@@ -130,12 +138,13 @@ async function demoData() {
     "174006": ["ProTack — Fixation Device", "Fixation"], ABSTACK30X: ["AbsorbaTack™ Fixation Device, 5 mm, single use, 30 tacks", "Fixation"],
     SIG60AMT: ["Signia™ 60 mm Articulating Medium/Thick Reload with Tri-Staple™ Technology", "Surgical Stapling Products"], SIG45AMT: ["Signia™ 45 mm Articulating Medium/Thick Reload with Tri-Staple™ Technology", "Surgical Stapling Products"], EGIA60AMT: ["Endo GIA™ 60 mm Articulating Medium/Thick SULU with Tri-Staple Technology", "Surgical Stapling Products"],
     ONB12STF: ["VersaOne™ Optical Trocar with Fixation Cannula; 12 mm x 100 mm", "Trocar Products"], ONB5STF: ["VersaOne™ Optical Trocar with Fixation Cannula; 5 mm x 100 mm", "Trocar Products"],
+    NONB12STF: ["VersaOne™ Bladeless Trocar with Fixation Cannula; Size: 12 mm; Length: 100 mm", "Trocar Products"],
   };
   for (const [sku, [description, category]] of Object.entries(ensure)) await prisma.ownProduct.upsert({ where: { companyId_sku: { companyId: company.id, sku } }, create: { companyId: company.id, sku, description, category }, update: {} });
   const products = await prisma.ownProduct.findMany({ where: { companyId: company.id, sku: { in: skus } }, include: { costs: true } });
   const bySku = new Map(products.map((p) => [p.sku, p]));
   // Standard costs by plant (Juarez) with a global fallback; list prices where the legacy report had none.
-  const listAndCost: Record<string, [string, string]> = { PPM1106X3: ["63.61", "18.40"], PPM1510X3: ["99.74", "27.90"], PPM4530: ["590.36", "162.00"], PPDS12: ["512.00", "155.00"], PPDS15: ["640.00", "190.00"], PPDS1510: ["699.58", "205.00"], PPDS2015: ["1122.25", "318.00"], PCO9X: ["486.00", "148.00"], PCO2015X: ["812.00", "241.00"], PCO2520X: ["1015.00", "296.00"], ABSTACK30X: ["794.21", "212.00"], "174006": ["655.00", "171.00"], SIG60AMT: ["1240.00", "388.00"], SIG45AMT: ["1180.00", "366.00"], EGIA60AMT: ["1195.00", "372.00"], ONB12STF: ["112.00", "31.00"], ONB5STF: ["98.00", "27.00"] };
+  const listAndCost: Record<string, [string, string]> = { PPM1106X3: ["63.61", "18.40"], PPM1510X3: ["99.74", "27.90"], PPM4530: ["590.36", "162.00"], PPDS12: ["512.00", "155.00"], PPDS15: ["640.00", "190.00"], PPDS1510: ["699.58", "205.00"], PPDS2015: ["1122.25", "318.00"], PCO9X: ["486.00", "148.00"], PCO2015X: ["812.00", "241.00"], PCO2520X: ["1015.00", "296.00"], ABSTACK30X: ["794.21", "212.00"], "174006": ["655.00", "171.00"], SIG60AMT: ["1240.00", "388.00"], SIG45AMT: ["1180.00", "366.00"], EGIA60AMT: ["1195.00", "372.00"], ONB12STF: ["112.00", "31.00"], ONB5STF: ["98.00", "27.00"], NONB12STF: ["112.00", "31.00"] /* demo values mirroring ONB12STF */ };
   for (const [sku, [list, cost]] of Object.entries(listAndCost)) {
     const p = bySku.get(sku);
     if (!p) continue;

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getCompany } from "@/lib/settings";
-import { llmConfig } from "@/lib/llm/client";
+import { llmConfig } from "@/lib/ai/gateway";
 import { PageHeader, Card, Stat, StatusPill, relTime, Empty, Chip } from "@/components/ui";
 import { summarizeLines } from "@/lib/requests";
 import { getActor } from "@/lib/auth";
@@ -10,9 +10,10 @@ import { scopeFor, requestWhere } from "@/lib/auth/scope";
 export default async function Overview() {
   const company = await getCompany();
   const actor = await getActor();
+  const canRun = Boolean(actor?.permissions.has("run_cross_reference"));
   const reqScope = actor ? requestWhere(await scopeFor(actor)) : {};
   const [requests, products, priced, binned, crosses, competitors, unresolved] = await Promise.all([
-    prisma.request.findMany({ where: { AND: [reqScope, { NOT: { reference: { startsWith: "BENCH-" } } }] }, orderBy: { createdAt: "desc" }, take: 8, include: { lines: { select: { quantity: true, estCompetitorPrice: true, resolutionStatus: true, matchStatus: true, reviewed: true, selectedCandidateId: true, candidates: { where: { isSelected: true }, select: { id: true, matchType: true, unitPrice: true } } } } } }),
+    canRun ? prisma.request.findMany({ where: { AND: [reqScope, { NOT: { reference: { startsWith: "BENCH-" } } }] }, orderBy: { createdAt: "desc" }, take: 8, include: { lines: { select: { quantity: true, estCompetitorPrice: true, resolutionStatus: true, matchStatus: true, reviewed: true, selectedCandidateId: true, candidates: { where: { isSelected: true }, select: { id: true, matchType: true, unitPrice: true } } } } } }) : Promise.resolve([]),
     prisma.ownProduct.count({ where: { companyId: company.id, isActive: true } }),
     prisma.ownProduct.count({ where: { companyId: company.id, OR: [{ listPrice: { not: null } }, { prices: { some: {} } }] } }),
     prisma.ownProduct.count({ where: { companyId: company.id, gudidSyncedAt: { not: null }, gudidDi: { not: null } } }),
@@ -34,19 +35,21 @@ export default async function Overview() {
         eyebrow={company.name}
         title="Competitive cross reference"
         description="Upload what a prospect buys from a competitor. Crosswalk resolves every code against FDA GUDID, bins the attributes, and ranks your best-fit and next-best products with prices ready for a bid."
-        actions={<Link href="/requests/new" className="btn-primary">New request</Link>}
+        actions={actor?.permissions.has("run_cross_reference") ? <Link href="/requests/new" className="btn-primary">New request</Link> : undefined}
       />
 
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <Stat label="Requests" value={await prisma.request.count({ where: reqScope })} hint={actor && actor.roles.every((r) => r === "SALES_REP" || r === "REGIONAL_MANAGER") ? "in your book" : "all time"} />
         <Stat label="Competitor products resolved" value={competitors} hint={unresolved ? `${unresolved} still unresolved` : "cached across requests"} tone="accent" />
         <Stat label="Our SKUs" value={products} hint={`${priced} priced`} />
         <Stat label="Known crosses" value={crosses} hint="from curated sheets" />
       </div>
 
-      <div className="grid grid-cols-[1.6fr_1fr] gap-4">
-        <Card title="Recent requests" padded={false} actions={<Link href="/requests" className="text-[12.5px] text-accent font-medium">All requests →</Link>}>
-          {requests.length === 0 ? (
+      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4 [&>*]:min-w-0">
+        <Card title="Recent requests" padded={false} actions={canRun ? <Link href="/requests" className="text-[12.5px] text-accent font-medium">All requests →</Link> : undefined}>
+          {!canRun ? (
+            <Empty title="Requests are shown to roles that run cross-references">Your role reviews the crosswalk and the catalog; the request list needs the run cross reference permission.</Empty>
+          ) : requests.length === 0 ? (
             <Empty title="No requests yet">Start with the sample intake in <span className="kbd">data/reference</span> or upload a rep's spreadsheet.</Empty>
           ) : (
             <table className="table">

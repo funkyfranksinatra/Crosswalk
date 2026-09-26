@@ -1,0 +1,26 @@
+     × only the exact webhook path and method are open; the /api/webhooks prefix is not 15ms
+     × KN-01: an unauthenticated POST to the webhook reaches the handler; neighbours are 401 8ms
+     × KN-01: a declared body over 256 KB is refused at the gate with 413 2ms
+     × a dev or session cookie is a session; x-sso-subject alone is not outside proxy mode, and both SSO headers are stripped 5ms
+     × proxy mode: the subject header counts only with the proxy-secret header alongside; the handler does the constant-time check 1ms
+     × x-crosswalk-path, x-crosswalk-route and x-nonce from the client are overwritten / dropped 2ms
+     × the gate refuses a cross-site POST that carries the cookie, and never touches GET, open routes or cookie-less calls 3ms
+     × every /api response carries x-ratelimit-* and the hardening set; pages get a nonce CSP 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/ws4-proxy.test.ts > WS4 proxy gate — open list > only the exact webhook path and method are open; the /api/webhooks prefix is not
+AssertionError: expected false to be true // Object.is equality
+ FAIL  tests/unit/ws4-proxy.test.ts > WS4 proxy gate — open list > KN-01: an unauthenticated POST to the webhook reaches the handler; neighbours are 401
+AssertionError: expected 401 to be 200 // Object.is equality
+ FAIL  tests/unit/ws4-proxy.test.ts > WS4 proxy gate — open list > KN-01: a declared body over 256 KB is refused at the gate with 413
+AssertionError: expected 401 to be 413 // Object.is equality
+ FAIL  tests/unit/ws4-proxy.test.ts > WS4 proxy gate — sessions and SSO headers > a dev or session cookie is a session; x-sso-subject alone is not outside proxy mode, and both SSO headers are stripped
+AssertionError: expected 200 to be 401 // Object.is equality
+ FAIL  tests/unit/ws4-proxy.test.ts > WS4 proxy gate — sessions and SSO headers > proxy mode: the subject header counts only with the proxy-secret header alongside; the handler does the constant-time check
+AssertionError: expected false to be true // Object.is equality
+ FAIL  tests/unit/ws4-proxy.test.ts > WS4 proxy gate — forwarded headers cannot be spoofed > x-crosswalk-path, x-crosswalk-route and x-nonce from the client are overwritten / dropped
+AssertionError: expected 'attacker' to be undefined
+ FAIL  tests/unit/ws4-proxy.test.ts > WS4 proxy gate — CSRF posture for cookie-authenticated mutations > the gate refuses a cross-site POST that carries the cookie, and never touches GET, open routes or cookie-less calls
+AssertionError: expected 200 to be 403 // Object.is equality
+ FAIL  tests/unit/ws4-proxy.test.ts > WS4 proxy gate — rate limiting and hardening headers > every /api response carries x-ratelimit-* and the hardening set; pages get a nonce CSP
+AssertionError: expected null to be '600' // Object.is equality
+      Tests  8 failed | 4 passed (12)

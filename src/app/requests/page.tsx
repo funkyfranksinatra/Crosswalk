@@ -18,6 +18,7 @@ export default async function RequestsPage() {
           <Empty title="No requests yet" />
         ) : (
           <table className="table">
+            <caption className="sr-only">Cross-reference requests</caption>
             <thead><tr><th>Request</th><th>Account</th><th>Pricebook</th><th>Lines</th><th>Resolved</th><th>Matched</th><th>Our value</th><th>Status</th><th>Created</th></tr></thead>
             <tbody>
               {requests.map((r) => {

@@ -1,0 +1,48 @@
+PASS preview: 5 distinct codes — 5 codes
+PASS preview: 1 duplicate row merged — 1 duplicate rows merged
+PASS preview: summary/junk rows skipped — 1 rows skipped
+PASS preview: IN-12-4 kept as a code
+PASS preview: merged quantity 15 for 1190500
+PASS wizard: pricebook options listed — ["List price only","HOSPITAL LIST PRICE (7 priced)","SAP-MOCK list · US-LIST (0 priced)","VIZIENT HERNIA MECH TIER 1 (1 priced)"]
+PASS submit: only one POST /api/requests on a double click — {"posts":1}
+PASS submit: exactly one request created on a double click — {"before":6,"after":7,"id":"cmufeje3o002hk57d491oejr5"}
+PASS run: reached complete — complete after 2 s
+PASS run: 5 lines persisted — ["1190500:resolved","B12LTH:resolved","TLC75:resolved","C0121:resolved","IN-12-4:resolved"]
+PASS run: 1190500 quantity merged to 15
+PASS run: progress polling stopped (status not running)
+PASS filter: All selectable — 5 rows
+PASS filter: Needs attention selectable — 2 rows
+PASS filter: Flagged selectable — 0 rows
+PASS filter: Exact selectable — 2 rows
+PASS filter: Close selectable — 2 rows
+PASS filter: Alternative selectable — 1 rows
+PASS filter: Already ours selectable — 0 rows
+PASS bulk: review_exact marks the exact lines reviewed — {"exact":2,"reviewed":2}
+PASS bulk: review_matched marks every matched line — {"matched":5,"reviewed":5}
+PASS bulk: unreview_all clears reviewed
+PASS bulk: flag_verify sets flags — {"flagged":3}
+PASS bulk: clear_flags clears every flag
+PASS bulk: select_top re-selects a candidate
+PASS line with candidates exists
+PASS select candidate: radio reflects the click at once (optimistic)
+PASS select candidate persisted — {"want":"PCO2520X"}
+PASS rep note persisted — ws3 rep note
+PASS customer note persisted — ws3 customer note
+PASS est. competitor price persisted — 123.45
+PASS flag persisted — verify
+PASS reviewed persisted
+PASS side-by-side: attribute rows rendered — 18 rows
+PASS side-by-side: focus moved into the dialog
+PASS side-by-side: Escape closes
+PASS side-by-side: focus restored to the opener — Side-by-side
+PASS download: xref xlsx — {"status":200,"type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","disposition":"attachment; filename=\"Crosswalk_XrefReport_REQ-0007_20260924_1041.xlsx\"","bytes":14793}
+PASS download: xref csv — {"status":200,"type":"text/csv; charset=utf-8","disposition":"attachment; filename=\"Crosswalk_XrefReport_REQ-0007_20260924_1041.csv\"","bytes":4048}
+PASS download: offer xlsx — {"status":200,"type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","disposition":"attachment; filename=\"Medtronic_Proposal_WS3_Journey_Hospital_20260924_1041.xlsx\"","bytes":800
+PASS download: offer csv — {"status":200,"type":"text/csv; charset=utf-8","disposition":"attachment; filename=\"Medtronic_Proposal_WS3_Journey_Hospital_20260924_1041.csv\"","bytes":1148}
+PASS download: offer pdf — {"status":200,"type":"application/pdf","disposition":"attachment; filename=\"Medtronic_Contract_Offer_WS3_Journey_Hospital_20260924_1041.pdf\"","bytes":4301}
+PASS download menu: five entries
+PASS download menu: Escape closes
+PASS proposal created from the request — {"pid":"cmufejry60041k57dwr6rvl6x","lines":5,"status":"DRAFT"}
+PASS no page errors during the journey — []
+PASS no CSP violations during the journey — []
+47 checks, 0 failures

@@ -162,13 +162,23 @@ export function recommend(input: RecommendInput): Recommendation {
   if (price !== null && input.bundleBenefitPct) { price = price.times(new Decimal(1).plus(input.bundleBenefitPct)); notes.push(`bundle term adjusts by ${(input.bundleBenefitPct * 100).toFixed(1)}%`); }
 
   // Never below floor by recommendation; never above what they pay today (or list) unless holding premium deliberately.
-  let clamped = false;
+  // `notesPublic` is the same story without the floor figure (a floor is derived from cost).
+  const notesPublic = [...notes];
   if (price !== null) {
     const hi = strategy === "HOLD_PREMIUM" ? input.listPrice : reference ?? input.listPrice;
+    const hiLabel = hi === input.listPrice ? "list" : "the current price";
     const before = price;
     price = clamp(price, floor, hi);
-    clamped = !price.eq(before);
-    if (clamped) notes.push(floor && before.lt(floor) ? `raised to the floor ${fmt(floor)}` : `capped at ${hi === input.listPrice ? "list" : "the current price"} ${fmt(hi)}`);
+    if (floor && hi && floor.gt(hi)) {
+      // Inconsistent inputs (cost-based floor above what the customer pays today, or above list): no
+      // price satisfies both. The ceiling wins — a recommendation never exceeds the current price — and
+      // the line is flagged below floor, which routes it to the committee.
+      notes.push(`floor ${fmt(floor)} is above ${hiLabel} ${fmt(hi)}; capped at ${hiLabel} and flagged below floor`);
+      notesPublic.push(`capped at ${hiLabel} ${fmt(hi)}; below the pricing floor`);
+    } else if (!price.eq(before)) {
+      if (floor && before.lt(floor)) { notes.push(`raised to the floor ${fmt(floor)}`); notesPublic.push("raised to the pricing floor"); }
+      else { const n = `capped at ${hiLabel} ${fmt(hi)}`; notes.push(n); notesPublic.push(n); }
+    }
     price = round(price, input.currency);
   }
 
@@ -186,8 +196,8 @@ export function recommend(input: RecommendInput): Recommendation {
       (floor ? `, ${price.gte(floor) ? `${fmt(price.minus(floor))} above` : `${fmt(floor.minus(price))} BELOW`} the ${p.productFamily === "*" ? "default" : p.productFamily} floor ${fmt(floor)}` : "") +
       discountText + authorityText;
   const explanationPublic = price === null
-    ? `No recommendation: ${notes.join("; ")}.`
-    : `Recommend ${fmt(price)}: ${notes.join("; ")}${floor && price.lt(floor) ? ". Below the pricing floor" : ""}${discountText.replace(/^, /, ". ")}` + authorityText;
+    ? `No recommendation: ${notesPublic.join("; ")}.`
+    : `Recommend ${fmt(price)}: ${notesPublic.join("; ")}${floor && price.lt(floor) && !notesPublic.some((n) => n.includes("below the pricing floor")) ? ". Below the pricing floor" : ""}${discountText.replace(/^, /, ". ")}` + authorityText;
 
   const confidence = price === null ? 0 : Math.min(1, 0.35 + (input.cost ? 0.2 : 0) + (compUsable ? 0.25 * input.competitorConfidence + 0.1 : 0) + (input.contractPrice ? 0.1 : 0));
 

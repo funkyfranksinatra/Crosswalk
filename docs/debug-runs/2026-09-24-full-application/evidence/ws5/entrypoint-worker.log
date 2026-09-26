@@ -1,0 +1,6 @@
+[entrypoint] job worker
+{"ts":"2026-09-24T09:36:03.578Z","level":"info","event":"tenancy.single","company":"Medtronic"}
+{"ts":"2026-09-24T09:36:03.754Z","level":"info","event":"jobs.started","requestId":"boss","schema":"pgboss"}
+{"ts":"2026-09-24T09:36:04.266Z","level":"info","event":"jobs.workers_started","queues":["request.run","gudid.import","gudid.refresh","integration.sync","feed.ingest","notify.deliver","alerts.evaluate","embed.refresh","analytics.refresh","bids.ingest","retention.sweep"],"mode":"inline"}
+{"ts":"2026-09-24T09:36:04.266Z","level":"info","event":"worker.ready","pid":22561}
+{"ts":"2026-09-24T09:36:28.796Z","level":"info","event":"worker.stopping","signal":"SIGTERM"}

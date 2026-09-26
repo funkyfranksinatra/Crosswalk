@@ -1,0 +1,38 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+ ❯ tests/db/tier3.test.ts (17 tests | 1 failed) 5632ms
+   ❯ Tier 3 (17)
+     ❯ 3.5 embedding retrieval (3)
+       × refreshEmbeddings writes vectors once, nearest neighbours rank the product's own text first 816ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/db/tier3.test.ts > Tier 3 > 3.5 embedding retrieval > refreshEmbeddings writes vectors once, nearest neighbours rank the product's own text first
+AssertionError: expected 60 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 60
+
+ ❯ tests/db/tier3.test.ts:122:32
+    120|         expect(first.scanned).toBeGreaterThan(0); expect(first.embedde…
+    121|         const again = await refreshEmbeddings("OwnProduct", { limit: 6…
+    122|         expect(again.embedded).toBe(0); // unchanged text is not re-em…
+       |                                ^
+    123|         expect(again.scanned).toBe(0); // …and nothing is pending any …
+    124|         // A row edited since it was embedded (Prisma bumps updatedAt)…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 12 passed (13)
+      Tests  1 failed | 298 passed (299)
+   Start at  06:56:52
+   Duration  33.15s (tests 70%, setup 12%, import 11%, transform 7%)
+
+    Isolate  13 workers spawned · ~186ms startup each (spawn + environment, per file)
+             at least ~2.23s faster with isolate: false — reuses workers across files instead of one per file
+

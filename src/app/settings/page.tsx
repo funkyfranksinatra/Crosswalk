@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
-import { llmConfig } from "@/lib/llm/client";
+import { llmConfig } from "@/lib/ai/gateway";
 import { PageHeader, Card, Chip } from "@/components/ui";
 import { SettingsForm } from "./form";
 import { GoogleCard } from "./google";
@@ -14,22 +14,25 @@ export default async function SettingsPage() {
   const actor = await getActor();
   const s = await getSettings();
   const llm = llmConfig();
-  const calls = await prisma.llmCall.groupBy({ by: ["purpose", "ok"], _count: { _all: true }, _avg: { durationMs: true, inputTokens: true, outputTokens: true } });
-  const recent = await prisma.llmCall.findMany({ orderBy: { createdAt: "desc" }, take: 8 });
+  // Model call statistics and the last provider error are operational detail for the people who
+  // configure the system; everyone else sees the model status line only.
+  const ops = can(actor, "configure_settings");
+  const calls = ops ? await prisma.llmCall.groupBy({ by: ["purpose", "ok"], _count: { _all: true }, _avg: { durationMs: true, inputTokens: true, outputTokens: true } }) : [];
+  const recent = ops ? await prisma.llmCall.findMany({ orderBy: { createdAt: "desc" }, take: 8 }) : [];
   return (
     <>
       <PageHeader eyebrow="Configuration" title="Settings" description="Ranking weights and model status. Secrets live in .env, never in the database." />
-      <div className="grid grid-cols-[1fr_1fr] gap-4 items-start">
-        <SettingsForm weights={s.weights} maxCandidates={s.maxCandidates} companyName={s.companyName} />
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4 items-start [&>*]:min-w-0">
+        <SettingsForm weights={s.weights} maxCandidates={s.maxCandidates} companyName={s.companyName} scopeUnassignedParent={s.scopeUnassignedParent} canEdit={can(actor, "configure_settings")} />
         <div className="space-y-4">
           <Card title="Model" subtitle="OpenAI-compatible Responses API with structured outputs">
             <dl className="grid grid-cols-[120px_1fr] gap-y-2 text-[13px]">
-              <dt className="text-muted">Status</dt><dd>{!llm.available ? <Chip tone="alt">Heuristic mode</Chip> : recent.length && !recent.some((r) => r.ok) ? <Chip tone="none">Key set, but calls are failing</Chip> : recent.some((r) => r.ok) ? <Chip tone="exact">Working</Chip> : <Chip tone="info">Key set · untested</Chip>}</dd>
+              <dt className="text-muted">Status</dt><dd>{!llm.available ? <Chip tone="alt">Heuristic mode</Chip> : !ops ? <Chip tone="info">Model key set</Chip> : recent.length && !recent.some((r) => r.ok) ? <Chip tone="none">Key set, but calls are failing</Chip> : recent.some((r) => r.ok) ? <Chip tone="exact">Working</Chip> : <Chip tone="info">Key set · untested</Chip>}</dd>
               <dt className="text-muted">Model ID</dt><dd className="mono">{llm.model} <span className="text-muted">(LLM_MODEL)</span></dd>
-              <dt className="text-muted">Endpoint</dt><dd className="mono">{llm.baseURL ?? "https://api.openai.com/v1"}</dd>
+              {ops && <><dt className="text-muted">Endpoint</dt><dd className="mono">{llm.baseURL ?? "https://api.openai.com/v1"}</dd></>}
               <dt className="text-muted">Used for</dt><dd>attribute binning · candidate grading · hints for codes GUDID can&apos;t find</dd>
             </dl>
-            {!llm.available && (
+            {!llm.available && ops && (
               <div className="mt-4 rounded-lg bg-panel-2 border border-line p-3 text-[12.5px] text-ink-2">
                 Add to <span className="kbd">.env</span> and restart:
                 <pre className="mono mt-2 text-[12px]">OPENAI_API_KEY=sk-…{"\n"}LLM_MODEL=gpt-5.6-astra{"\n"}# OPENAI_BASE_URL=https://…/v1  (optional gateway)</pre>

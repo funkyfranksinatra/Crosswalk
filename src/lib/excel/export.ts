@@ -9,6 +9,7 @@
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/db";
 import { num, times, round, ZERO } from "@/lib/money";
+import { getBranding } from "@/lib/branding";
 
 const INK = "FF16181D";
 const TEAL = "FF0E6B6B";
@@ -43,6 +44,15 @@ function border(row: ExcelJS.Row, count: number) {
 
 export type Hide = { cost?: boolean; margin?: boolean };
 
+/** The prose a rep sees must not carry the figures the columns hide (same rule as redactSensitiveText). */
+function hideText(text: string | null | undefined, hide: Hide): string {
+  let out = text ?? "";
+  if (!out) return out;
+  if (hide.cost) out = out.replace(/below floor\s*\([^)]*\)/gi, "below floor").replace(/\$?[\d,]+(?:\.\d+)? (above|below) the [^.,;]*floor \$?[\d,]+(?:\.\d+)?/gi, "$1 the floor");
+  if (hide.margin) out = out.replace(/\b(gross\s+)?margin\s*(?:of\s*)?-?[\d.,]+\s*%/gi, "$1margin").replace(/-?[\d.,]+\s*%\s*(gross\s+)?margin\b/gi, "$1margin").replace(/\bmargin\s+unknown\s*\([^)]*\)/gi, "margin unknown");
+  return out.replace(/\s{2,}/g, " ").replace(/,\s*,/g, ",").trim();
+}
+
 export async function buildCrossReferenceWorkbook(requestId: string, hide: Hide = {}): Promise<{ buffer: Buffer; filename: string }> {
   const r = await loadRequest(requestId);
   const us = r.company.name;
@@ -61,7 +71,7 @@ export async function buildCrossReferenceWorkbook(requestId: string, hide: Hide 
   ws.getCell(2, 1).font = { color: { argb: MUTED } };
   styleHeader(ws.addRow(headers));
 
-  const x = xrefRows(r);
+  const x = xrefRows(r, hide);
   for (const { cells, matchType } of x.rows) {
     const row = ws.addRow(cells);
     row.getCell(15).fill = { type: "pattern", pattern: "solid", fgColor: { argb: MATCH_FILL[matchType] ?? "FFFFFFFF" } };
@@ -85,7 +95,7 @@ export async function buildCrossReferenceWorkbook(requestId: string, hide: Hide 
       const row = wc.addRow([
         line.rawCode, line.competitorProduct?.description ?? "", c.rank, c.ownProduct.sku, c.ownProduct.description, c.matchType, c.source,
         c.score, c.scoreBin, c.scorePrice, hide.cost ? null : c.scoreCogs, hide.margin ? null : c.scoreMargin, num(c.unitPrice), cents(times(c.unitPrice, line.quantity)),
-        line.selectedCandidateId === c.id ? "Yes" : "", c.rationale ?? "",
+        line.selectedCandidateId === c.id ? "Yes" : "", hideText(c.rationale, hide),
       ]);
       for (const k of [8, 9, 10, 11, 12]) row.getCell(k).numFmt = "0%";
       row.getCell(13).numFmt = money;
@@ -123,6 +133,7 @@ export async function buildCrossReferenceWorkbook(requestId: string, hide: Hide 
 export async function buildContractOfferWorkbook(requestId: string): Promise<{ buffer: Buffer; filename: string }> {
   const r = await loadRequest(requestId);
   const us = r.company.name;
+  const branding = await getBranding();
   const wb = new ExcelJS.Workbook();
   wb.creator = us;
   const ws = wb.addWorksheet("Proposal", { views: [{ showGridLines: false }] });
@@ -135,7 +146,7 @@ export async function buildContractOfferWorkbook(requestId: string): Promise<{ b
   ws.getCell("B3").value = `Prepared for ${r.accountName ?? "Customer"}${r.accountNumber ? ` (Account ${r.accountNumber})` : ""}`;
   ws.getCell("B3").font = { size: 12 };
   ws.mergeCells("B4:H4");
-  ws.getCell("B4").value = `Reference ${r.reference} · Prepared ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })} · Pricing basis: ${r.pricebook?.name ?? "List price"} · Valid 90 days`;
+  ws.getCell("B4").value = `Reference ${r.reference} · Prepared ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })} · Pricing basis: ${r.pricebook?.name ?? "List price"} · ${validityLine(branding.validityDays)}`;
   ws.getCell("B4").font = { color: { argb: MUTED } };
 
   const headerRow = ws.getRow(6);
@@ -204,7 +215,7 @@ function curatedLabel(factorsJson: string | null): string {
 /** Money cell from a decimal product, rounded to cents with banker's rounding (never float×100). */
 const cents = (v: import("decimal.js").default | null | undefined): number | null => (v == null ? null : num(round(v)));
 
-function xrefRows(r: Loaded): { rows: { cells: CellValue[]; matchType: string }[]; total: CellValue[] } {
+function xrefRows(r: Loaded, hide: Hide = {}): { rows: { cells: CellValue[]; matchType: string }[]; total: CellValue[] } {
   let compTotal = ZERO;
   let ourTotal = ZERO;
   const rows: { cells: CellValue[]; matchType: string }[] = [];
@@ -238,7 +249,7 @@ function xrefRows(r: Loaded): { rows: { cells: CellValue[]; matchType: string }[
         matchType,
         sel ? Math.round((sel.confidence ?? sel.score) * 100) / 100 : null,
         sel?.source ?? "",
-        sel?.rationale ?? line.resolutionNote ?? "",
+        hideText(sel?.rationale ?? line.resolutionNote, hide),
         others[0]?.ownProduct.sku ?? "",
         others[0]?.ownProduct.description ?? "",
         others[0]?.matchType ?? "",
@@ -259,14 +270,18 @@ function xrefRows(r: Loaded): { rows: { cells: CellValue[]; matchType: string }[
 function offerRows(r: Loaded): { rows: CellValue[][]; total: number; notes: string[] } {
   let total = ZERO;
   const rows: CellValue[][] = [];
+  const printed = new Set<string>();
   for (const line of r.lines) {
     const sel = line.candidates.find((c) => c.id === line.selectedCandidateId) ?? line.candidates.find((c) => c.isSelected);
-    if (!sel || sel.matchType === "No Match") continue;
+    // The same predicate as the offer PDF (src/lib/pdf/index.ts): a matched line WITH a price is on the
+    // offer; an unpriced match is listed with the unmatched lines for follow-up, never printed blank.
+    if (!sel || sel.matchType === "No Match" || sel.unitPrice == null) continue;
+    printed.add(line.id);
     const ext = cents(times(sel.unitPrice, line.quantity));
     total = total.plus(ext ?? 0);
     rows.push([line.rawCode, line.competitorProduct?.description ?? "", sel.ownProduct.sku, sel.ownProduct.description + (sel.additionalProducts ? ` (requires ${sel.additionalProducts})` : ""), line.quantity, num(sel.unitPrice), ext]);
   }
-  const unmatched = r.lines.filter((l) => !l.candidates.some((c) => c.id === l.selectedCandidateId && c.matchType !== "No Match"));
+  const unmatched = r.lines.filter((l) => !printed.has(l.id));
   const notes = [
     "Equivalents are proposed on the basis of intended use, size and construction; clinical evaluation by your staff is recommended before conversion.",
     unmatched.length ? `${unmatched.length} item(s) on your usage list were not included in this proposal (${unmatched.slice(0, 8).map((l) => l.rawCode).join(", ")}${unmatched.length > 8 ? ", …" : ""}). Your representative will follow up on these.` : "All items on your usage list are covered by this proposal.",
@@ -276,10 +291,10 @@ function offerRows(r: Loaded): { rows: CellValue[][]; total: number; notes: stri
 }
 
 /** CSV-friendly rows for the rep workbook (main sheet only). */
-export async function buildCrossReferenceRows(requestId: string, _hide: Hide = {}): Promise<{ rows: CellValue[][]; filename: string }> {
-  // The main sheet carries no cost or margin columns; `_hide` is accepted for symmetry with the workbook.
+export async function buildCrossReferenceRows(requestId: string, hide: Hide = {}): Promise<{ rows: CellValue[][]; filename: string }> {
+  // The main sheet carries no cost or margin columns, but its rationale prose follows the same hide rule.
   const r = await loadRequest(requestId);
-  const x = xrefRows(r);
+  const x = xrefRows(r, hide);
   return { rows: [xrefHeaders(r.company.name), ...x.rows.map((row) => row.cells), x.total], filename: `Crosswalk_XrefReport_${r.reference}_${stamp()}.xlsx` };
 }
 
@@ -287,11 +302,12 @@ export async function buildCrossReferenceRows(requestId: string, _hide: Hide = {
 export async function buildContractOfferRows(requestId: string): Promise<{ rows: CellValue[][]; filename: string }> {
   const r = await loadRequest(requestId);
   const us = r.company.name;
+  const branding = await getBranding();
   const o = offerRows(r);
   const rows: CellValue[][] = [
     [`${us} — Product Conversion Proposal`],
     [`Prepared for ${r.accountName ?? "Customer"}${r.accountNumber ? ` (Account ${r.accountNumber})` : ""}`],
-    [`Reference ${r.reference} · Prepared ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })} · Pricing basis: ${r.pricebook?.name ?? "List price"} · Valid 90 days`],
+    [`Reference ${r.reference} · Prepared ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })} · Pricing basis: ${r.pricebook?.name ?? "List price"} · ${validityLine(branding.validityDays)}`],
     [],
     ["Current Product", "Current Product Description", `${us} Equivalent`, `${us} Product Description`, "Annual Qty", "Unit Price", "Extended"],
     ...o.rows,
@@ -301,6 +317,15 @@ export async function buildContractOfferRows(requestId: string): Promise<{ rows:
     ...o.notes.map((n) => [n]),
   ];
   return { rows, filename: `${us}_Proposal_${(r.accountName ?? r.reference).replace(/[^A-Za-z0-9]+/g, "_")}_${stamp()}.xlsx` };
+}
+
+/**
+ * One validity contract for every customer artefact: Settings → Branding `validityDays` (default 60).
+ * The offer PDF prints "Valid through <date>" from the same number; a proposal's `validThrough`
+ * defaults to it at creation (src/lib/proposals/service.ts).
+ */
+export function validityLine(days: number): string {
+  return `Valid ${days} days (through ${new Date(Date.now() + days * 86_400_000).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })})`;
 }
 
 function stamp() {

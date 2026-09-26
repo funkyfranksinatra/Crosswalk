@@ -109,7 +109,9 @@ cache. Bumping `GRADE_PROMPT_VERSION` invalidates all cached verdicts.
 ## Observability
 
 Every model call is logged to `LlmCall` (purpose, model, tokens, ms, error)
-and summarised in Settings. Every request keeps a run log. `scripts/eval.ts`
+and summarised in Settings. The record is written by the application gateway
+(`src/lib/ai/gateway.ts`), never by the model layer, which has no database access
+at all — see `AI_BOUNDARY.md`. Every request keeps a run log. `scripts/eval.ts`
 reports resolution rate and top-1/top-3 hit rate against the curated crosses.
 
 ## Roadmap candidates

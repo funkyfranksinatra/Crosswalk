@@ -9,6 +9,7 @@
  * Fixtures are synthetic (reference ADV-*) and removed before each run.
  */
 import "dotenv/config";
+import { releaseResources } from "./lib/harness";
 import assert from "node:assert/strict";
 import { prisma } from "../src/lib/db";
 import { permissionsFor } from "../src/lib/auth/permissions";
@@ -377,7 +378,8 @@ async function main() {
   await cleanup();
   console.log(`\n${passed} passed, ${failures.length} failed`);
   for (const f of failures) console.log(`  ✗ ${f}`);
-  await prisma.$disconnect();
+  // Stop the queue (started by any step that enqueued a job) and the client, so the process exits by itself.
+  await releaseResources();
   if (failures.length) process.exit(1);
 }
 main().catch((e) => { console.error(e); process.exit(1); });

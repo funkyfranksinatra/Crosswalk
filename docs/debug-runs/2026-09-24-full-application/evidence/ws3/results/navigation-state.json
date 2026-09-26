@@ -1,0 +1,130 @@
+[
+  {
+    "name": "deep link: catalog filters applied from the URL",
+    "ok": true
+  },
+  {
+    "name": "deep link: crosses filter from the URL",
+    "ok": true
+  },
+  {
+    "name": "back: returns to the catalog deep link",
+    "ok": true
+  },
+  {
+    "name": "forward: returns to crosses",
+    "ok": true
+  },
+  {
+    "name": "refresh: filter survives a reload",
+    "ok": true
+  },
+  {
+    "name": "large data: /crosses renders the first 400 of the seeded crosses",
+    "ok": true,
+    "detail": {
+      "rows": 400,
+      "ms": 587
+    }
+  },
+  {
+    "name": "large data: sticky table header present",
+    "ok": true
+  },
+  {
+    "name": "missing resource requests: not-found message, no shimmer left",
+    "ok": true,
+    "detail": "Request not found It may have been deleted, or it is outside your book of busine"
+  },
+  {
+    "name": "missing resource proposals: not-found message, no shimmer left",
+    "ok": true,
+    "detail": "Proposal not found It may have been deleted, or it is outside your book of busin"
+  },
+  {
+    "name": "missing resource contracts: not-found message, no shimmer left",
+    "ok": true,
+    "detail": "Contract not available not found"
+  },
+  {
+    "name": "missing resource accounts: not-found message, no shimmer left",
+    "ok": true,
+    "detail": "Account not found"
+  },
+  {
+    "name": "missing resource intelligence: not-found message, no shimmer left",
+    "ok": true,
+    "detail": "COMPETITIVE INTELLIGENCE Extraction  not found"
+  },
+  {
+    "name": "unknown route: 404 with the custom not-found page",
+    "ok": true
+  },
+  {
+    "name": "error boundary: app-level error.tsx compiled",
+    "ok": true
+  },
+  {
+    "name": "scope: every account is visible to the rep in this seed",
+    "ok": true,
+    "detail": "skipped (no out-of-scope account)"
+  },
+  {
+    "name": "empty: clinical reviewer overview hides the request list and the New request button",
+    "ok": true
+  },
+  {
+    "name": "empty: /requests explains the missing permission",
+    "ok": true
+  },
+  {
+    "name": "error state: API 500 shows a message and no shimmer",
+    "ok": true,
+    "detail": "Could not load the request simulated outage Back to requests"
+  },
+  {
+    "name": "session expiry: API answers 401 once the cookie is gone",
+    "ok": true,
+    "detail": {
+      "status": 401
+    }
+  },
+  {
+    "name": "session expiry: the page falls back to the sign-in screen",
+    "ok": true
+  },
+  {
+    "name": "no page errors so far",
+    "ok": true,
+    "detail": []
+  },
+  {
+    "name": "stale tabs: last write wins on the server (600)",
+    "ok": true,
+    "detail": 600
+  },
+  {
+    "name": "stale tabs: tab A's next edit is applied to the current server state and the screen reloads",
+    "ok": true,
+    "detail": {
+      "shownBefore": "500",
+      "final": 550
+    }
+  },
+  {
+    "name": "stale tabs: tab B shows its stale 600 before it regains focus",
+    "ok": true
+  },
+  {
+    "name": "stale tabs: tab B refreshes to the server's 550 on focus",
+    "ok": true,
+    "detail": "550"
+  },
+  {
+    "name": "stale tabs: every price edit is in the audit trail (3 changes; the no-op is not sent)",
+    "ok": true,
+    "detail": {
+      "events": 4
+    }
+  }
+]

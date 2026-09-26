@@ -1,0 +1,55 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+ ❯ tests/db/ws2-drift-tax.test.ts (15 tests | 2 failed) 1566ms
+   ❯ WS2 drift — every trigger is reported, only an unlocked draft is refreshed (9)
+     × refreshContext re-snapshots an unlocked draft (proposed price kept, economics and approval state recomputed, audited); a locked or approved proposal is only reported on 102ms
+   ❯ WS2 tax & freight — modes, fingerprint, totals, AvaTax fake, export gate (6)
+     × the tax fingerprint goes stale on price / quantity / inclusion / freight / settings / ship-to changes, and NOT on unrelated changes 199ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/db/ws2-drift-tax.test.ts > WS2 drift — every trigger is reported, only an unlocked draft is refreshed > refreshContext re-snapshots an unlocked draft (proposed price kept, economics and approval state recomputed, audited); a locked or approved proposal is only reported on
+AssertionError: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/db/ws2-drift-tax.test.ts:152:36
+    150|     expect(p.lockedAt).toBeNull();
+    151|     const econ = JSON.parse(p.economicsJson!);
+    152|     expect(econ.approvalsRequired).toBe(1); // the stored rollup refle…
+       |                                    ^
+    153|     expect(econ.cogs).toBe("7000");
+    154|     const ev = await prisma.auditEvent.findFirst({ where: { entityType…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/db/ws2-drift-tax.test.ts > WS2 tax & freight — modes, fingerprint, totals, AvaTax fake, export gate > the tax fingerprint goes stale on price / quantity / inclusion / freight / settings / ship-to changes, and NOT on unrelated changes
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/db/ws2-drift-tax.test.ts:322:27
+    320|     await calculateProposalTax(director.actor, fx.proposal.id); expect…
+    321|     await prisma.account.update({ where: { id: acct.id }, data: { ship…
+    322|     expect(await fresh()).toBe(false);
+       |                           ^
+    323|     await calculateProposalTax(director.actor, fx.proposal.id); expect…
+    324|     // Pure fingerprint: order of lines does not matter; an excluded o…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 13 passed (15)
+   Start at  08:30:13
+   Duration  3.10s (tests 53%, transform 25%, import 12%, setup 9%)
+

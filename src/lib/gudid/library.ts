@@ -192,7 +192,8 @@ export async function runImport(id: string, runOpts: { jobId?: string | null; at
           if (job.addToOwnCatalog) ownAdded += await adoptIntoOwnCatalog(fresh.map(toDeviceRow), families);
         } catch (e) {
           errors++;
-          await appendLog(id, `! page skip=${skip}: ${e instanceof Error ? e.message : e}`);
+          await appendLog(id, `! page skip=${skip}: ${(await import("@/lib/api")).publicErrorMessage(e)}`);
+          slog.warn("gudid.import_page_failed", { importId: id, skip, error: e instanceof Error ? e.message : String(e) });
         }
         // The cursor points at the NEXT page: a crash after this write resumes without re-fetching this one.
         await prisma.gudidImport.update({ where: { id }, data: { fetched, created, updated, ownAdded, errors, cursorJson: JSON.stringify({ leaf: leafIndex, skip: skip + PAGE, leaves } satisfies Cursor) } });
@@ -203,7 +204,7 @@ export async function runImport(id: string, runOpts: { jobId?: string | null; at
     await appendLog(id, `Done: ${fetched.toLocaleString()} records — ${created.toLocaleString()} new, ${updated.toLocaleString()} refreshed${job.addToOwnCatalog ? `, ${ownAdded.toLocaleString()} added to our catalog` : ""}${attempt > 1 ? ` (completed on attempt ${attempt})` : ""}`, { status: "DONE", finishedAt: new Date(), fetched, created, updated, ownAdded, errors, cursorJson: null, cancelRequested: false });
     slog.info("gudid.import_done", { importId: id, fetched, created, updated, ownAdded, errors, attempt });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = (await import("@/lib/api")).publicErrorMessage(e);
     if (e instanceof ImportCancelled) {
       await appendLog(id, "Cancelled", { status: "CANCELLED", finishedAt: new Date(), fetched, created, updated, ownAdded, errors, cancelRequested: false });
       return;
@@ -211,7 +212,7 @@ export async function runImport(id: string, runOpts: { jobId?: string | null; at
     // Leave the row RUNNING with its cursor: the queue retries and resumes. Only the final attempt fails it.
     const final = runOpts.finalAttempt ?? true;
     await appendLog(id, `${final ? "Failed" : `Attempt ${attempt} failed, will retry`}: ${msg}`, final ? { status: "FAILED", error: msg, finishedAt: new Date(), fetched, created, updated, ownAdded, errors } : { fetched, created, updated, ownAdded, errors });
-    slog.error("gudid.import_failed", { importId: id, attempt, final, error: msg });
+    slog.error("gudid.import_failed", { importId: id, attempt, final, error: e instanceof Error ? e.message : String(e) });
     throw e;
   }
 }
@@ -296,7 +297,8 @@ export async function pruneAdopted(opts: { families?: string[] | null; dryRun?: 
       const bin = heuristicBin({ sku: p.sku, manufacturer: p.labeler, brand: p.brand, description: p.description, gmdnName: p.gmdnName, specialties: g?.specialties, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
       const referenced = Object.values(p._count).some((n) => n > 0);
       if (bin.family === "Other" || drop.has(bin.family)) {
-        if (referenced) toDeactivate.push(p.id); else toDelete.push(p.id);
+        // A referenced row is deactivated once; a row already inactive is not reported (or rewritten) again.
+        if (referenced) { if (p.isActive) toDeactivate.push(p.id); } else toDelete.push(p.id);
         continue;
       }
       kept++;

@@ -1,0 +1,574 @@
+requirement,component,risk,test_or_scenario,environment,evidence,status
+API POST /api/accounts/{id}/memberships,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API GET /api/accounts/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/accounts,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/accounts,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/analytics/{report},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/analytics/{report},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/approvals/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API DELETE /api/approvals/delegations/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/approvals/delegations,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/approvals/delegations,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/approvals,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/audit,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/auth/dev,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/auth/dev,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API DELETE /api/auth/dev,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/auth/me,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/auth/oidc/callback,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/auth/oidc/logout,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/auth/oidc/start,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/catalog/add,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv,PASS
+API GET /api/catalog/enrich,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/catalog/enrich,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/catalog/gudid/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API DELETE /api/catalog/gudid/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/catalog/gudid/adopt,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv,PASS
+API POST /api/catalog/gudid/plan,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv,PASS
+API POST /api/catalog/gudid/prune,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv,PASS
+API GET /api/catalog/gudid,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/catalog/gudid,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/competitor-sizes/coverage,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv,PASS
+API POST /api/competitor-sizes/import,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/competitor-sizes/template,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API PATCH /api/competitor/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/contracts/{id}/entries,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/contracts/{id}/performance,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API GET /api/contracts/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API PATCH /api/contracts/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/contracts/{id}/terms,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API DELETE /api/contracts/{id}/terms,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API GET /api/contracts/renewals,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/contracts,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/contracts,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/costs/import,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API PATCH /api/crosses/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/crosses,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/crosses,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/crosswalk/publish,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv,PASS
+API GET /api/crosswalk/versions,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/documents/extract,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/documents/extractions/{id}/import,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv,PASS
+API GET /api/documents/extractions/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/documents/extractions/{id}/verify,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv,PASS
+API GET /api/feeds,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv,PASS
+API POST /api/feeds,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv,PASS
+API GET /api/google,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/health,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/intake/preview,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/integrations/config/{key}/jobs,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API GET /api/integrations/config/{key},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API PUT /api/integrations/config/{key},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/integrations/config/{key}/sync,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/integrations/config/{key}/test,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API POST /api/integrations/config/{key}/upload,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/integrations/config/{key}/validate-mapping,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API GET /api/integrations/config,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/integrations/jobs/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/integrations/review/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/integrations/review,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/integrations,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/integrations/sync,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv,PASS
+API PATCH /api/intelligence/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/intelligence/bids/import,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/intelligence/bids,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/intelligence/bids,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/intelligence/import,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/intelligence,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/intelligence,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/metrics,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/notifications/preferences,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API PATCH /api/notifications/preferences,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/notifications,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/notifications,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/observability/export,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/pricing-policies/{id}/activate,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API GET /api/pricing-policies,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/pricing-policies,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/pricing/import,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API GET /api/pricing/template,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API GET /api/proposals/{id}/audit,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/proposals/{id}/conversion,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/proposals/{id}/drift,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/proposals/{id}/export,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/proposals/{id}/lines/{lineId}/recommend,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API PATCH /api/proposals/{id}/lines/{lineId},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/proposals/{id}/logistics,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API PATCH /api/proposals/{id}/logistics,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/proposals/{id}/logistics,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/proposals/{id}/outcome,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API POST /api/proposals/{id}/push-crm,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API POST /api/proposals/{id}/refresh-context,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/proposals/{id}/reopen,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API GET /api/proposals/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API DELETE /api/proposals/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/proposals/{id}/scenarios/{sid}/apply,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API GET /api/proposals/{id}/scenarios/{sid},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API PATCH /api/proposals/{id}/scenarios/{sid},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API DELETE /api/proposals/{id}/scenarios/{sid},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/proposals/{id}/scenarios,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/proposals/{id}/scenarios,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/proposals/{id}/submit,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API POST /api/proposals/{id}/version,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API GET /api/proposals,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/proposals,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/purchases/import,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+API POST /api/requests/{id}/bulk,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/requests/{id}/cancel,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API GET /api/requests/{id}/export,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/requests/{id}/lines/{lineId}/compare,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API PATCH /api/requests/{id}/lines/{lineId},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/requests/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API DELETE /api/requests/{id},route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/requests/{id}/run,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API POST /api/requests/{id}/sheets,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; evidence/ws3 journeys,PASS
+API GET /api/requests,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/requests,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/settings/branding,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API PUT /api/settings/branding,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/settings,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API POST /api/settings,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests + browser journey,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**; evidence/ws3 journeys,PASS
+API GET /api/system,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv,PASS
+API POST /api/system,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv,PASS
+API POST /api/webhooks/salesforce,route,auth/scope/validation,WS4 authz matrix (12 principals) + functional tests,in-process handler + HTTP :3103/:3104,evidence/ws4/authz-matrix.csv; tests/**,PASS
+Page /accounts/[id],page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /accounts,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /analytics,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /approvals,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /catalog/gudid,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /catalog,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /contracts/[id],page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /contracts,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /crosses,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /intelligence/bids,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /intelligence/extractions/[id],page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /intelligence,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /notifications,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /proposals/[id],page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /proposals,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /requests/[id],page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /requests/new,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /requests,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /settings/integrations,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /settings,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Page /settings/pricing,page,render/role/a11y/responsive/console,"WS3 matrix 22×12, responsive-axe 4 widths, journeys",Chromium on the production build,"evidence/ws3/out/matrix-final5.csv, responsive.csv, axe.json, journey logs",PASS
+Component commercial.tsx,ui,render/a11y,"matrix, axe, keyboard",Chromium,evidence/ws3,PASS
+Component dev-signin.tsx,ui,render/a11y,"matrix, axe, keyboard",Chromium,evidence/ws3,PASS
+Component notifications-bell.tsx,ui,render/a11y,"matrix, axe, keyboard",Chromium,evidence/ws3,PASS
+Component sidebar.tsx,ui,render/a11y,"matrix, axe, keyboard",Chromium,evidence/ws3,PASS
+Component sign-in.tsx,ui,render/a11y,"matrix, axe, keyboard",Chromium,evidence/ws3,PASS
+Component ui.tsx,ui,render/a11y,"matrix, axe, keyboard",Chromium,evidence/ws3,PASS
+Model Company,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model OwnProduct,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model CompetitorProduct,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model CompetitorSpec,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model KnownCross,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model Pricebook,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model PriceEntry,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model Request,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model RequestLine,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model MatchCandidate,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model Setting,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model LlmCall,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model LlmGrade,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model User,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model UserRole,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model Account,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model Gpo,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model GpoMembership,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model Opportunity,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model Contract,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model ContractScope,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model ContractCommitment,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model RebateSchedule,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model BundleTerm,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model StandardCost,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model ExchangeRate,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model AuditEvent,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model Competitor,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model Document,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model CompetitorPriceObservation,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model PricingPolicy,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model Proposal,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model ProposalLine,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model Scenario,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model ScenarioLine,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model ApprovalRequest,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model CrosswalkVersion,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model CrosswalkVersionEntry,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model ExternalRef,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model SyncLog,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model PurchaseRecord,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model DealOutcome,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model MatchDecision,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model GudidDevice,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model GudidImport,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model Notification,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model NotificationPreference,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model Alert,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model FeedRun,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model BenchmarkRun,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model ModelEval,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model ApprovalDelegation,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model AnalyticsSnapshot,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model PublicAward,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model IntegrationConfig,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model IntegrationSyncJob,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model IntegrationSyncError,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model IntegrationReviewItem,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model DocumentExtraction,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model ExtractedField,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Model IntegrationInboundEvent,prisma,constraints/migrations,migration chain on empty DB; preflight; constraint tests; ws2/ws4/ws5 DB suites,crosswalk_dbg/ws5_empty,"evidence/logs/04-final-bootstrap.log, evidence/ws5/*",PASS
+Migration 20260914200000_postgres_baseline,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260914210000_enterprise_platform,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260915020000_gudid_library,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260915210000_widen_pct_columns,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260915220000_purchase_external_index,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260917060000_tier1_platform,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260917120000_tier1_fixes,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260918000000_tier3_product_scale,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260918000100_tier3_line_flags,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260919000000_tier0_break_glass,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260919000100_tier0_check_constraints,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260923000000_tier2_integrations,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260923000001_tier2_account_contacts,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260923000002_tier2_check_constraints,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Migration 20260924000000_match_quality,prisma/migrations,apply/rollback,migrate deploy from empty; violating-row fixture; gen-constraints byte-identical,crosswalk_ws5_empty / _viol,"evidence/ws5/migrate-deploy-empty.txt, preflight-violation.txt",PASS
+Job analytics.refresh,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job integration.sync,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job alerts.evaluate,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job retention.sweep,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job feed.ingest,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job notify.deliver,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job request.run,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job embed.refresh,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job bids.ingest,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job gudid.import,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job gudid.refresh,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job analytics.refresh,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job integration.sync,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job alerts.evaluate,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job retention.sweep,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job feed.ingest,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job notify.deliver,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job request.run,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job embed.refresh,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job bids.ingest,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job gudid.import,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Job gudid.refresh,pg-boss queue,lifecycle/retry/orphan/heartbeat,"tests/db/ws5-jobs.test.ts, ws1-run, tier1","crosswalk_ws5 (real pg-boss, external worker child)",evidence/ws5/*,PASS
+Lib accounts/types.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib analytics/index.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib analytics/snapshots.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib api.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib approvals/delegation.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib approvals/rules.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib approvals/service.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib audit.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib auth/index.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib auth/oidc-page.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib auth/oidc.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib auth/permissions.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib auth/scope.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib branding.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib catalog/cost.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib catalog/fx.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib catalog/size-coverage.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib cfn.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib compliance/index.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib contracts/bundles.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib contracts/clauses.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib contracts/context.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib contracts/rebates.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib contracts/resolve.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib db.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib db/constraints.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib documents/storage.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib eval/benchmark.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib eval/model.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib excel/export.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib excel/intake.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib excel/pricing.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib excel/sizes.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib feeds/index.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib feeds/schedule.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib gudid/enrich.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib gudid/http.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib gudid/library-model.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib gudid/library.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib gudid/openfda.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib gudid/refresh.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib imports/costs.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib imports/purchases.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/competitor-contracts/file.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/competitor-contracts/ingest.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/competitor-contracts/mapping.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/competitor-contracts/mock.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/admin.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/config.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/contracts.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/errors.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/fields.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/health.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/http.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/jobs.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/mapping.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/mock.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/registry.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/review.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/runner.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/schedule.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/tabular.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/webhooks.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/core/writers.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/dev.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/documents/fields.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/documents/http.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/documents/manual.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/documents/mock.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/documents/service.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/file.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/fx/providers.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/fx/service.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/gpo/api.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/gpo/file.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/gpo/mock.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/gpo/profiles.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/gpo/reconcile.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/salesforce.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/salesforce/adapter.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/salesforce/auth.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/salesforce/client.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/salesforce/mapping.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/salesforce/mock.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/salesforce/webhook.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/salesforce/writeback.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/sap.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/sap/adapter.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/sap/mapping.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/sap/mock.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/sap/odata.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/sync.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib integrations/types.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib intelligence/bids.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib intelligence/import.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib intelligence/index.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib intelligence/summarize.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib jobs/boss.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib jobs/queues.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib jobs/shutdown.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib jobs/workers.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib llm/client.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib llm/tasks.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib log.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib match/access.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib match/bin.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib match/brands.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib match/component.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib match/constraints.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib match/embeddings.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib match/grading.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib match/line.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib match/score.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib money.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib notifications/deliver.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib notifications/index.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib notifications/kinds.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib observability/alerts.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib observability/metrics.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib pdf/documents.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib pdf/index.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib pipeline/resolve.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib pipeline/run.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib pricing/policy-model.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib pricing/policy.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib pricing/recommend.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib proposals/drift.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib proposals/economics.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib proposals/export.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib proposals/outcome.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib proposals/service.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib requests.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib retention.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib secrets.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib security/headers.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib security/ratelimit.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib serialize.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS (indirect)
+Lib settings.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib sheets/csv.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib sheets/google.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib tax/avatax.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib tax/index.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib tax/manual.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib tax/types.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib tenancy.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib xref/equivalence.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib xref/governance.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Lib xref/learning.ts,src/lib,unit/db coverage,see workstream sweeps,unit/db,workstream reports §sweep,PASS
+Script scripts/benchmark.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",NOT_RUN (no cases; company-owned lists)
+Script scripts/catalog-hygiene.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS (dry-run reviewed by WS5)
+Script scripts/check-enterprise.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS
+Script scripts/check.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS
+Script scripts/db-preflight.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS
+Script scripts/embed.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS (fake embedder path in tier3; live embedding BLOCKED)
+Script scripts/eval-pacr.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS (pacr-regression fixture; live rerun not repeated)
+Script scripts/eval.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS
+Script scripts/gen-constraints.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS
+Script scripts/lib/harness.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS
+Script scripts/migrate-http.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS (unit: Neon URL derivation) / live BLOCKED
+Script scripts/model-eval.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",BLOCKED (no model key)
+Script scripts/profile-run.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS
+Script scripts/record-openfda.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",NOT_RUN (re-recording not needed)
+Script scripts/retention.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS
+Script scripts/run-sample.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",NOT_RUN (MSK sample is reference data)
+Script scripts/seed-sanford-benchmark.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",NOT_RUN (needs the PACR export)
+Script scripts/test-adversarial.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS
+Script scripts/test-enterprise.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS
+Script scripts/with-secrets.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS
+Script scripts/worker.ts,scripts,operability,executed in baseline/final gates or workstream,workspace,"evidence/logs, workstream reports",PASS
+Provider sap,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider mock,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider mock,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider fx-ecb,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider fx-http,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider salesforce,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider mock,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider salesforce,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider api,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider file,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider mock,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider file,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider mock,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider documents-http,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider mock,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Provider manual,integrations,fault matrix 9 scenarios,"tests/db/ws5-integrations.test.ts, tests/unit/ws5-salesforce.test.ts, tier2",mocks/injected fetch,evidence/ws5/*,PASS (mock/contract); live provider BLOCKED (no credentials)
+Env ALERTS_CRON,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env ALLOW_DEV_SIGNIN,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env ANALYTICS_CRON,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env ANALYTICS_STALE_MINUTES,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env APP_BASE_URL,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env AVATAX_ACCOUNT_ID,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env AVATAX_BASE_URL,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env AVATAX_COMPANY_CODE,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env AVATAX_ENV,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env AVATAX_FREIGHT_TAX_CODE,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env AVATAX_ITEM_TAX_CODE,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env AVATAX_LICENSE_KEY,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env AWS_REGION,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env BIDS_CRON,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env BIDS_TIMEOUT_MS,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env BIDS_USASPENDING,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env COMPANY_NAME,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env CRM_PUSH_MARGIN,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env CSP_REPORT_ONLY,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env DATABASE_ADAPTER,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env DATABASE_POOL_MAX,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env DATABASE_URL,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env DOCUMENT_STORAGE_DIR,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env DOPPLER_CONFIG,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env DOPPLER_PROJECT,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env EMBEDDINGS,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env EMBEDDING_MODEL,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env EMBEDDING_RETRIEVAL_K,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env EMBEDDING_TIMEOUT_MS,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env EMBED_REFRESH_BATCH,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env EMBED_REFRESH_CRON,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env FEEDS_RUN_ON_START,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env GOOGLE_DRIVE_FOLDER_ID,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env GOOGLE_SERVICE_ACCOUNT_JSON,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env GUDID_CACHE_TTL_DAYS,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env GUDID_REFRESH_BATCH,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env GUDID_REFRESH_CRON,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env INTEGRATIONS_ALLOW_MOCK,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env INTEGRATIONS_ENCRYPTION_KEY,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env INTEGRATION_FEED_DIR,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env JOBS_MAINTENANCE_SECONDS,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env JOBS_POOL_MAX,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env JOBS_SCHEMA,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env JOBS_WORKER,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env LLM_MODEL,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env LLM_SEND_ACCOUNT_NAME,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env LOG_FORMAT,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env LOG_LEVEL,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env LOG_SILENT,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env MAIL_FROM,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env METRICS_TOKEN,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env NEXT_PHASE,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env NEXT_RUNTIME,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env NODE_ENV,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env NOTIFY_DRY_RUN,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env OPENAI_API_KEY,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env OPENAI_BASE_URL,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env OPENFDA_API_KEY,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env OPENFDA_MAX_ATTEMPTS,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env OPENFDA_MEMO_SECONDS,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env OPENFDA_PACE_MS,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env OPENFDA_RETRY_BASE_MS,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env OPENFDA_RPM,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env PRISMA_LOG,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env PROGRESS_WRITE_MS,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env RETENTION_CRON,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SAM_API_KEY,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SAM_API_URL,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SAM_MAX_PAGES,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SAP_ODATA_BASE_URL,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SECRETS_OVERRIDE,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SECRETS_PROVIDER,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SESSION_SECRET,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SESSION_TTL_HOURS,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SF_CLIENT_ID,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SF_LOGIN_URL,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SMTP_URL,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SSO_AUTO_PROVISION,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SSO_CLIENT_ID,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SSO_CLIENT_SECRET,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SSO_DEFAULT_ROLE,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SSO_ISSUER,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SSO_MODE,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SSO_REDIRECT_URI,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SSO_ROLE_CLAIM,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SSO_ROLE_MAP,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env SSO_SCOPES,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env TAX_DRY_RUN,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env TAX_FREIGHT,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env TAX_TIMEOUT_MS,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env TEAMS_WEBHOOK_URL,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env USASPENDING_API_URL,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env VAULT_NAMESPACE,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env VAULT_TOKEN,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env VAULT_TOKEN_FILE,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Env VITEST,config,parsing/defaults/bounds,"tests/unit/ws5-config.test.ts, tier0-units, .env.example reconciliation",unit,evidence/ws5/env-vars-used.txt,PASS
+Setup/bootstrap from empty DB (with and without reference sheets),deploy/seeds,install,04-final-bootstrap; WS5 CI mirror seeds without reference data,crosswalk_dbg / ws5_ci,"evidence/logs/04-final-bootstrap.log, evidence/ws5/ci-mirror.txt",PASS
+Production build / start / worker start / shutdown,"next, entrypoint",ops,build; next start :3103; worker child + SIGTERM,workspace,"evidence/logs/04-final-build.log, evidence/ws5/entrypoint-*",PASS
+Container image build & boot (CI image job),Dockerfile,deploy,—,no Docker daemon,—,BLOCKED
+Adapter contracts pg / neon-ws / neon-http,src/lib/db,db,pg live; neon-http transaction refusal unit; neon-ws,local,evidence/ws5,PASS pg; PASS neon-http(unit); neon-ws NOT_RUN (no Neon)
+Configuration matrix (heuristic/model/embeddings/workers/auth modes/integrations/dry-run/production secrets),env,config,"ws5-config, tier0-units, ws1 fake grader/embedder, ws4 proxy/oidc, entrypoint check",unit/db,workstream reports,PASS (model paths with fakes; live model BLOCKED)
+Authorization matrix 132 routes × 12 principals,api,security,"tests/db/ws4-authz.test.ts (1,638 calls) + HTTP probes",in-process + :3104/:3103,"evidence/ws4/authz-matrix.csv, evidence/review/http-probe.txt",PASS
+"Redaction (cost/floor/margin/target) across API, exports, PDFs, audit, analytics",auth,confidentiality,"ws4-redaction (9), review probes, exceljs/pdftotext parsing",db + HTTP,"evidence/ws4, evidence/review",PASS
+OIDC / dev session / proxy mode,auth,security,"tier0-units (+7), ws4 HTTP proxy-mode probe",unit + HTTP,"evidence/ws4/prefix, ws4 report",PASS (in-memory IdP; live IdP BLOCKED)
+CSRF / CORS / SSRF / XSS / SQLi / traversal / bombs / NaN,security,adversarial,"ws4-adversarial (+archive/urls units), review probes",db + HTTP,evidence/ws4,PASS
+Rate limiting classes/headers/XFF,proxy,security,ws4-proxy units + HTTP,unit + HTTP,ws4 report,PASS (per-instance; distributed limiter out of scope)
+Intake accounting & normalisation,"excel/intake, cfn",matching,"ws1-intake (19), pure-checks, adversarial",unit,ws1 report,PASS
+Resolution / openFDA client faults / GUDID import,gudid,matching,"ws1-gudid (9), openfda-replay",db + recorded,ws1 report,PASS
+Access profile / brands / constraints / classification / confidence,match,matching,"match-quality 72, ws1-access 30, ws1-ranking 22, pacr-regression 31, review-matching 6",unit,"ws1 report, REVIEW.md §7",PASS
+Run lifecycle / chunk failure / cancel / resume / learning loop / governance,"pipeline, xref",matching,"ws1-run (9), tier1, tier3",db,ws1 report,PASS
+"Evaluation integrity (eval, pacr, model gate)",eval,quality,"eval 80/80, 29/80, 46/80 before/after explained; pacr 31; gate",db,evidence/logs/*eval*,PASS eval; eval:gate BLOCKED (baseline re-measure)
+Contracts / entries atomicity / terms / performance / compliance,contracts,commercial,"ws2-contracts, ws2-outcomes, check:enterprise",db,ws2 report,PASS
+Money oracle / waterfall / cost / FX,"money, pricing",commercial,"ws2-money, ws2-waterfall, ws2-cost-fx; review recompute 17/17",unit/db,"ws2 report, REVIEW.md §4",PASS
+Policy / recommendation / authority,pricing,commercial,ws2-policy,unit/db,ws2 report,PASS
+Proposals / scenarios / economics / drift / tax,"proposals, tax",commercial,"ws2-proposals, ws2-economics, ws2-drift-tax",db,ws2 report,PASS (AvaTax fake; live BLOCKED)
+Approvals / delegation / break-glass / races,approvals,commercial,"ws2-approvals, review-concurrency",db,"ws2 report, REVIEW.md §5",PASS
+Finalization / outcomes / WON contract,proposals,commercial,ws2-outcomes,db,ws2 report,PASS
+Exports xlsx/csv/pdf content & confidentiality,"excel, pdf",output,"ws2-exports, ws4-redaction, review PDFs",db + HTTP,evidence/review,PASS
+Google Sheets write-back,google,integration,unconfigured path only,—,—,BLOCKED (no service account)
+Intelligence / extraction / public bids,"intelligence, documents",data,"tier2, tier3, ws5-integrations, journeys",db + browser,ws5/ws3 reports,PASS (SAM/USAspending live BLOCKED)
+Integration fault matrix (7 families × 9 scenarios) / config / mapping / idempotency / paging,integrations,integration,"ws5-integrations, ws5-salesforce, tier2",db (mocks),ws5 report,PASS (mock); live BLOCKED
+Salesforce webhook through the real proxy,proxy/webhook,integration,"ws4-proxy, ws4-webhook, HTTP",HTTP :3104/:3103,"evidence/ws4, evidence/review/http-probe.txt",PASS
+Queues / feeds / notifications / observability / alerts / analytics / retention,jobs…,platform,"ws5-jobs, ws5-platform, tier1, tier3",db (real pg-boss + child worker),ws5 report,PASS
+Backups / restore,ops,platform,pg_dump/restore round trip; document-dir gap documented,local,evidence/ws5/backup-roundtrip.txt,PASS (DB); documents dir documented gap
+"Frontend: 22 pages × 12 roles, actions, navigation, responsive, a11y, keyboard, polling",ui,frontend,WS3 scripts rerun on the final build,Chromium,evidence/ws3/logs/*-final4/5.log,PASS
+Browser matrix beyond Chromium,ui,frontend,—,—,—,NOT_RUN (Chromium only)
+macOS / mac-demo execution,mac-demo,platform,read-only inspection,—,ws5 report,NOT_RUN (no macOS)
+"Performance profile 30/300/5,000 lines",pipeline,performance,profile:run on synthetic intakes (30 lines; 300 distinct competitor codes) cold and warm,"crosswalk_dbg, JOBS_WORKER=off, heuristic",evidence/logs/05-profile-*.log,"PASS (30 lines 3.2 s cold / 37 lines 1.5 s warm; 300 lines 75 s cold (openFDA-bound) / 5.2 s warm, 902 queries; no regression vs Sept 23 order of magnitude); 5,000 lines NOT_RUN"
+Soak with controlled faults,platform,resilience,worker kill/heartbeat/DB-down tests only,db,ws5 report,PARTIAL (no timed soak)
+Independent review,all,process,"REVIEW.md (15 findings, all addressed except REV-13 decision)",—,REVIEW.md,PASS

@@ -1,0 +1,36 @@
+All migrations have been successfully applied.
+== seed.ts
+Upserted 338 own products for Acme
+Upserted 3926 known crosses
+Upserted 10 own products + prices from the legacy BAT report
+== seed-enterprise.ts
+Pricing policies: 6 families ensured
+Crosswalk v1 published with 3561 entries
+Competitor price observations: 19
+Demo commercial data ready (MSK, Premier Tier 2, local override, 3-hospital price intelligence).
+== companies
+Acme|["Acme Surgical"]
+== seed again (idempotent, still one company)
+Upserted 10 own products + prices from the legacy BAT report
+Demo commercial data ready (MSK, Premier Tier 2, local override, 3-hospital price intelligence).
+1
+== COMPANY_NAME drift: re-seed as Medtronic must NOT create a second row
+Company "Acme" already exists; seeding into it (COMPANY_NAME=Medtronic was not used to create a second company)
+1
+== empty DB (no Company row)
+{"ok":true,"company":null,"companies":0,"note":"No company yet: the first settings save or seed creates it."}
+checkTenancy(strict): passed
+== acme DB
+{"ok":true,"company":{"id":"cmufccymr0000t37de2t10q84","name":"Acme","labelers":["Acme Surgical"]},"companies":1,"note":"Single tenant: Acme."}
+checkTenancy(strict): passed
+== acme DB with a second Company row
+{"ok":false,"company":{"id":"cmufccymr0000t37de2t10q84","name":"Acme","labelers":["Acme Surgical"]},"companies":2,"note":"1 extra company row(s) (Medtronic: 0 products, 0 requests). Only \"Acme\" is served; merge or remove the others."}
+checkTenancy(strict): Refusing to start: 2 Company rows in one database ("Acme", "Medtronic"); Crosswalk is single-tenant per deployment — remove or merge the extra rows, or set TENANCY_STRICT=false to serve "Acme" and only warn
+== same, TENANCY_STRICT=false
+{"ok":false,"company":{"id":"cmufccymr0000t37de2t10q84","name":"Acme","labelers":["Acme Surgical"]},"companies":2,"note":"1 extra company row(s) (Medtronic: 0 products, 0 requests). Only \"Acme\" is served; merge or remove the others."}
+checkTenancy(strict): passed
+== worker refuses to start on that DB
+"event":"tenancy.multiple_companies"
+"event":"worker.start_failed"
+Refusing to start: 2 Company rows in one database (\
+worker exit=1

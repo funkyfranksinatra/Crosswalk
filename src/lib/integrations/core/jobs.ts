@@ -17,6 +17,8 @@ export class JobContext {
   readonly counters: Counters = { received: 0, created: 0, updated: 0, skipped: 0, errored: 0, reviewed: 0 };
   private errorRows: { entityType: string; externalId: string | null; category: string; message: string; rowRef: string | null }[] = [];
   cursorAfter: string | null = null;
+  /** set when a paged reader stopped at the page cap before reaching the end (watermark must not advance) */
+  capped = false;
   constructor(readonly jobId: string, readonly integrationKey: IntegrationKey, readonly provider: string, readonly syncType: string, readonly actorUserId: string | null, readonly cursorBefore: string | null, readonly mappingVersion: number) {}
 
   received(n = 1) { this.counters.received += n; }

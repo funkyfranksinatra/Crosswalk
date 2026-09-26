@@ -1,5 +1,6 @@
+import { assertSafeArchive } from "@/lib/security/archive";
 import { prisma } from "@/lib/db";
-import { handle } from "@/lib/api";
+import { handle, formBody } from "@/lib/api";
 import { parseCsv } from "@/lib/sheets/csv";
 import { readConfig } from "@/lib/integrations/core/config";
 import { buildExtraction, cfgRead } from "@/lib/integrations/core/registry";
@@ -17,13 +18,14 @@ const MAX_BYTES = 25 * 1024 * 1024;
  */
 export async function POST(req: Request) {
   return handle("import_competitor_pricing", async (actor) => {
-    const form = await req.formData();
+    const form = await formBody(req); if (!form) throw new Error("Expected a multipart/form-data body");
     const file = form.get("file");
     if (!(file instanceof File)) throw new Error("attach a file");
     if (file.size > MAX_BYTES) throw new Error("file is larger than 25 MB");
     const documentType = String(form.get("documentType") ?? "INVOICE") as DocumentType;
     if (!DOCUMENT_TYPES.includes(documentType)) throw new Error(`documentType must be one of ${DOCUMENT_TYPES.join(", ")}`);
     const bytes = Buffer.from(await file.arrayBuffer());
+    assertSafeArchive(bytes, file.name || "file");
     const doc = await prisma.document.create({ data: { kind: documentType === "PO" ? "PO" : documentType === "BID_LIST" ? "BID_FILE" : documentType === "CONTRACT_TABLE" ? "CONTRACT" : "INVOICE", filename: file.name, mimeType: file.type || null, uploadedByUserId: actor.id, notes: `${file.size} bytes` } });
     const storagePath = await storeDocumentBytes(doc.id, bytes);
     await prisma.document.update({ where: { id: doc.id }, data: { storagePath } });

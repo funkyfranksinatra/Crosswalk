@@ -1,0 +1,65 @@
+routes: 101 method handlers: 132
+
+## handle(null)/authorize(null):
+  /api/catalog/gudid/[id] GET,DELETE
+  /api/catalog/gudid GET,POST
+  /api/google GET
+  /api/integrations/review/[id] POST
+  /api/notifications/preferences GET,PATCH
+  /api/notifications GET,POST
+  /api/observability/export GET
+  /api/settings GET,POST
+
+## no handle()/authorize() at all:
+  /api/auth/dev GET,POST,DELETE
+  /api/auth/me GET
+  /api/auth/oidc/callback GET
+  /api/auth/oidc/logout POST
+  /api/auth/oidc/start GET
+  /api/health GET
+  /api/metrics GET
+  /api/webhooks/salesforce POST
+
+## routes with no explicit test reference (outside the dynamic ws4 matrix) [uiScript=WS3 evidence scripts]:
+  /api/accounts/[id]/memberships POST 
+  /api/approvals/[id] POST 
+  /api/approvals/delegations/[id] DELETE 
+  /api/approvals/delegations GET,POST 
+  /api/auth/me GET 
+  /api/catalog/add POST 
+  /api/catalog/enrich GET,POST (WS3 browser script)
+  /api/catalog/gudid/adopt POST 
+  /api/catalog/gudid/plan POST 
+  /api/catalog/gudid/prune POST 
+  /api/competitor/[id] PATCH 
+  /api/competitor-sizes/coverage GET 
+  /api/competitor-sizes/template GET (WS3 browser script)
+  /api/contracts/[id]/performance GET 
+  /api/contracts/[id]/terms POST,DELETE 
+  /api/crosses/[id] PATCH (WS3 browser script)
+  /api/crosswalk/publish POST 
+  /api/crosswalk/versions GET 
+  /api/documents/extractions/[id]/import POST 
+  /api/documents/extractions/[id]/verify POST 
+  /api/feeds GET,POST 
+  /api/google GET 
+  /api/integrations/config/[key]/jobs GET 
+  /api/integrations/config/[key]/test POST 
+  /api/integrations/config/[key]/validate-mapping POST 
+  /api/integrations/sync POST 
+  /api/notifications/preferences GET,PATCH (WS3 browser script)
+  /api/observability/export GET 
+  /api/pricing/template GET (WS3 browser script)
+  /api/pricing-policies/[id]/activate POST 
+  /api/pricing-policies GET,POST (WS3 browser script)
+  /api/proposals/[id]/outcome POST 
+  /api/proposals/[id]/push-crm POST 
+  /api/proposals/[id]/reopen POST 
+  /api/proposals/[id]/scenarios/[sid]/apply POST 
+  /api/proposals/[id]/submit POST 
+  /api/proposals/[id]/version POST 
+  /api/requests/[id]/cancel POST 
+  /api/requests/[id]/sheets POST 
+  /api/system GET,POST 
+
+## count referenced: 61 unreferenced: 40

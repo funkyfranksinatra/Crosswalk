@@ -1,0 +1,2 @@
+== AFTER (fixed code) ==
+      Tests  8 passed (8)

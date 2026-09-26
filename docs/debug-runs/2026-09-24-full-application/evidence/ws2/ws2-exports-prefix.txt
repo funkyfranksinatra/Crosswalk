@@ -1,0 +1,32 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+ ❯ tests/db/ws2-exports.test.ts (5 tests | 1 failed) 1216ms
+   ❯ WS2 exports — content (4)
+     × contract offer (xlsx, csv, pdf): only matched priced lines, unmatched listed in the notes, no internal figures, validity from Settings → Branding 48ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/db/ws2-exports.test.ts > WS2 exports — content > contract offer (xlsx, csv, pdf): only matched priced lines, unmatched listed in the notes, no internal figures, validity from Settings → Branding
+AssertionError: expected [ 'ws2mufaclk2X1', …(2) ] to deeply equal [ 'ws2mufaclk2X1', …(1) ]
+
+- Expected
++ Received
+
+  [
+    "ws2mufaclk2X1",
+    "=HYPERLINK(\"http://evil\")",
++   "ws2mufaclk2X5",
+  ]
+
+ ❯ tests/db/ws2-exports.test.ts:168:35
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 4 passed (5)
+   Start at  08:44:15
+   Duration  2.68s (tests 48%, transform 28%, import 14%, setup 10%)
+

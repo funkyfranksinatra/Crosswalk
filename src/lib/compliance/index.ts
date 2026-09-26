@@ -66,7 +66,13 @@ export async function contractPerformance(contractId: string, asOf = new Date())
     const rows = r.productFamily ? purchases.filter((p) => (p.product?.category ?? "").toLowerCase() === r.productFamily!.toLowerCase()) : purchases;
     const units = rows.reduce((s, p) => s.plus(money(p.quantity)!), ZERO);
     const spend = rows.reduce((s, p) => s.plus(money(p.netPrice)!.times(money(p.quantity)!)), ZERO);
-    const measured = rebateBasisValue(r.basis, units, spend, null, null);
+    // COMPLIANCE_PCT: delivered ÷ committed across the commitments the rebate covers (units, else value).
+    // GROWTH_PCT needs a prior-period baseline this contract does not carry: measured as 0 (documented gap).
+    const covered = commitments.filter((k) => !r.productFamily || (k.productFamily ?? "").toLowerCase() === r.productFamily.toLowerCase());
+    const committedUnits = covered.reduce((s, k) => s.plus(money(k.committedUnits) ?? ZERO), ZERO), actualUnits = covered.reduce((s, k) => s.plus(money(k.actualUnits)!), ZERO);
+    const committedValue = covered.reduce((s, k) => s.plus(money(k.committedValue) ?? ZERO), ZERO), actualValue = covered.reduce((s, k) => s.plus(money(k.actualValue)!), ZERO);
+    const compliancePct = committedUnits.gt(0) ? ratio(actualUnits, committedUnits) : committedValue.gt(0) ? ratio(actualValue, committedValue) : null;
+    const measured = rebateBasisValue(r.basis, units, spend, compliancePct, null);
     const e = effectiveNet({ invoiceSpend: spend, units, rebate: r, measured });
     if (e.next && e.toNext && e.toNext.lte(measured.times(0.1))) flags.push(`Rebate tier approaching: ${e.toNext} more ${r.basis.toLowerCase()} to reach ${JSON.stringify(e.next)}`);
     return { rebateId: r.id, type: r.type, basis: r.basis, measured: measured.toString(), tier: e.tier, next: e.next, toNext: e.toNext?.toString() ?? null, rebate: e.rebate.toString(), net: e.net.toString() };

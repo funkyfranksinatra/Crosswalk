@@ -1,0 +1,30 @@
+AXE /: 0 rule violations {} 
+AXE /requests: 0 rule violations {} 
+AXE /requests/new: 0 rule violations {} 
+AXE /requests/[id]: 0 rule violations {} 
+AXE /proposals: 0 rule violations {} 
+AXE /proposals/[id]: 0 rule violations {} 
+AXE /approvals: 0 rule violations {} 
+AXE /accounts: 0 rule violations {} 
+AXE /accounts/[id]: 0 rule violations {} 
+AXE /contracts: 0 rule violations {} 
+AXE /contracts/[id]: 0 rule violations {} 
+AXE /intelligence: 0 rule violations {} 
+AXE /intelligence/bids: 0 rule violations {} 
+AXE /intelligence/extractions/[id]: 0 rule violations {} 
+AXE /analytics: 0 rule violations {} 
+AXE /catalog: 0 rule violations {} 
+AXE /catalog/gudid: 0 rule violations {} 
+AXE /crosses: 1 rule violations {"serious":1} color-contrast
+AXE /notifications: 0 rule violations {} 
+AXE /settings: 0 rule violations {} 
+AXE /settings/integrations: 0 rule violations {} 
+AXE /settings/pricing: 0 rule violations {} 
+HSCROLL /proposals/[id] @768: 780 > 768 — div.flex.items-center.gap-2, div.flex.items-center.gap-2, span.text-[11.5px].text-muted.max-w-[260px], table.table, thead., tr.
+HSCROLL /catalog @768: 857 > 768 — div.flex.items-center.gap-2, div.relative, div.flex.items-center.gap-2, button.btn-primary, table.table, thead.
+axe summary by impact (rule → nodes): {
+ "serious": {
+  "color-contrast": 168
+ }
+}
+horizontal-scroll pages: 2 of 88

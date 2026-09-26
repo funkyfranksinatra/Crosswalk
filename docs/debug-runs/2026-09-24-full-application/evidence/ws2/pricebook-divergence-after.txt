@@ -1,0 +1,2 @@
+run priceOf (no pricebook selected): null | No applicable price: LIST: no entry for this SKU
+proposal snapshot listPrice: null | proposedPrice: 18.18 | No applicable price: LIST: no entry for this SKU

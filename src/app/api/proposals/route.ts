@@ -2,9 +2,11 @@ import { prisma } from "@/lib/db";
 import { handle, body } from "@/lib/api";
 import { createFromRequest } from "@/lib/proposals/service";
 import { scopeFor, proposalWhere, assertAccountWritable, assertRequestVisible } from "@/lib/auth/scope";
+import { redactJsonString } from "@/lib/auth";
 
 export async function GET() {
-  return handle("view_pricing", async (actor) => prisma.proposal.findMany({ where: proposalWhere(await scopeFor(actor)), orderBy: { createdAt: "desc" }, include: { account: true, _count: { select: { lines: true, approvals: { where: { status: "PENDING" } } } } }, take: 200 }));
+  // The economics rollup column carries COGS / margin: redacted per role like the detail route.
+  return handle("view_pricing", async (actor) => (await prisma.proposal.findMany({ where: proposalWhere(await scopeFor(actor)), orderBy: { createdAt: "desc" }, include: { account: true, _count: { select: { lines: true, approvals: { where: { status: "PENDING" } } } } }, take: 200 })).map((p) => ({ ...p, economicsJson: redactJsonString(actor, p.economicsJson) })));
 }
 export async function POST(req: Request) {
   return handle("edit_proposed_pricing", async (actor) => {

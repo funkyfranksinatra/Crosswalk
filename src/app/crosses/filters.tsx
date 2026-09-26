@@ -14,18 +14,18 @@ export function CrossFilters({ q, type, company, source, companies, sources, sho
   }, [search]);
   return (
     <div className="flex items-center gap-2 px-4 py-3 border-b border-line-2 flex-wrap">
-      <select className="input w-auto" value={type} onChange={(e) => nav({ type: e.target.value })}>
+      <select className="input w-auto" aria-label="Match type" value={type} onChange={(e) => nav({ type: e.target.value })}>
         <option value="">All match types</option><option>Exact Match</option><option>Close Match</option><option>Alternative Match</option><option>US Downsell Match</option>
       </select>
-      <select className="input w-auto" value={company} onChange={(e) => nav({ company: e.target.value })}>
+      <select className="input w-auto" aria-label="Competitor" value={company} onChange={(e) => nav({ company: e.target.value })}>
         <option value="">All competitors</option>
         {companies.map((c) => <option key={c.name} value={c.name}>{c.name} ({c.count})</option>)}
       </select>
-      <select className="input w-auto" value={source} onChange={(e) => nav({ source: e.target.value })}>
+      <select className="input w-auto" aria-label="Source sheet" value={source} onChange={(e) => nav({ source: e.target.value })}>
         <option value="">All sheets</option>
         {sources.map((s) => <option key={s.name} value={s.name}>{s.name} ({s.count})</option>)}
       </select>
-      <input className="input w-[280px]" placeholder="Search SKU, code, description…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <input className="input w-full sm:w-[280px]" aria-label="Search crosses" placeholder="Search SKU, code, description…" value={search} onChange={(e) => setSearch(e.target.value)} />
       <span className="ml-auto text-[12.5px] text-muted">{shown} shown{shown === 400 ? " (first 400)" : ""}</span>
     </div>
   );

@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { log } from "@/lib/log";
 import { publicFieldSpec } from "./fields";
-import { readConfig, saveConfig, secretsPresent, type IntegrationKey, type SaveInput } from "./config";
+import { readConfig, saveConfig, secretsState, type IntegrationKey, type SaveInput } from "./config";
 import { definition, fieldsFor, providerOf, INTEGRATIONS, effectiveMapping } from "./registry";
 import { openReviewCount, REVIEW_KINDS } from "./review";
 import { parseMappingBundle, type MappingBundle } from "./mapping";
@@ -31,7 +31,8 @@ export async function listIntegrations(): Promise<IntegrationSummary[]> {
 export async function integrationDetail(k: IntegrationKey) {
   const d = await definition(k);
   const row = await prisma.integrationConfig.findUnique({ where: { key: k } });
-  const present = row ? [...(await secretsPresent(k))] : [];
+  const secrets = row ? await secretsState(k) : { present: new Set<string>(), unreadable: null };
+  const present = [...secrets.present];
   const overrides = parseMappingBundle(row?.mappingJson);
   const jobs = await prisma.integrationSyncJob.findMany({ where: { integrationKey: k }, orderBy: { startedAt: "desc" }, take: 20, select: { id: true, provider: true, syncType: true, trigger: true, status: true, startedAt: true, completedAt: true, received: true, created: true, updated: true, skipped: true, errored: true, reviewed: true, errorSummary: true, errorCategory: true } });
   let config: Record<string, unknown> = {};
@@ -45,7 +46,7 @@ export async function integrationDetail(k: IntegrationKey) {
       syncTypes: d.syncTypes, webhook: d.webhook ?? null, requiredFromCustomer: d.requiredFromCustomer,
     },
     config: row ? {
-      provider: row.provider, enabled: row.enabled, config, secretsPresent: present, mapping: overrides, effectiveMapping: effectiveMapping(d, overrides), scheduleCron: row.scheduleCron, configVersion: row.configVersion,
+      provider: row.provider, enabled: row.enabled, config, secretsPresent: present, secretsUnreadable: secrets.unreadable, mapping: overrides, effectiveMapping: effectiveMapping(d, overrides), scheduleCron: row.scheduleCron, configVersion: row.configVersion,
       status: row.status, lastTestAt: row.lastTestAt, lastTestOk: row.lastTestOk, lastConnectedAt: row.lastConnectedAt, lastSyncAt: row.lastSyncAt, lastAttemptAt: row.lastAttemptAt, lastError: row.lastError, lastErrorCategory: row.lastErrorCategory, updatedAt: row.updatedAt,
     } : null,
     jobs,

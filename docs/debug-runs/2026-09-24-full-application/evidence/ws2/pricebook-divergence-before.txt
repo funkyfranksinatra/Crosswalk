@@ -1,0 +1,2 @@
+run priceOf (no pricebook selected): null | No applicable price: LIST: no entry for this SKU
+proposal snapshot listPrice: 77 | proposedPrice: 18.18 | LIST applies at USD 77: price list pbdmuf9d1zp Pricebook. 

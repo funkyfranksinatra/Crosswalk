@@ -49,9 +49,11 @@ function q(s: string) {
  */
 const memo = new Map<string, { at: number; value: OpenFdaSearch }>();
 const inFlight = new Map<string, Promise<OpenFdaSearch>>();
-const MEMO_MS = Number(process.env.OPENFDA_MEMO_SECONDS ?? 300) * 1000;
+let MEMO_MS = Number(process.env.OPENFDA_MEMO_SECONDS ?? 300) * 1000;
 const MEMO_MAX = 2000;
 export function clearOpenFdaMemo() { memo.clear(); inFlight.clear(); }
+/** Test seam: shorten (or disable with 0) the memo window; `null` restores the configured value. */
+export function setOpenFdaMemoMsForTests(ms: number | null) { MEMO_MS = ms ?? Number(process.env.OPENFDA_MEMO_SECONDS ?? 300) * 1000; }
 onFetchReplaced(clearOpenFdaMemo); // the test seam swaps fetch → the memo must not outlive it
 
 async function fetchJson(url: string, opts: { fresh?: boolean } = {}): Promise<OpenFdaSearch> {

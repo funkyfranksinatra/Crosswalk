@@ -11,7 +11,10 @@ export async function scheduleFeeds(boss: PgBoss) {
     const cron = feedCron(name);
     const key = `feed-${name}`;
     if (!cron) { await boss.unschedule("feed.ingest", key).catch(() => undefined); continue; }
-    await boss.schedule("feed.ingest", cron, { feed: name, trigger: "schedule" }, { tz: "UTC", key, singletonKey: `feed:${name}`, missed: "once" });
+    // A malformed FEED_<NAME>_CRON must not take down the job system (workers, orphan recovery and
+    // every other schedule are registered after this): log it and leave that one feed unscheduled.
+    try { await boss.schedule("feed.ingest", cron, { feed: name, trigger: "schedule" }, { tz: "UTC", key, singletonKey: `feed:${name}`, missed: "once" }); }
+    catch (e) { log.error("jobs.schedule_failed", { queue: "feed.ingest", feed: name, cron, error: e instanceof Error ? e.message : String(e) }); await boss.unschedule("feed.ingest", key).catch(() => undefined); }
   }
   if (process.env.FEEDS_RUN_ON_START === "true") {
     for (const name of Object.keys(FEEDS) as FeedName[]) {

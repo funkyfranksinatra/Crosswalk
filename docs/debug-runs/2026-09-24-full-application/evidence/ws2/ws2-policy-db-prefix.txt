@@ -1,0 +1,56 @@
+
+ RUN  v5.0.1 /home/claude/cracr
+
+ ❯ tests/db/ws2-policy.test.ts (3 tests | 2 failed) 520ms
+   ❯ WS2 policy — repository (3)
+     × activation supersedes the previous ACTIVE version in one step and pins the family; only a DRAFT can be activated 51ms
+     × activation race: two drafts for the same family activated concurrently → exactly one ACTIVE, every time 122ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/db/ws2-policy.test.ts > WS2 policy — repository > activation supersedes the previous ACTIVE version in one step and pins the family; only a DRAFT can be activated
+AssertionError: promise resolved "undefined" instead of rejecting
+
+- Expected:
+Error {
+  "message": "rejected promise",
+}
+
++ Received:
+undefined
+
+ ❯ tests/db/ws2-policy.test.ts:49:59
+     47|     expect(policyFor(await activePolicies(), FAM.toUpperCase()).id).to…
+     48|     // A superseded version cannot be re-activated (a rollback is a ne…
+     49|     await expect(activatePolicy(admin.row.id, rows[0].id)).rejects.toT…
+       |                                                           ^
+     50|     await expect(activatePolicy(admin.row.id, rows[1].id)).rejects.toT…
+     51|     await expect(activatePolicy(admin.row.id, "no-such-policy")).rejec…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/db/ws2-policy.test.ts > WS2 policy — repository > activation race: two drafts for the same family activated concurrently → exactly one ACTIVE, every time
+AssertionError: round 1: A1,B1: expected 2 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ tests/db/ws2-policy.test.ts:62:87
+     60|       expect(results.filter((r) => r.status === "fulfilled").length).t…
+     61|       const active = await prisma.pricingPolicy.findMany({ where: { pr…
+     62|       expect(active.length, `round ${round}: ${active.map((p) => p.nam…
+       |                                                                                       ^
+     63|       expect([a.id, b.id]).toContain(active[0].id);
+     64|       // Whichever lost is SUPERSEDED (activated then superseded) or s…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  08:22:38
+   Duration  1.63s (transform 42%, tests 36%, setup 17%, import 6%)
+

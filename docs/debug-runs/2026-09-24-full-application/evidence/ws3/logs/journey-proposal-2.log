@@ -1,0 +1,34 @@
+PASS proposal loaded — {"status":"DRAFT","lines":5}
+PASS an included, priced line exists — {"code":"1190500","sku":"PCO2520X","proposed":1015,"list":1015}
+PASS inline price edit persisted (777.77) — 777.77
+PASS negative price refused and reported — price must be positiveDismiss
+PASS drawer tab Recommendation
+PASS drawer tab Price waterfall
+PASS drawer tab Competitor prices
+PASS drawer tab Cost basis
+PASS drawer tab Cross evidence
+PASS drawer tab Approvals
+PASS re-recommend applied (recommendation JSON present) — {"proposed":1015,"recommended":1015}
+PASS line customer note persisted — ws3 proposal customer note
+PASS scenario created — ["Aggressive"]
+PASS scenario view banner
+PASS scenario applied to proposal prices — {"scenarioPrice":"1015","now":1015}
+PASS scenario deleted
+PASS logistics saved (flat freight 25, manual tax 5 %) — {"freight":"FLAT","value":"25","tax":"MANUAL","rate":"0.05"}
+PASS tax calculated — {"currency":"USD","subtotal":"16772.52","freight":"25","tax":"838.63","total":"17636.15","taxCalculatedAt":"2026-09-24T10:14:21.045Z","taxStale":false,"taxNote":"Manual rate 5.000%, freight untaxed"}
+PASS below-floor price accepted in the draft and flagged for approval — {"price":461.76,"floor":513.07,"needs":"PRICING_COMMITTEE"}
+PASS below-floor input marked aria-invalid
+PASS exclude line persisted for every unpriced line — ["1190500:in","B12LTH:in","TLC75:out","C0121:out","IN-12-4:out"]
+PASS submitted — {"status":"APPROVED","pending":[]}
+PASS no approvals needed (within authority)
+PASS proposal approved — APPROVED
+FAIL quote export pdf — {"status":400,"type":"application/json","bytes":113}
+FAIL quote export xlsx — {"status":400,"type":"application/json","bytes":124}
+FAIL quote export csv — {"status":400,"type":"application/json","bytes":124}
+PASS record outcome offered
+PASS outcome dialog: focus inside
+PASS outcome recorded (WON) — {"status":"WON","outcome":{"id":"cmufdkjdz003o8l7dpv2epj9t","proposalId":"cmufdjtgl002w8l7dk6h2dqfi","outcome":"WON","competitorId":null,"priceReason":"ws3 won on price","commercialReason":"","finalValue":8473.92,"curren
+PASS new version offered
+PASS new version created (v+1, DRAFT) — {"v":3,"status":"DRAFT"}
+PASS no page errors — []
+33 checks, 3 failures

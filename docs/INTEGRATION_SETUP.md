@@ -91,7 +91,8 @@ latency, retry-after — no headers or bodies), `integration.webhook.received` /
 
 | Variable | Purpose |
 | --- | --- |
-| `INTEGRATIONS_ENCRYPTION_KEY` | 32-byte key (64 hex or 44 base64 chars) that seals stored secrets. Required in production; outside production a key derived from `SESSION_SECRET` stands in. Rotate by re-saving each integration's secrets under the new key. |
+| `INTEGRATIONS_ENCRYPTION_KEY` | 32-byte key (64 hex or 44 base64 chars) that seals stored secrets; any other length is refused. Required in production; outside production a key derived from `SESSION_SECRET` stands in. Rotate by setting the new key and re-saving each integration's secrets: until then the integration reads as `NOT_CONFIGURED` with "Stored integration secrets cannot be decrypted … re-enter them", the settings page still opens (`secretsUnreadable` on the detail), a save that supplies no secret values keeps the old sealed blob untouched (restoring the previous key still recovers it), and a save that supplies them replaces it. A tampered blob fails the same way. |
+| `SF_*`, `SAP_*` (retired) | The legacy `SF_LOGIN_URL` / `SF_CLIENT_ID` / … and `SAP_ODATA_BASE_URL` / … variables selected API skeletons that only ever threw `NotConfigured`; those files are gone. Leave the variables unset. While any is set and the matching integration is **not** enabled here, the legacy crm / erp syncs, the feeds and the CRM push refuse with a message naming the variables and this page — they never fall back to files or fixtures under credentials the operator believes are in use. |
 | `INTEGRATIONS_ALLOW_MOCK` | `true` lets mock providers run on a production build (demo instances only). |
 | `DOCUMENT_STORAGE_DIR` | Where uploaded document bytes are kept (default `./.data/documents`). |
 | `JOBS_WORKER` | `inline` (default) runs scheduled syncs in the web process; `external` in a dedicated worker. |
@@ -283,6 +284,14 @@ latency, retry-after — no headers or bodies), `integration.webhook.received` /
 4. **Configuration fields** — provider `manual`, `ecb` (base URL), `http` (endpoint template with
    `{base}` `{quote}` `{date}`, rate path, date path, auth), `mock`; common: base currencies, quote
    currencies, fallback (`fail` — recommended — or `previous-business-day`), max look-back days.
+   **Missing-rate policy (canonical, one definition in `src/lib/integrations/fx/service.ts`):**
+   `fail` — a date with no rate is an error, never a substituted current rate. With
+   `previous-business-day` the lookup walks back at most *max look-back days* calendar days
+   (default **5**, allowed 0–30: five covers a weekend plus a holiday on either side of it with one
+   day to spare, e.g. Tue 29 Dec → Mon 28 (holiday) → weekend → Thu 24 (holiday) → Wed 23) and
+   labels the conversion with the date it used and how many days earlier it was. A stored rate for
+   the date always wins over the provider; a pair the provider does not publish is `NOT_FOUND`
+   after the walk. The registry's form default and the service default are the same constant.
 5. **Field mapping** — the HTTP provider's rate / date paths.
 6. **Sync types and schedule** — `rates`: pull today's rate for every base × quote pair (schedule
    after the provider publishes, e.g. `30 16 * * 1-5` for ECB). Pairs the provider does not publish

@@ -28,6 +28,8 @@ export async function binProduct(input: {
   category?: string | null;
   sizes?: { type?: string; value?: string; unit?: string }[] | null;
   importedSizes?: Dimension[] | null;
+  /** other records of the same labeler line (GUDID library) — sibling-family evidence */
+  siblings?: import("@/lib/match/siblings").SiblingRecord[] | null;
   /** catalog number as printed by its manufacturer (competitor codes too) — SKU-convention evidence */
   code?: string | null;
   intakeDescription?: string | null;

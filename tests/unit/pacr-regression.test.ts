@@ -77,7 +77,8 @@ describe("adversarial match tests", () => {
     }
   });
   it("no trocar is Exact or Close for a cannula-only line", () => {
-    for (const code of ["CB12LT", "CTB12LT", "CFS22"]) for (const c of judge(code)) if (/Trocar with|Optical Trocar|Bladeless Trocar|Bladed Trocar/i.test(c.description)) expect(c.matchType, `${code} → ${c.sku}`).toMatch(/Alternative|No Match/);
+    // A cannula sold "for use with … trocar" (NBFCA12ST) names the trocar it fits, it is not one: it may cross to a cannula line.
+    for (const code of ["CB12LT", "CTB12LT", "CFS22"]) for (const c of judge(code)) if (/Trocar with|Optical Trocar|Bladeless Trocar|Bladed Trocar/i.test(c.description) && !/for use with/i.test(c.description)) expect(c.matchType, `${code} → ${c.sku}`).toMatch(/Alternative|No Match/);
   });
   it("a 5 mm line never gets a 12 mm Exact/Close, and a 12 mm line never a 5 mm one", () => {
     for (const c of judge("2B5XT")) if (/12 mm/.test(c.description)) expect(c.matchType, c.sku).toMatch(/Alternative|No Match/);

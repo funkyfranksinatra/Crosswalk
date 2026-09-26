@@ -1,0 +1,6 @@
+statuses: 200,200 [
+  '{"created":1,"superseded":1,"unknown":[]}',
+  '{"created":1,"superseded":1,"unknown":[]}'
+]
+rows: ACTIVE:82, SUPERSEDED:81, SUPERSEDED:90
+ACTIVE entries for one SKU/band: 1 (must be 1)

@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { plain } from "@/lib/serialize";
 import { prisma } from "@/lib/db";
 import { summarizeLines } from "@/lib/requests";
-import { llmConfig } from "@/lib/llm/client";
+import { llmConfig } from "@/lib/ai/gateway";
 import { googleStatus } from "@/lib/sheets/google";
 import { authorize } from "@/lib/api";
-import { can } from "@/lib/auth";
+import { redactCandidateForActor } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+
+const safeLog = (raw: string): unknown => { try { return JSON.parse(raw); } catch { return [{ m: "(log unreadable)" }]; } };
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,14 +27,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   try { modelStatus = request.optionsJson ? (JSON.parse(request.optionsJson).model ?? null) : null; } catch {}
   // Cost and margin never leave the server for roles without the permission — candidates carry
   // the SKU's COGS and the cost/margin fit scores.
-  if (!can(actor, "view_cost") || !can(actor, "view_margin")) {
-    const hideCost = !can(actor, "view_cost"), hideMargin = !can(actor, "view_margin");
-    for (const l of request.lines) for (const c of l.candidates) {
-      if (hideCost) { c.ownProduct.cogs = null; c.scoreCogs = null; }
-      if (hideMargin) c.scoreMargin = null;
-    }
-  }
-  return NextResponse.json(plain({ ...request, summary: summarizeLines(request.lines), log: JSON.parse(request.logJson), llmAvailable: llmConfig().available, google: googleStatus(), modelStatus }));
+  for (const l of request.lines) for (const c of l.candidates) redactCandidateForActor(actor, c);
+  return NextResponse.json(plain({ ...request, summary: summarizeLines(request.lines), log: safeLog(request.logJson), llmAvailable: llmConfig().available, google: googleStatus(), modelStatus }));
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {

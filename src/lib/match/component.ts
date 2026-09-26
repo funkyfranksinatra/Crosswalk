@@ -26,9 +26,20 @@ export function componentOf(...texts: (string | null | undefined)[]): Component 
   if (!t) return "unknown";
   if (NEEDLE.test(t)) return "insufflation-needle";
   if (DILATING.test(t)) return "dilating-system";
-  // A trocar sold with its cannula names both; "with fixation cannula" / "with stability sleeve" is still a trocar.
-  const withCannula = /\btrocars?\b[^;]*\bwith\b[^;]*\b(?:cannula|sleeve)s?\b|\b(?:cannula|sleeve)s?\b[^;]*\bwith\b[^;]*\btrocar\b/i.test(t);
+  // A trocar sold with its cannula names both; "with fixation cannula" / "with stability sleeve" is still a trocar,
+  // and so is "Bladeless 12 mm … with fixation cannula" (the tip word names the obturator). "Fixation cannula …
+  // for use with … trocar" is the opposite: a cannula sold FOR a trocar, so "for use with" never joins the two.
+  // "with" binds to the next few words only ("with fixation cannula", "with 100mm Radiolucent Sleeve"), never
+  // across a "for use with" or a seal description.
+  const WITH = "(?<!\\bfor\\s)(?<!\\bfor\\suse\\s)\\bwith\\s+(?:[\\w.-]+\\s+){0,4}";
+  // A sleeve sold WITH its obturator ("Thoracic Trocar Sleeves with Rounded Tip Obturator") is the complete device too.
+  const withCannula = new RegExp(`\\btrocars?\\b[^;]*${WITH}(?:cannula|sleeve)s?\\b|\\b(?:cannula|sleeve)s?\\b[^;]*${WITH}(?:trocars?|obturators?)\\b|\\b(?:bladeless|bladed|optical|blunt(?:[\\s-]*tip)?|dilating(?:[\\s-]*tip)?)\\b[^;]*${WITH}(?:cannula|sleeve)s?\\b`, "i").test(t);
   if (withCannula) return "trocar";
+  // "Single Use Trocar; Non-conductive Sleeve" (Thoracoport), "Trocar; Smooth Sleeve": a sleeve *quality*
+  // named after the trocar in its own clause describes the trocar's sleeve, not a sleeve SKU. "Sleeve only"
+  // and "sleeve assembly" keep their meaning (read above / below).
+  const sleeveAttribute = /\btrocars?\b[^;]*;\s*(?:(?!only|assembly|universal)[\w-]+\s+){1,2}sleeves?\s*(?:;|$)/i.test(t);
+  if (sleeveAttribute) return "trocar";
   // "trocar with universal seal" names a seal as a part of the trocar, not a seal SKU.
   const accessoryAsPart = /\b(?:trocar|cannula|sleeve|obturator)s?\b[^;]*\bwith\b[^;]*\b(?:seal|valve|reducer|adapt[eo]r|cap)s?\b/i.test(t);
   if (!accessoryAsPart && ACCESSORY.test(t)) return "accessory";

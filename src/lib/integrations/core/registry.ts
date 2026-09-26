@@ -236,7 +236,8 @@ const FX: IntegrationDefinition = {
     { name: "baseCurrencies", label: "Base currencies", type: "text", default: "USD", help: "Comma-separated", group: "Scope" },
     { name: "quoteCurrencies", label: "Quote currencies", type: "text", default: "EUR,GBP,CAD", help: "Comma-separated", group: "Scope" },
     { name: "fallback", label: "When no rate exists for the date", type: "select", default: "fail", options: [{ value: "fail", label: "Fail the conversion (recommended)" }, { value: "previous-business-day", label: "Use the previous business day's rate (labelled)" }], group: "Policy" },
-    { name: "maxLookbackDays", label: "Max look-back days", type: "number", default: 3, group: "Policy" },
+    // Default shared with src/lib/integrations/fx/service.ts (FX_MAX_LOOKBACK_DEFAULT): one canonical policy.
+    { name: "maxLookbackDays", label: "Max look-back days", type: "number", default: 5, help: "Only with the previous-business-day fallback; 5 covers a weekend plus a holiday on either side (0–30)", group: "Policy", validate: (v) => { const n = Number(v); return Number.isInteger(n) && n >= 0 && n <= 30 ? null : "Max look-back days must be a whole number between 0 and 30"; } },
   ],
   mappingSpecs: {}, defaultMapping: {},
   syncTypes: [{ id: "rates", label: "Daily rates", description: "Pull today's rates for every base × quote pair" }],

@@ -1,0 +1,49 @@
+
+> crosswalk@0.7.0 test:adversarial
+> tsx scripts/test-adversarial.ts
+
+  ✓ a bare user id is not a session; only the signed cookie value is
+  ✓ money arithmetic is exact where floats are not
+  ✓ waterfall: contracts beginning today apply, contracts ending today apply, tomorrow's and yesterday's do not; ties choose the lowest price and say so
+  ✓ waterfall: a EUR contract never prices a USD question; an unapproved entry never applies
+  ✓ recommendation never goes below floor, never above reference; missing cost → no floor, margin unknown, not zero
+  ✓ competitor intelligence: an absurd observation (case price as unit price) does not become KNOWN_ACCOUNT on its own
+09:50:57 INFO  notify.created {"kind":"APPROVAL_REQUESTED","recipients":2,"created":2,"entityType":"Proposal","entityId":"cmufcqbye0000m07dn8eos5s1"}
+09:50:57 INFO  notify.created {"kind":"APPROVAL_REQUESTED","recipients":5,"created":5,"entityType":"Proposal","entityId":"cmufcqbye0000m07dn8eos5s1"}
+  ✓ submit routes the three lines correctly and locks the proposal
+09:50:57 INFO  notify.created {"kind":"APPROVAL_DECIDED","recipients":1,"created":1,"entityType":"ApprovalRequest","entityId":"cmufcqc2t0004m07d1guulrc4"}
+  ✓ CHAIN: changes-requested on one line must not let a repriced sibling line be approved against a stale snapshot
+09:50:57 INFO  notify.created {"kind":"APPROVAL_REQUESTED","recipients":5,"created":5,"entityType":"Proposal","entityId":"cmufcqbye0000m07dn8eos5s1"}
+09:50:57 INFO  notify.created {"kind":"APPROVAL_DECIDED","recipients":1,"created":1,"entityType":"ApprovalRequest","entityId":"cmufcqc9x000mm07dviw5exmj"}
+09:50:57 INFO  notify.created {"kind":"PROPOSAL_APPROVED","recipients":1,"created":1,"entityType":"Proposal","entityId":"cmufcqbye0000m07dn8eos5s1"}
+09:50:57 INFO  jobs.started [boss] {"schema":"pgboss"}
+09:50:57 INFO  jobs.enqueued {"queue":"analytics.refresh","jobId":"92ce7012-6056-4d06-b9f9-bc52a7ba2f73","deduplicated":false,"singletonKey":"analytics:event"}
+  ✓ CHAIN: resubmission after changes-requested supersedes old requests; the proposal can still reach APPROVED
+  ✓ exported quote carries exactly the approved prices; nothing mutated after approval
+  ✓ a rep cannot export before approval, a clinical reviewer cannot export at all, finance cannot set prices
+09:50:57 INFO  notify.created {"kind":"APPROVAL_REQUESTED","recipients":2,"created":2,"entityType":"Proposal","entityId":"cmufcqck10012m07d0tlkmop5"}
+09:50:57 INFO  notify.created {"kind":"APPROVAL_REQUESTED","recipients":5,"created":5,"entityType":"Proposal","entityId":"cmufcqck10012m07d0tlkmop5"}
+09:50:57 INFO  notify.created {"kind":"APPROVAL_DECIDED","recipients":1,"created":1,"entityType":"ApprovalRequest","entityId":"cmufcqclv0018m07dmetj5sno"}
+  ✓ two managers deciding the same request simultaneously: exactly one decision is recorded
+09:50:57 INFO  notify.created {"kind":"APPROVAL_REQUESTED","recipients":2,"created":2,"entityType":"Proposal","entityId":"cmufcqcps001km07dy2n9hzs9"}
+09:50:57 INFO  notify.created {"kind":"APPROVAL_REQUESTED","recipients":5,"created":5,"entityType":"Proposal","entityId":"cmufcqcps001km07dy2n9hzs9"}
+  ✓ double submit in parallel creates one set of approval requests
+  ✓ parallel price edits on one line leave a consistent line and one audit event per write
+  ✓ negative, zero, NaN and absurd prices are refused; a 100% discount needs the committee
+09:50:58 INFO  jobs.enqueued {"queue":"analytics.refresh","jobId":null,"deduplicated":true,"singletonKey":"analytics:event"}
+  ✓ a won proposal's contract cannot be deleted from under it; a request with proposals cannot be deleted
+  ✓ intake parser survives formulas, unicode, huge quantities, blanks and duplicate headers; CSV output neutralises formula injection
+  ✓ cost, floor and margin never reach a rep through the audit trail or nested recommendation JSON
+09:50:58 INFO  notify.created {"kind":"CROSS_PROPOSED","recipients":2,"created":2,"entityType":"KnownCross","entityId":"cmufcqd7j002nm07d634ghvg6"}
+  ✓ a cross cannot be approved on one signature, with no equivalence, or with an invented status
+  ✓ purchase and cost imports are idempotent and skip bad rows with a reason
+  ✓ a policy that would disable floors or invert authority is refused; a sane draft is accepted
+  ✓ renaming the company keeps the catalog (no second Company row); bad settings are refused
+  ✓ a rep-proposed cross must name a real SKU and a real match type
+  ✓ an approved proposal past its valid-through date cannot be exported
+
+24 passed, 0 failed
+
+real	0m3.385s
+user	0m2.909s
+sys	0m0.364s

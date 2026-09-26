@@ -1,0 +1,17 @@
+OK   floorFor cost 400 min 0.3: recomputed=571.4285714285714285714285714 test-expects=571.4285714285714285714285714
+OK   target price cost 400 target 0.45 → cents: recomputed=727.27 test-expects=727.27
+OK   PENETRATION floor×1.02: recomputed=582.86 test-expects=582.86
+OK   UNDERCUT_PCT 2.5% of 900: recomputed=877.5 test-expects=877.5
+OK   UNDERCUT_PCT 2.5% of 1234.5 → cents half-even: recomputed=1203.64 test-expects=1203.64
+OK   JPY 0dp of 1203.6375: recomputed=1204 test-expects=1204
+OK   floor cost 800 / 0.7 → cents: recomputed=1142.86 test-expects=1142.86
+OK   discountFromContract (600-500)/600: recomputed=0.1666666666666666666666666667 test-expects=0.1666666666666666666666666667
+OK   economics listValue: recomputed=29200 test-expects=29200
+OK   economics contractValue: recomputed=27200 test-expects=27200
+OK   economics cogs (E3 has none): recomputed=8075 test-expects=8075
+OK   economics competitorSpend 850×10+450×20+75.5×2.5: recomputed=17688.75 test-expects=17688.75
+OK   banker's rounding 777.775 → : recomputed=777.78 test-expects=777.78
+OK   banker's rounding 444.445 → : recomputed=444.44 test-expects=444.44
+OK   banker's rounding 70.125 → : recomputed=70.12 test-expects=70.12
+OK   waterfall rank GPO precedence 5: recomputed=15 test-expects=15
+OK   waterfall rank LOCAL precedence 1: recomputed=11 test-expects=11

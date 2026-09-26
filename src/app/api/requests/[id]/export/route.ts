@@ -1,6 +1,7 @@
 import { buildCrossReferenceWorkbook, buildContractOfferWorkbook, buildCrossReferenceRows, buildContractOfferRows } from "@/lib/excel/export";
 import { toCsv } from "@/lib/sheets/csv";
-import { authorize } from "@/lib/api";
+import { authorize, errorResponse } from "@/lib/api";
+import { NextResponse } from "next/server";
 import { can, AuthError } from "@/lib/auth";
 import { buildOfferPdf } from "@/lib/pdf";
 
@@ -23,21 +24,29 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       const { buffer, filename, contentType } = await buildOfferPdf(actor, id);
       return new Response(new Uint8Array(buffer), { headers: { "content-type": contentType, "content-disposition": `attachment; filename="${filename}"` } });
     } catch (e) {
-      const status = e instanceof AuthError ? e.status : 400;
-      return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), { status, headers: { "content-type": "application/json" } });
+      // Same contract as the workbook branch: not found → 404, faults → 500, never the raw driver text (review REV-05).
+      const { status, message } = e instanceof AuthError ? { status: e.status, message: e.message } : errorResponse(e);
+      return new Response(JSON.stringify({ error: message }), { status, headers: { "content-type": "application/json" } });
     }
   }
-  if (format === "csv") {
-    const { rows, filename } = type === "offer" ? await buildContractOfferRows(id) : await buildCrossReferenceRows(id, hide);
-    return new Response(toCsv(rows), {
-      headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${filename.replace(/\.xlsx$/, ".csv")}"` },
+  if (!["xref", "offer"].includes(type) || !["xlsx", "csv"].includes(format)) return NextResponse.json({ error: "type must be xref or offer; format xlsx, csv or pdf" }, { status: 400 });
+  try {
+    if (format === "csv") {
+      const { rows, filename } = type === "offer" ? await buildContractOfferRows(id) : await buildCrossReferenceRows(id, hide);
+      return new Response(toCsv(rows), {
+        headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${filename.replace(/\.xlsx$/, ".csv")}"` },
+      });
+    }
+    const { buffer, filename } = type === "offer" ? await buildContractOfferWorkbook(id) : await buildCrossReferenceWorkbook(id, hide);
+    return new Response(new Uint8Array(buffer), {
+      headers: {
+        "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "content-disposition": `attachment; filename="${filename}"`,
+      },
     });
+  } catch (e) {
+    // An unknown request id (findUniqueOrThrow) or a builder fault: a JSON status, never an unhandled 500 page.
+    const { status, message } = errorResponse(e);
+    return NextResponse.json({ error: message }, { status });
   }
-  const { buffer, filename } = type === "offer" ? await buildContractOfferWorkbook(id) : await buildCrossReferenceWorkbook(id, hide);
-  return new Response(new Uint8Array(buffer), {
-    headers: {
-      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "content-disposition": `attachment; filename="${filename}"`,
-    },
-  });
 }

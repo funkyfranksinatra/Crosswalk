@@ -1,0 +1,15 @@
+PASS catalog: pricing template csv served — ﻿SKU,Description,Category,List Price,COGS,HOSPITAL LIST PRICE,SAP-MOCK list · US-LIST,VIZIENT HERNIA MECH TIER 1
+PASS catalog: re-imported list price shows ($661.25)
+PASS catalog: restore import applied ($655.00 back)
+PASS catalog: competitor sizes template served — ﻿Competitor Code,Manufacturer,Description,Width,Length,Diameter,Thickness (mm),Unit,Notes,Priority,Lists,Units,Est. spend,Size on file from
+PASS catalog: sizes import reports a result — 1 competitor sizes saved from 1 rows
+PASS catalog: enrich job reachable after start — {"running":false,"done":0,"total":0,"enriched":0,"missing":0,"startedAt":1790249736610}
+PASS catalog: Add SKUs reports present / invalid tokens — 0 added, 1 already present, not catalog numbers: !!!
+PASS gudid: plan preview shows a record count — 230 records across 1 labeler name · about 1 openFDA requests · 0 already in the library
+FAIL gudid: tiny import ran to completion
+PASS gudid: library has records after the import — {"total":230,"byManufacturer":[{"manufacturer":"Medtronic","count":230}],"imports":[{"id":"cmufgh5xu00dsfc7d8zqqhjdd","query":"Sofradim","kind":"COMPETITOR","addToOwnCatalog":false,"familiesJson":null,"productCodesJson":"[\"FTL\"]","inDistr
+PASS gudid: cancel path skipped (set GUDID_CANCEL_TEST=1 to run a second live import) — skipped
+FAIL gudid: panel back to idle after the import
+PASS no page errors — []
+PASS no CSP violations — []
+14 checks, 2 failures

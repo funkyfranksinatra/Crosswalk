@@ -1,0 +1,11 @@
+Error: OPENAI_API_KEY is not set — the model evaluation needs the model
+    at evaluateModel (/home/claude/cracr/src/lib/eval/model.ts:49:37)
+    at main (/home/claude/cracr/scripts/model-eval.ts:24:19)
+    at <anonymous> (/home/claude/cracr/scripts/model-eval.ts:36:1)
+    at Object.<anonymous> (/home/claude/cracr/scripts/model-eval.ts:36:59)
+    at Module._compile (node:internal/modules/cjs/loader:1705:14)
+    at Object.transformer (/home/claude/cracr/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:3619)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)

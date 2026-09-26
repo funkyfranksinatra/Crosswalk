@@ -1,0 +1,52 @@
+CI mirror on crosswalk_ws5_ci (fresh, empty) — 2026-09-24T09:50:30Z
+npm ci: SKIPPED (node_modules already installed from the same lockfile; see report)
+== npx prisma migrate deploy
+real	0m1.699s
+user	0m1.464s
+sys	0m0.223s
+exit=0
+== npm run typecheck
+real	0m6.364s
+user	0m9.271s
+sys	0m0.563s
+exit=0
+== npm run check
+real	0m0.877s
+user	0m0.879s
+sys	0m0.128s
+exit=0
+== npm run check:enterprise
+real	0m0.562s
+user	0m0.536s
+sys	0m0.094s
+exit=0
+== npm run build: SKIPPED (WS3 owns build/next start; not run here)
+== seeds without reference data (cwd=/tmp/tmp.zrKdXJP68H so data/reference/ is absent)
+exit=0
+No curated cross-reference sheet at data/reference/Endomechanical.xlsx.
+Ask the project owner for data/reference/Endomechanical.xlsx (own SKUs + curated crosses) and, optionally,
+SSXrefReport_REQ-7604.xlsx (hernia SKUs + list prices) and CrossReference_0001880967.xlsx (sample intake).
+Seeding only the company record and the default pricebook; the catalog starts empty.
+real	0m1.961s
+Users: 11 dev users across 11 roles
+StandardCost backfilled from legacy COGS: 0
+Pricing policies: 6 families ensured
+Crosswalk v1 published with 0 entries
+Competitor price observations: 19
+Demo commercial data ready (MSK, Premier Tier 2, local override, 3-hospital price intelligence).
+real	0m2.081s
+== npm run test:adversarial (SESSION_SECRET=ci-only-secret)
+exit=0
+24 passed, 0 failed
+real	0m3.385s
+== npx vitest run (SESSION_SECRET=ci-only-secret)
+exit=0
+ Test Files  40 passed (40)
+      Tests  686 passed | 1 skipped (687)
+real	2m33.954s
+== npm run eval:gate
+exit=1
+Model eval gate: FAILED
+  - BIN_VERSION is 8 but the accepted baseline measured version 6 — re-measure grading on the new bins and accept it
+  - LLM_MODEL is gpt-5.6-astra but the accepted baseline measured gpt-6-astra — measure the new model and accept it
+CI mirror finished 2026-09-24T09:53:33Z

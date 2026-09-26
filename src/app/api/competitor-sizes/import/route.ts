@@ -1,13 +1,15 @@
+import { assertSafeArchive } from "@/lib/security/archive";
 import { NextResponse } from "next/server";
 import { importCompetitorSizes, importCompetitorSizesRows } from "@/lib/excel/sizes";
 import { fetchSheetRows, parseSheetLink, SheetAccessError } from "@/lib/sheets/google";
-import { authorize } from "@/lib/api";
+import { authorize, formBody, badRequest } from "@/lib/api";
 import { audit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   const { actor, deny } = await authorize("manage_catalog");
   if (deny) return deny;
-  const form = await req.formData();
+  const form = await formBody(req);
+  if (!form) return badRequest("Expected a multipart/form-data body");
   const done = async (r: { upserted?: number; rows?: number }) => { await audit({ actorUserId: actor.id, entityType: "CompetitorSpec", entityId: "import", action: "IMPORTED", after: { upserted: r.upserted ?? null, rows: r.rows ?? null } }); return NextResponse.json(r); };
   const file = form.get("file");
   const sheetUrl = String(form.get("sheetUrl") ?? "").trim();
@@ -24,7 +26,9 @@ export async function POST(req: Request) {
       const { parseCsv } = await import("@/lib/sheets/csv");
       return done(await importCompetitorSizesRows(parseCsv(await file.text())));
     }
-    return done(await importCompetitorSizes(Buffer.from(await file.arrayBuffer())));
+    const bytes = Buffer.from(await file.arrayBuffer());
+    try { assertSafeArchive(bytes, file.name || "file"); } catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 400 }); }
+    return done(await importCompetitorSizes(bytes));
   } catch (e) {
     if (e instanceof SheetAccessError) return NextResponse.json({ error: `${e.message} ${e.hint}` }, { status: 400 });
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 400 });

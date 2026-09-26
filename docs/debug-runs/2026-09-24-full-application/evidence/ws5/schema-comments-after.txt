@@ -1,0 +1,4 @@
+MISMATCH    NotificationPreference.kind: comment "RUN_COMPLETE | RUN_FAILED | APPROVAL_REQUESTED | APPROVAL_DECIDED | PROPOSAL_APPROVED | CROSS_PROPOSED | FEED_FAILED | ALERT | JOB_FAILED | BREAK_GLASS | * (a Notification.kind or "*")"
+              constraint RUN_COMPLETE | RUN_FAILED | APPROVAL_REQUESTED | APPROVAL_DECIDED | PROPOSAL_APPROVED | CROSS_PROPOSED | FEED_FAILED | ALERT | JOB_FAILED | BREAK_GLASS | *
+              missing from comment: *
+1 mismatching comment(s)

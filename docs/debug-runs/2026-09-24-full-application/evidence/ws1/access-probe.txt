@@ -1,0 +1,58 @@
+12 × 100 mm                                  d=[12] r=null l=100 lc=standard fr=false
+12mm x 100mm                                 d=[12] r=null l=100 lc=standard fr=false
+100 mm x 11 mm                               d=[11] r=null l=100 lc=standard fr=false
+5x95                                         d=[] r=null l=null lc=null fr=false
+5x95 trocar                                  d=[5] r=null l=95 lc=standard fr=false
+5–12 mm                                      d=[12] r=5-12 l=null lc=null fr=true
+5-12mm                                       d=[12] r=5-12 l=null lc=null fr=true
+5 mm to 12 mm                                d=[12] r=5-12 l=null lc=null fr=true
+instruments up to 11 mm                      d=[11] r=1-11 l=null lc=null fr=true
+2/3 mm                                       d=[2,3] r=null l=null lc=null fr=false
+2 mm/3 mm                                    d=[2,3] r=null l=null lc=null fr=false
+5/10 mm                                      d=[5,10] r=null l=null lc=null fr=false
+12 mm trocar, Box of 6                       d=[12] r=null l=null lc=null fr=false
+12 mm trocar 6/bx                            d=[12] r=null l=null lc=null fr=false
+6/bx 12 mm trocar                            d=[12] r=null l=null lc=null fr=false
+Box of 6 12 mm trocars                       d=[12] r=null l=null lc=null fr=false
+5 mm trocar with 5 - 2/3 mm reducer          d=[5] r=null l=null lc=null fr=false
+10 mm trocar and 5 - 10 mm reducer           d=[10] r=null l=null lc=null fr=false
+12 mm trocar; 5 mm reducer cap               d=[12] r=null l=null lc=null fr=false
+trocar 80 mm                                 d=[] r=null l=80 lc=short fr=false
+trocar 81 mm                                 d=[] r=null l=81 lc=standard fr=false
+trocar 120 mm                                d=[] r=null l=120 lc=standard fr=false
+trocar 121 mm                                d=[] r=null l=121 lc=long fr=false
+10 cm length trocar 12 mm                    d=[12] r=null l=null lc=null fr=false
+12 mm x 10 cm                                d=[12] r=null l=null lc=null fr=false
+12 mm trocar 4 inch                          d=[12] r=null l=null lc=null fr=false
+3 x 12 mm                                    d=[12] r=null l=null lc=null fr=false
+lengthClassOf 80=short 80.5=standard 81=standard 120=standard 120.5=long 121=long
+gudid cm length: d=[12] l=100 lc=standard ev=length:100 mm@gudid:size,diameters:12 mm@gudid:description,component:trocar@gudid:description
+curated cm: d=[12] l=100 lc=standard ev=diameters:12 mm@curated-spec,length:100 mm@curated-spec,component:trocar@gudid:description
+curated in: d=[12] l=101.6 lc=standard ev=length:101.6 mm@curated-spec,diameters:12 mm@gudid:description,component:trocar@gudid:description
+gudid other unit: d=[12] l=null lc=null ev=diameters:12 mm@gudid:description,component:trocar@gudid:description
+non-optical trocar               generic.optical:{"visualization":"optical"}
+trocar without fixation          generic.fixation:{"fixation":"fixation"}
+Non-Threaded cannula             generic.smooth:{"fixation":"smooth"}
+OPTIVIEW                         ethicon.optiview:{"visualization":"optical","line":"Endopath Xcel OPTIVIEW","
+OPTIVIEW Ethicon                 ethicon.optiview:{"visualization":"optical","line":"Endopath Xcel OPTIVIEW","
+VersaStep needle                 
+VersaStep Plus 12 mm             mdt.versastep:{"component":"dilating-system","tip":"bladeless","visualizat
+Kii Fios First Entry             applied.kii-fios:{"visualization":"optical","tip":"bladeless","component":"tr
+Kii Shielded Bladed              applied.kii-bladed:{"tip":"bladed","visualization":"non-optical","component":"t | generic.bladed:{"tip":"bladed"} | generic.bladed-nonoptical:{"visualization":"non-optical"}
+Kii Balloon Blunt Tip            applied.kii-balloon:{"tip":"blunt","fixation":"balloon","component":"trocar"} | applied.kii-blunt:{"tip":"blunt"} | generic.blunt-nonoptical:{"visualization":"non-optical"} | generic.balloon:{"fixation":"balloon"}
+Kii Sleeve                       applied.kii-sleeve:{"component":"cannula","fixation":"fixation","manufacturer":
+Kii Advanced Fixation Cannula    applied.kii-sleeve:{"component":"cannula","fixation":"fixation","manufacturer": | generic.fixation:{"fixation":"fixation"}
+Kii Access System 5 x 100        applied.kii-access:{"component":"trocar","manufacturer":"Applied Medical","line
+non-bladed trocar                generic.bladeless:{"tip":"bladeless"} | generic.bladed:{"tip":"bladed"} | generic.bladed-nonoptical:{"visualization":"non-optical"} | generic.bladeless-nonoptical:{"visualization":"non-optical"}
+bladed-less                      generic.bladed:{"tip":"bladed"} | generic.bladed-nonoptical:{"visualization":"non-optical"}
+smooth, non-threaded             generic.smooth:{"fixation":"smooth"}
+optical-less                     generic.optical:{"visualization":"optical"}
+dia 12 vs 12.5: cap=Exact Match mult=1.000 cov=0.2 attr=Close Match hard=0 soft=0 conf=true
+dia 12 vs 12.51: cap=Alternative Match mult=0.550 cov=0.2 attr=Alternative Match hard=1 soft=0 conf=false
+dia 12 vs 11.5: cap=Exact Match mult=1.000 cov=0.2 attr=Close Match hard=0 soft=0 conf=true
+cannula vs trocar: cap=No Match mult=0.300 cov=0.2 attr=No Match hard=1 soft=0 conf=false
+dilating vs trocar full: cap=Exact Match mult=0.950 cov=1 attr=Close Match hard=0 soft=0 conf=true
+coverage 3/5: cap=Exact Match mult=1.000 cov=0.6 attr=Close Match hard=0 soft=0 conf=true
+coverage 4/5: cap=Exact Match mult=1.000 cov=0.8 attr=Exact Match hard=0 soft=0 conf=true
+optical vs unknown: cap=Exact Match mult=1.000 cov=0.9 attr=Exact Match hard=0 soft=0 conf=true
+unknown both: cap=Exact Match mult=1.000 cov=0 attr=Close Match hard=0 soft=0 conf=false

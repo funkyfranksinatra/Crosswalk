@@ -50,12 +50,14 @@ export function renderDocument(spec: DocSpec): Promise<Buffer> {
 }
 
 const PAGE_W = 612, MARGIN = 48, CONTENT_W = PAGE_W - MARGIN * 2;
-// Widths sum to CONTENT_W (516). Money columns are wide enough for "$1,234,567.89" at 8 pt Helvetica.
+// Widths sum to CONTENT_W (516). Money columns are wide enough for "$1,234,567.89" at 8 pt Helvetica;
+// the code / SKU columns (Courier 8 pt = 4.8 pt per character) hold 15 characters — a 14-digit GUDID
+// DI or "PROXIMATE-TX60B" — without wrapping mid-code.
 const COLS = [
-  { key: "code", label: "Current", w: 66 },
-  { key: "codeDescription", label: "Description", w: 130 },
-  { key: "sku", label: "Proposed", w: 66 },
-  { key: "description", label: "Description", w: 130 },
+  { key: "code", label: "Current", w: 80 },
+  { key: "codeDescription", label: "Description", w: 116 },
+  { key: "sku", label: "Proposed", w: 80 },
+  { key: "description", label: "Description", w: 116 },
   { key: "qty", label: "Qty", w: 30, align: "right" as const },
   { key: "unit", label: "Unit", w: 44, align: "right" as const },
   { key: "extended", label: "Extended", w: 50, align: "right" as const },

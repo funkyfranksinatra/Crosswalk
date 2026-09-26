@@ -17,6 +17,9 @@ async function main() {
   // Imported after secrets are in place: the Prisma client reads DATABASE_URL at load.
   const { startWorkers } = await import("../src/lib/jobs/workers");
   const { stopBoss } = await import("../src/lib/jobs/boss");
+  // Single tenant per deployment: a database with two Company rows is refused (TENANCY_STRICT=false only warns).
+  const { checkTenancy } = await import("../src/lib/tenancy");
+  await checkTenancy();
   await startWorkers();
   log.info("worker.ready", { pid: process.pid });
   for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, async () => { log.info("worker.stopping", { signal: sig }); await stopBoss(); process.exit(0); });

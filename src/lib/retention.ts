@@ -159,6 +159,9 @@ export async function runRetention(cfg: RetentionConfig = retentionConfig(), opt
 
   const total = Object.values(counts).reduce((s, n) => s + n, 0);
   log.info("retention.sweep", { dryRun: cfg.dryRun, counts, more });
-  await audit({ actorUserId: opts.actorUserId ?? null, entityType: "System", entityId: "retention", action: cfg.dryRun ? "RETENTION_DRY_RUN" : "RETENTION_SWEEP", context: { counts, more, days: cfg.days, batch: cfg.batch, total } }).catch(() => undefined);
+  // The audit row is the record that a sweep happened: if it cannot be written the job fails loudly
+  // (JOB_FAILED reaches the admins) rather than deleting quietly — the deletes above are already done.
+  try { await audit({ actorUserId: opts.actorUserId ?? null, entityType: "System", entityId: "retention", action: cfg.dryRun ? "RETENTION_DRY_RUN" : "RETENTION_SWEEP", context: { counts, more, days: cfg.days, batch: cfg.batch, total } }); }
+  catch (e) { log.error("retention.audit_failed", { counts, error: e instanceof Error ? e.message : String(e) }); throw e; }
   return { dryRun: cfg.dryRun, counts, more };
 }

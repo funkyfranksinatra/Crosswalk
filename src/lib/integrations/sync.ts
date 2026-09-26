@@ -9,21 +9,40 @@ import { prisma } from "@/lib/db";
 import { normalizeAccountType } from "@/lib/accounts/types";
 import { toDb, money } from "@/lib/money";
 import { normalizeCfn, isPlaceholderSku } from "@/lib/cfn";
-import type { CrmAdapter, ErpAdapter, GpoAdapter, CrmQuotePush } from "./types";
+import { NotConfigured, type CrmAdapter, type ErpAdapter, type GpoAdapter, type CrmQuotePush } from "./types";
 import { DevCrmAdapter, DevErpAdapter, DevGpoAdapter } from "./dev";
-import { SalesforceCrmAdapter } from "./salesforce";
-import { SapErpAdapter } from "./sap";
 import { FileCrmAdapter, FileErpAdapter, FileGpoAdapter, FEED_FILES, feedDir, feedFilesPresent } from "./file";
 import { audit } from "@/lib/audit";
 import { publicErrorMessage } from "@/lib/api";
 import { economicsToJson } from "@/lib/proposals/economics";
 import { readConfig, INTEGRATION_KEYS, type IntegrationKey } from "./core/config";
+import { redactMessage } from "./core/errors";
 import { INTEGRATIONS } from "./core/registry";
 
-/** Adapter selection: API adapter when its credentials exist → file feed when INTEGRATION_FEED_DIR is set → labelled dev fixtures. */
-export function crmAdapter(): CrmAdapter { return SalesforceCrmAdapter.configured() ? new SalesforceCrmAdapter() : FileCrmAdapter.configured() ? new FileCrmAdapter() : new DevCrmAdapter(); }
-export function erpAdapter(): ErpAdapter { return SapErpAdapter.configured() ? new SapErpAdapter() : FileErpAdapter.configured() ? new FileErpAdapter() : new DevErpAdapter(); }
+/**
+ * Adapter selection for the legacy entry points: a Tier 2 integration enabled under Settings →
+ * Integrations takes over (checked by each sync function) → the file feed when INTEGRATION_FEED_DIR
+ * is set → the labelled dev fixtures. The old SF_* / SAP_* environment variables select nothing:
+ * the API skeletons they used to pick (which only threw NotConfigured) were removed once the Tier 2
+ * Salesforce and SAP providers existed. When they are present without the matching Tier 2
+ * integration enabled, the sync refuses with a message that says exactly that (`refuseLegacyEnv`)
+ * rather than quietly using files or fixtures under credentials the operator believed were in use.
+ */
+export function crmAdapter(): CrmAdapter { return FileCrmAdapter.configured() ? new FileCrmAdapter() : new DevCrmAdapter(); }
+export function erpAdapter(): ErpAdapter { return FileErpAdapter.configured() ? new FileErpAdapter() : new DevErpAdapter(); }
 export function gpoAdapter(): GpoAdapter { return FileGpoAdapter.configured() ? new FileGpoAdapter() : new DevGpoAdapter(); }
+
+export const LEGACY_ENV = { crm: ["SF_LOGIN_URL", "SF_CLIENT_ID", "SF_CLIENT_SECRET", "SF_API_VERSION"], erp: ["SAP_ODATA_BASE_URL", "SAP_CLIENT", "SAP_USER", "SAP_PASSWORD"] } as const;
+/** True when the retired environment route is (still) configured for a system. */
+export function legacyEnvPresent(system: "crm" | "erp"): boolean {
+  return system === "crm" ? Boolean(process.env.SF_LOGIN_URL?.trim() || process.env.SF_CLIENT_ID?.trim()) : Boolean(process.env.SAP_ODATA_BASE_URL?.trim());
+}
+/** Legacy credentials without the Tier 2 integration enabled: refuse truthfully instead of syncing from files/fixtures. */
+function refuseLegacyEnv(system: "crm" | "erp"): void {
+  if (!legacyEnvPresent(system)) return;
+  const [label, key] = system === "crm" ? ["Salesforce", "salesforce"] : ["SAP", "sap"];
+  throw new NotConfigured(label, [`the ${LEGACY_ENV[system].join(" / ")} environment variables select no adapter any more — configure and enable "${label}" (key ${key}) under Settings → Integrations, or unset them to use the file feed / development fixtures`]);
+}
 
 const envSet = (names: string[]) => names.map((name) => ({ name, set: Boolean(process.env[name]) }));
 
@@ -47,7 +66,13 @@ export async function tier2Status(): Promise<Tier2Status[]> {
   return INTEGRATION_KEYS.map((k) => { const r = byKey.get(k); const d = INTEGRATIONS[k]; return { key: k, label: d.label, family: d.family, provider: r?.provider ?? null, enabled: r?.enabled ?? false, status: r?.status ?? "NOT_CONFIGURED", lastSyncAt: r?.lastSyncAt?.toISOString() ?? null, lastTestAt: r?.lastTestAt?.toISOString() ?? null, lastTestOk: r?.lastTestOk ?? null, lastError: r?.lastError ?? null, lastErrorCategory: r?.lastErrorCategory ?? null }; });
 }
 
-async function enabled(k: IntegrationKey): Promise<boolean> { const c = await readConfig(k).catch(() => null); return Boolean(c?.enabled); }
+/**
+ * Is a Tier 2 integration switched on? Read from the row's flag, not from `readConfig`: a row whose
+ * secrets cannot be decrypted (rotated key) must still route to the Tier 2 path and fail there with
+ * the "re-enter the secrets" error — swallowing that and quietly syncing from files or fixtures
+ * (or writing a quote to a file instead of the CRM) would be the wrong kind of graceful.
+ */
+async function enabled(k: IntegrationKey): Promise<boolean> { const row = await prisma.integrationConfig.findUnique({ where: { key: k }, select: { enabled: true } }); return Boolean(row?.enabled); }
 
 export async function integrationStatus(): Promise<Record<"crm" | "erp" | "gpo", IntegrationSystemStatus> & { feedDir: string | null; tier2: Tier2Status[] }> {
   const tier2 = await tier2Status();
@@ -56,22 +81,22 @@ export async function integrationStatus(): Promise<Record<"crm" | "erp" | "gpo",
   const present = feedFilesPresent();
   const dir = feedDir();
   const feed = (k: keyof typeof FEED_FILES) => ({ files: FEED_FILES[k].map((name) => ({ name, present: Boolean(present[name]) })) });
-  const sf = SalesforceCrmAdapter.configured();
-  const sap = SapErpAdapter.configured();
+  const sf = legacyEnvPresent("crm");
+  const sap = legacyEnvPresent("erp");
   const file = Boolean(dir);
   return {
     feedDir: dir,
     tier2,
     crm: {
-      adapter: sfOn ? `salesforce (${t2("salesforce").provider})` : crmAdapter().system, configured: sfOn || sf || file, implemented: sfOn || !sf,
-      note: sfOn ? `Salesforce integration (${t2("salesforce").provider}) — ${t2("salesforce").status}` : sf ? "Legacy SF_* environment variables present — configure Salesforce under Settings → Integrations instead" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no CRM connected",
-      api: { name: "Salesforce", env: envSet(["SF_LOGIN_URL", "SF_CLIENT_ID", "SF_CLIENT_SECRET", "SF_API_VERSION"]), implemented: true },
+      adapter: sfOn ? `salesforce (${t2("salesforce").provider})` : sf ? "none (legacy SF_* variables are ignored)" : crmAdapter().system, configured: sfOn || (file && !sf), implemented: true,
+      note: sfOn ? `Salesforce integration (${t2("salesforce").provider}) — ${t2("salesforce").status}` : sf ? "Legacy SF_* environment variables present — they select no adapter; configure and enable Salesforce under Settings → Integrations (syncs refuse until then)" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no CRM connected",
+      api: { name: "Salesforce", env: envSet([...LEGACY_ENV.crm]), implemented: true },
       feed: feed("crm"),
     },
     erp: {
-      adapter: sapOn ? `sap (${t2("sap").provider})` : erpAdapter().system, configured: sapOn || sap || file, implemented: sapOn || !sap,
-      note: sapOn ? `SAP integration (${t2("sap").provider}) — ${t2("sap").status}` : sap ? "Legacy SAP_* environment variables present — configure SAP under Settings → Integrations instead" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no ERP connected",
-      api: { name: "SAP (OData)", env: envSet(["SAP_ODATA_BASE_URL", "SAP_CLIENT", "SAP_USER", "SAP_PASSWORD"]), implemented: true },
+      adapter: sapOn ? `sap (${t2("sap").provider})` : sap ? "none (legacy SAP_* variables are ignored)" : erpAdapter().system, configured: sapOn || (file && !sap), implemented: true,
+      note: sapOn ? `SAP integration (${t2("sap").provider}) — ${t2("sap").status}` : sap ? "Legacy SAP_* environment variables present — they select no adapter; configure and enable SAP under Settings → Integrations (syncs refuse until then)" : file ? `File feed — ${dir}` : "DEVELOPMENT adapter (fixtures) — no ERP connected",
+      api: { name: "SAP (OData)", env: envSet([...LEGACY_ENV.erp]), implemented: true },
       feed: feed("erp"),
     },
     gpo: {
@@ -93,7 +118,7 @@ const hash = (o: unknown) => createHash("sha256").update(JSON.stringify(o)).dige
 async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<{ ok: true; value: T; attempt: number } | { ok: false; error: string; attempt: number }> {
   let last = "";
   for (let i = 1; i <= attempts; i++) {
-    try { return { ok: true, value: await fn(), attempt: i }; } catch (e) { last = publicErrorMessage(e); if (i < attempts) await new Promise((r) => setTimeout(r, 200 * 2 ** (i - 1))); }
+    try { return { ok: true, value: await fn(), attempt: i }; } catch (e) { last = redactMessage(publicErrorMessage(e)); if (i < attempts) await new Promise((r) => setTimeout(r, 200 * 2 ** (i - 1))); }
   }
   return { ok: false, error: last, attempt: attempts };
 }
@@ -103,7 +128,7 @@ async function upsertRef(system: string, entityType: string, externalId: string,
 }
 
 async function log(system: string, direction: "IN" | "OUT", entityType: string, r: { entityId?: string | null; externalId?: string | null; status: string; attempt?: number; error?: string | null; payloadHash?: string | null }) {
-  await prisma.syncLog.create({ data: { system, direction, entityType, entityId: r.entityId ?? null, externalId: r.externalId ?? null, status: r.status, attempt: r.attempt ?? 1, error: r.error ?? null, payloadHash: r.payloadHash ?? null } });
+  await prisma.syncLog.create({ data: { system, direction, entityType, entityId: r.entityId ?? null, externalId: r.externalId ?? null, status: r.status, attempt: r.attempt ?? 1, error: r.error ? redactMessage(r.error).slice(0, 2000) : null, payloadHash: r.payloadHash ?? null } });
 }
 
 export type SyncReport = { system: string; entityType: string; created: number; updated: number; skipped: number; failed: number; errors: string[] };
@@ -118,6 +143,7 @@ export async function syncCrmAccounts(actorUserId: string | null): Promise<SyncR
     if (o) { rep.created += o.counters.created; rep.updated += o.counters.updated; rep.skipped += o.counters.skipped; rep.failed += o.counters.errored; if (o.error) rep.errors.push(o.error.message); }
     return rep;
   }
+  refuseLegacyEnv("crm");
   const crm = crmAdapter();
   const rep = report(crm.system, "Account");
   const rows = await crm.pullAccounts();
@@ -182,6 +208,7 @@ export async function syncErp(actorUserId: string | null, companyId: string): Pr
     }
     return out;
   }
+  refuseLegacyEnv("erp");
   const erp = erpAdapter();
   const skuRep = report(erp.system, "OwnProduct");
   for (const s of await erp.pullSkuMaster()) {
@@ -255,19 +282,29 @@ export async function syncGpoMemberships(actorUserId: string | null): Promise<Sy
   return rep;
 }
 
+/** A proposal leaves for the CRM only when it could be finalised — `finalizeCheck` decides, and its reason is the error. */
+export async function assertPushable(proposalId: string): Promise<void> {
+  const { finalizeCheck } = await import("@/lib/approvals/service");
+  const f = await finalizeCheck(proposalId);
+  if (!f.ok) throw new Error(`Not pushed to CRM: ${f.reason}`);
+}
+
 /** Push an approved proposal to CRM as a quote (idempotent by proposal id + payload hash). */
 export async function pushQuote(actorUserId: string | null, proposalId: string) {
-  const sf = await readConfig("salesforce").catch(() => null);
-  if (sf?.enabled) {
+  if (await enabled("salesforce")) {
+    const sf = (await readConfig("salesforce"))!; // throws a ConfigurationError when the stored secrets cannot be read
     const { buildCrm } = await import("./core/registry");
     const { writeBackQuote } = await import("./salesforce/writeback");
     const crm = await buildCrm(sf);
     const r = await writeBackQuote(crm, sf.provider === "mock" ? "salesforce-mock" : "salesforce", actorUserId, proposalId, sf.config.pushMargin === true || sf.config.pushMargin === "true");
     return { externalId: r.externalId, skipped: r.skipped };
   }
+  refuseLegacyEnv("crm");
   const crm = crmAdapter();
   const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { account: true, opportunity: true, lines: { orderBy: { lineNo: "asc" } } } });
-  if (!["APPROVED", "WON"].includes(p.status)) throw new Error("Only approved proposals are pushed to CRM");
+  // The same gate as the quote exports (docs/BUSINESS_RULES.md): approved or won, not expired, every
+  // included line priced and approved — status alone let an expired or since-unpriced proposal through.
+  await assertPushable(proposalId);
   const econ = p.economicsJson ? (JSON.parse(p.economicsJson) as ReturnType<typeof economicsToJson>) : null;
   const payload: CrmQuotePush = {
     proposalId: p.id, reference: p.reference, accountExternalId: p.account.externalCrmId ?? p.account.id, opportunityExternalId: p.opportunity?.externalCrmId ?? null, status: p.status, currency: p.currency,

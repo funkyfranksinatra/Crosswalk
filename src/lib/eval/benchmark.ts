@@ -26,7 +26,7 @@ import { parseIntake, parseIntakeCsv, type IntakeResult } from "@/lib/excel/inta
 import { parseCsv } from "@/lib/sheets/csv";
 import { normalizeCfn, compactCfn } from "@/lib/cfn";
 import { runRequest } from "@/lib/pipeline/run";
-import { llmConfig } from "@/lib/llm/client";
+import { llmConfig } from "@/lib/ai/gateway";
 import { GRADE_PROMPT_VERSION } from "@/lib/match/grading";
 import { BIN_VERSION } from "@/lib/match/bin";
 import { getCompany } from "@/lib/settings";

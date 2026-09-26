@@ -35,8 +35,8 @@ export function DriftBanner({ proposalId, canEdit, onRefreshed }: { proposalId: 
       <div className="flex items-center gap-3 flex-wrap">
         <b>Context moved since this draft was built.</b>
         <span>{[...d.proposal.map((c) => c.note ?? FIELD[c.field] ?? c.field), ...parts].join(" · ")}{d.summary.belowNewFloor ? ` · ${d.summary.belowNewFloor} proposed price${d.summary.belowNewFloor === 1 ? " is" : "s are"} now below the new floor` : ""}.</span>
-        <button className="underline" onClick={() => setOpen(!open)}>{open ? "Hide details" : "Details"}</button>
-        {canEdit && d.editable && <button className="btn-secondary !py-1 !text-[12px] ml-auto" disabled={busy} onClick={refresh} title="Re-snapshot contracts, costs, policies and the crosswalk version; proposed prices are kept and audited">{busy ? "Refreshing…" : "Refresh to today's context"}</button>}
+        <button type="button" className="underline" onClick={() => setOpen(!open)}>{open ? "Hide details" : "Details"}</button>
+        {canEdit && d.editable && <button type="button" className="btn-secondary !py-1 !text-[12px] ml-auto" disabled={busy} onClick={refresh} title="Re-snapshot contracts, costs, policies and the crosswalk version; proposed prices are kept and audited">{busy ? "Refreshing…" : "Refresh to today's context"}</button>}
         {canEdit && !d.editable && <span className="ml-auto text-[12px]">Reopen the proposal to refresh it.</span>}
       </div>
       {msg && <div className="mt-1 text-[12px]">{msg}</div>}

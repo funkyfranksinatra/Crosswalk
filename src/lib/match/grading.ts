@@ -14,7 +14,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { structured, llmConfig } from "@/lib/llm/client";
+import { structured, llmConfig } from "@/lib/ai/gateway";
 import { constructionSignature, type Bin } from "./bin";
 import type { ScoredCandidate } from "./score";
 
@@ -189,7 +189,8 @@ export function applyGroupGrades(group: GradeLineInput[], grade: GroupGrade | nu
     }
     for (const l of group) {
       const scored = (out.get(l.lineId) ?? []).map((s) => {
-        if (s.matchType !== "No Match" || !floor.has(s.sku)) return s;
+        // A hard constraint (a cannula for a trocar line) is No Match on this line whatever its siblings say.
+        if (s.matchType !== "No Match" || !floor.has(s.sku) || s.factors.cap === "No Match") return s;
         return { ...s, matchType: "Alternative Match", rationale: `${s.rationale ?? ""} Rated Alternative for consistency with sibling products on this list.`.trim(), factors: { ...s.factors, notes: [...s.factors.notes, "lifted to Alternative by sibling consistency"] } };
       });
       out.set(l.lineId, sortGraded(scored, bestByLine.get(l.lineId) ?? null));

@@ -12,7 +12,7 @@
 import { componentOf, type Component } from "./component";
 import { brandAssertions, skuAssertion, type BrandAssertion, type Fixation, type Tip, type Visualization } from "./brands";
 
-export type EvidenceSource = "curated-spec" | "gudid:size" | "gudid:description" | "intake:description" | "catalog:description" | "brand" | "sku" | "bin";
+export type EvidenceSource = "curated-spec" | "gudid:size" | "gudid:description" | "gudid:siblings" | "intake:description" | "catalog:description" | "brand" | "sku" | "bin";
 
 export type SizeParse = {
   diameters: number[];
@@ -26,6 +26,8 @@ export type SizeParse = {
 export type LengthClass = "short" | "standard" | "long";
 
 const MM = "(?:mm|millimet(?:er|re)s?)";
+/** Centimetres appear on lengths ("10 cm length", "12 mm x 10 cm"); converted to mm, accepted for 3–20 cm (an access length, not an instrument). */
+const CM = "(?:cm|centimet(?:er|re)s?)";
 const NUM = "(\\d+(?:\\.\\d+)?)";
 
 function normalise(text: string): string {
@@ -37,6 +39,16 @@ function normalise(text: string): string {
     .replace(/\bMILLIMETERS?\b/gi, "mm")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** A length in mm from a value + unit label (mm / millimeter, cm / centimeter, in / inch); other units are not lengths. */
+export function toMm(value: number, unit: string): number | null {
+  if (!Number.isFinite(value)) return null;
+  const u = unit.trim().toLowerCase().replace(/[.\s]/g, "");
+  if (u === "mm" || u.startsWith("milli")) return value;
+  if (u === "cm" || u.startsWith("centi")) return Math.round(value * 100) / 10;
+  if (u === "in" || u === '"' || u.startsWith("inch")) return Math.round(value * 254) / 10;
+  return null;
 }
 
 export function lengthClassOf(mm: number | null | undefined): LengthClass | null {
@@ -60,16 +72,20 @@ export function parseAccessSizes(raw: string): SizeParse {
   for (const re of explicit) {
     while ((m = re.exec(t))) { if (taken(m.index) || isReducer(m.index + m[0].length)) continue; const v = parseFloat(m[1]); if (v <= 20) { addDia(v); take(m); } }
   }
-  // 2. Explicit length: "100 mm length", "length 100 mm", "100 mm long"
-  const lengthRe = [new RegExp(`${NUM}\\s*${MM}\\s*(?:in\\s+)?(?:length|long|lg\\b|working length|cannula length)`, "gi"), new RegExp(`\\b(?:length|working length|cannula length)\\s*:?\\s*${NUM}\\s*${MM}`, "gi")];
-  for (const re of lengthRe) while ((m = re.exec(t))) { if (taken(m.index)) continue; const v = parseFloat(m[1]); if (v >= 30 && v <= 400 && out.lengthMm == null) { out.lengthMm = v; take(m); } }
+  // 2. Explicit length: "100 mm length", "length 100 mm", "100 mm long", "10 cm length"
+  const lengthRe = [new RegExp(`${NUM}\\s*(${MM}|${CM})\\s*(?:in\\s+)?(?:length|long|lg\\b|working length|cannula length)`, "gi"), new RegExp(`\\b(?:length|working length|cannula length)\\s*:?\\s*${NUM}\\s*(${MM}|${CM})`, "gi")];
+  const asMm = (raw: number, unit: string) => (new RegExp(`^${CM}$`, "i").test(unit) ? (raw >= 3 && raw <= 20 ? raw * 10 : NaN) : raw);
+  for (const re of lengthRe) while ((m = re.exec(t))) { if (taken(m.index)) continue; const v = asMm(parseFloat(m[1]), m[2]); if (v >= 30 && v <= 400 && out.lengthMm == null) { out.lengthMm = v; take(m); } }
 
-  // 3. Pairs "12 x 100 mm", "12mm x 100mm", "100 mm x 12 mm", "5x95"
-  const pairRe = new RegExp(`${NUM}\\s*(?:${MM})?\\s*x\\s*${NUM}\\s*(?:${MM})?`, "gi");
+  // 3. Pairs "12 x 100 mm", "12mm x 100mm", "100 mm x 12 mm", "5x95", "12 mm x 10 cm"
+  const pairRe = new RegExp(`${NUM}\\s*(${MM}|${CM})?\\s*x\\s*${NUM}\\s*(${MM}|${CM})?`, "gi");
   while ((m = pairRe.exec(t))) {
     if (taken(m.index)) continue;
-    const a = parseFloat(m[1]), b = parseFloat(m[2]);
-    const hasUnit = /mm|millimet/i.test(m[0]) || /\b(?:trocar|cannula|sleeve|port|threaded)\b/i.test(t);
+    const a = asMm(parseFloat(m[1]), m[2] ?? "mm"), b = asMm(parseFloat(m[3]), m[4] ?? "mm");
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+    // "Round 12 cm x 1": a unit on the first number and a bare small integer after the x is a pack count.
+    if (m[2] && !m[4] && Number.isInteger(parseFloat(m[3])) && parseFloat(m[3]) <= 3) continue;
+    const hasUnit = /mm|millimet|cm|centimet/i.test(m[0]) || /\b(?:trocar|cannula|sleeve|port|threaded)\b/i.test(t);
     if (!hasUnit) continue;
     const small = Math.min(a, b), big = Math.max(a, b);
     if (small <= 20 && big >= 30 && big >= 3 * small) {
@@ -151,7 +167,7 @@ export type AccessProfile = {
 export const emptyProfile = (): AccessProfile => ({ component: "unknown", visualization: null, tip: null, fixation: null, lowProfile: null, diameters: [], range: null, lengthMm: null, lengthClass: null, line: null, manufacturer: null, extras: [], evidence: [], conflicts: [] });
 
 /** One text to read, or the SKU convention step (`source: "sku"`, `text` = the catalog number) placed where its priority belongs. */
-export type ProfileSource = { text: string | null | undefined; source: EvidenceSource; sizes?: { type?: string; value?: string; unit?: string }[] | null; dims?: { name: string; value: number; unit: string }[] | null; manufacturer?: string | null; /** GMDN term: read for specific components only */ gmdn?: string | null };
+export type ProfileSource = { text: string | null | undefined; source: EvidenceSource; sizes?: { type?: string; value?: string; unit?: string }[] | null; dims?: { name: string; value: number; unit: string }[] | null; manufacturer?: string | null; /** GMDN term: read for specific components only */ gmdn?: string | null; /** a ready assertion with its provenance (sibling-family evidence): gap-filling only */ assert?: BrandAssertion | null; via?: string | null };
 
 /** What a GMDN term says about the component — only the specific ones; "laparoscopic access cannula" is generic. */
 export function componentFromGmdn(gmdn: string | null | undefined): Component {
@@ -168,6 +184,8 @@ function applyAssertion(p: AccessProfile, a: BrandAssertion, source: EvidenceSou
     const unknown = cur == null || cur === "unknown" || (Array.isArray(cur) && cur.length === 0);
     if (unknown) { (p as Record<string, unknown>)[k] = v; p.evidence.push({ field: k, value: label, source, via }); }
     else if (JSON.stringify(cur) !== JSON.stringify(v) && stated) p.conflicts.push(`${k}: ${label} (${via}) vs ${Array.isArray(cur) ? cur.join("/") : String(cur)}`);
+    // The labeler's sibling records agreeing with a value a generic rule assumed turns the assumption into evidence.
+    else if (JSON.stringify(cur) === JSON.stringify(v) && source === "gudid:siblings") p.evidence.push({ field: k, value: `${label} (corroborated)`, source, via });
   };
   if (a.component) set("component", a.component, a.component);
   if (a.visualization) set("visualization", a.visualization, a.visualization);
@@ -206,19 +224,21 @@ export function buildAccessProfile(sources: ProfileSource[]): AccessProfile {
       if (sa) applyAssertion(p, sa.assert, "sku", sa.key, true);
       continue;
     }
+    if (s.assert) { applyAssertion(p, s.assert, s.source, s.via ?? s.source, false); if (!s.text) continue; }
     // structured sizes first
     const structured: SizeParse = { diameters: [], range: null, diameterFromRange: false, lengthMm: null, lengthClass: null, notes: [] };
+    // Structured sizes arrive in whatever unit the source used (GUDID "Centimeter", a curated import that
+    // defaulted to cm, an inch label): everything is read in mm.
     for (const z of s.sizes ?? []) {
-      const v = parseFloat(String(z.value ?? "")); if (!Number.isFinite(v)) continue;
-      const unit = String(z.unit ?? "").toLowerCase(); if (!unit.startsWith("milli") && unit !== "mm") continue;
+      const v = toMm(parseFloat(String(z.value ?? "")), String(z.unit ?? "")); if (v == null) continue;
       const type = String(z.type ?? "").toLowerCase();
       if (/diameter|width|size/.test(type) && v <= 20 && !/length/.test(type)) structured.diameters.push(v);
       else if (/length/.test(type) && v >= 30 && v <= 400) structured.lengthMm = v;
     }
     for (const d of s.dims ?? []) {
-      if (d.unit !== "mm") continue;
-      if (d.name === "diameter" && d.value <= 20) structured.diameters.push(d.value);
-      else if (d.name === "length" && d.value >= 30) structured.lengthMm = d.value;
+      const v = toMm(d.value, d.unit); if (v == null) continue;
+      if (d.name === "diameter" && v <= 20) structured.diameters.push(v);
+      else if (d.name === "length" && v >= 30 && v <= 400) structured.lengthMm = v;
     }
     if (structured.diameters.length || structured.lengthMm != null) { structured.lengthClass = lengthClassOf(structured.lengthMm); sizeSet(structured, s.source, "structured size"); }
     if (s.gmdn && p.component === "unknown") { const c = componentFromGmdn(s.gmdn); if (c !== "unknown") { p.component = c; p.evidence.push({ field: "component", value: c, source: s.source, via: "GMDN term" }); } }

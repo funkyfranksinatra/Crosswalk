@@ -1,0 +1,13 @@
+# tests/db/ws5-jobs.test.ts before the fixes in src/lib/jobs/workers.ts and src/lib/feeds/schedule.ts (verbatim vitest lines)
+# run 1 (09:27): the FK ordering in the test hid the rest; run 2 (09:29) after the test fix, workers running:
+     × a failing job is retried with its retry policy and, once exhausted, is failed, notifies admins (JOB_FAILED), shows in recentFailures and fires jobs_failed; retry-failed puts it back 29670ms
+ FAIL  tests/db/ws5-jobs.test.ts > WS5 jobs > a failing job is retried ...
+Error: timed out after 20000 ms            ← waiting for the JOB_FAILED notification: never created because
+                                             workers.ts computed finalAttempt from QUEUES[name].retryLimit (2)
+                                             while the job's own retryLimit was 1 → the exhausted job was never
+                                             reported (onFinalFailure never ran)
+      Tests  1 failed | 7 passed (8)
+# schedules case: before src/lib/feeds/schedule.ts caught per-feed errors, scheduleFeeds(boss) with
+# FEED_PRICING_CRON="every other tuesday" rejected (pg-boss cron assert) — the same call now resolves and only
+# that feed is left unscheduled (assertion "must not throw" in the test).
+# after both fixes (09:31): Tests  8 passed (8)  Duration 39.40s

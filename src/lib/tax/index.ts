@@ -58,8 +58,13 @@ export function taxFingerprint(p: { currency: string; freightMode: string; freig
 }
 
 /** Subtotal / freight / tax / total for the customer artefact — the one place these are added up. */
+/** The address a tax calculation uses: the proposal's own ship-to, else the account's default. Fingerprinted as such. */
+export function effectiveShipToJson(p: { shipToJson: string | null; account?: { shipToJson: string | null } | null }): string | null {
+  return p.shipToJson ?? p.account?.shipToJson ?? null;
+}
+
 export async function quoteTotals(proposalId: string) {
-  const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { lines: { orderBy: { lineNo: "asc" } } } });
+  const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { account: { select: { shipToJson: true } }, lines: { orderBy: { lineNo: "asc" } } } });
   let subtotal = ZERO;
   for (const l of p.lines) if (l.included && money(l.proposedPrice)) subtotal = subtotal.plus(round(times(l.proposedPrice, l.quantity)!, p.currency));
   const freight = computeFreight(subtotal, p.freightMode, money(p.freightValue), p.currency);
@@ -67,7 +72,7 @@ export async function quoteTotals(proposalId: string) {
   const total = subtotal.plus(freight).plus(tax ?? ZERO);
   const detail = p.taxDetailJson ? (JSON.parse(p.taxDetailJson) as { note?: string | null; fingerprint?: string | null }) : null;
   // Stale when what was taxed is not what is quoted now (a price, quantity, inclusion, freight or ship-to change).
-  const stale = (p.taxMode === "MANUAL" || p.taxMode === "PROVIDER") && (!p.taxCalculatedAt || tax === null || detail?.fingerprint !== taxFingerprint(p));
+  const stale = (p.taxMode === "MANUAL" || p.taxMode === "PROVIDER") && (!p.taxCalculatedAt || tax === null || detail?.fingerprint !== taxFingerprint({ ...p, shipToJson: effectiveShipToJson(p) }));
   return { currency: p.currency, subtotal, freight, freightMode: p.freightMode, tax, taxMode: p.taxMode, total, taxCalculatedAt: p.taxCalculatedAt, taxStale: stale, taxNote: detail?.note ?? null };
 }
 
@@ -146,7 +151,7 @@ export async function calculateProposalTax(actor: Actor, proposalId: string): Pr
   const req: TaxRequest = { currency: p.currency, date: new Date().toISOString().slice(0, 10), customerCode: p.account.accountNumber ?? p.account.id, exemptionNo: p.taxExemptionNo ?? (p.account.taxExempt ? p.account.taxExemptionNo ?? "EXEMPT" : null), shipFrom: branding.address ?? null, shipTo: shipTo ?? { country: "US" }, lines, freight: freight.gt(0) ? { amount: freight.toString() } : null };
   const t0 = Date.now();
   // The fingerprint is of the lines as READ — a price committed while the provider is answering changes it, so the figure lands stale.
-  const fingerprint = taxFingerprint({ ...p, lines: p.lines });
+  const fingerprint = taxFingerprint({ ...p, shipToJson: effectiveShipToJson(p), lines: p.lines });
   const result = await provider.calculate(req);
   const totalTax = round(money(result.totalTax) ?? ZERO, p.currency);
   await prisma.proposal.update({ where: { id: proposalId }, data: { taxAmount: toDb(totalTax), freightAmount: toDb(freight), taxCalculatedAt: new Date(), taxProvider: result.provider, taxDetailJson: JSON.stringify({ note: result.note ?? null, fingerprint, totalTaxable: result.totalTaxable, totalExempt: result.totalExempt, lines: result.lines, summary: result.summary, raw: result.raw ?? null, shipTo, freight: freight.toString(), subtotal: subtotal.toString() }) } });

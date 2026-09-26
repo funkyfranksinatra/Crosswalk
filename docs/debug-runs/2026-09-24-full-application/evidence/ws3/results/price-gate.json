@@ -1,0 +1,882 @@
+[
+  {
+    "role": "SALES_REP",
+    "page": "/catalog",
+    "what": "list price $655.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "SALES_REP",
+    "page": "/catalog",
+    "what": "list price $794.21 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "SALES_REP",
+    "page": "/catalog",
+    "what": "pricebook name in table",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "SALES_REP",
+    "page": "/catalog",
+    "what": "COGS $171.00 (174006)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "SALES_REP",
+    "page": "/catalog",
+    "what": "COGS $212.00 (ABSTACK30X)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "SALES_REP",
+    "page": "/catalog",
+    "what": "any $ amount",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "SALES_REP",
+    "page": "/requests/new",
+    "what": "pricebook names",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "SALES_REP",
+    "page": "/settings",
+    "what": "model call stats / endpoint",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "SALES_REP",
+    "page": "/crosses",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "SALES_REP",
+    "page": "/catalog/gudid",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "REGIONAL_MANAGER",
+    "page": "/catalog",
+    "what": "list price $655.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "REGIONAL_MANAGER",
+    "page": "/catalog",
+    "what": "list price $794.21 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "REGIONAL_MANAGER",
+    "page": "/catalog",
+    "what": "pricebook name in table",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "REGIONAL_MANAGER",
+    "page": "/catalog",
+    "what": "COGS $171.00 (174006)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "REGIONAL_MANAGER",
+    "page": "/catalog",
+    "what": "COGS $212.00 (ABSTACK30X)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "REGIONAL_MANAGER",
+    "page": "/catalog",
+    "what": "any $ amount",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "REGIONAL_MANAGER",
+    "page": "/requests/new",
+    "what": "pricebook names",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "REGIONAL_MANAGER",
+    "page": "/settings",
+    "what": "model call stats / endpoint",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "REGIONAL_MANAGER",
+    "page": "/crosses",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "REGIONAL_MANAGER",
+    "page": "/catalog/gudid",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CONTRACTING_MANAGER",
+    "page": "/catalog",
+    "what": "list price $655.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "CONTRACTING_MANAGER",
+    "page": "/catalog",
+    "what": "list price $794.21 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "CONTRACTING_MANAGER",
+    "page": "/catalog",
+    "what": "pricebook name in table",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "CONTRACTING_MANAGER",
+    "page": "/catalog",
+    "what": "COGS $171.00 (174006)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CONTRACTING_MANAGER",
+    "page": "/catalog",
+    "what": "COGS $212.00 (ABSTACK30X)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CONTRACTING_MANAGER",
+    "page": "/catalog",
+    "what": "any $ amount",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "CONTRACTING_MANAGER",
+    "page": "/requests/new",
+    "what": "pricebook names",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "CONTRACTING_MANAGER",
+    "page": "/settings",
+    "what": "model call stats / endpoint",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CONTRACTING_MANAGER",
+    "page": "/crosses",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CONTRACTING_MANAGER",
+    "page": "/catalog/gudid",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRICING_ANALYST",
+    "page": "/catalog",
+    "what": "list price $655.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_ANALYST",
+    "page": "/catalog",
+    "what": "list price $794.21 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_ANALYST",
+    "page": "/catalog",
+    "what": "pricebook name in table",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_ANALYST",
+    "page": "/catalog",
+    "what": "COGS $171.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_ANALYST",
+    "page": "/catalog",
+    "what": "COGS $212.00 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_ANALYST",
+    "page": "/catalog",
+    "what": "any $ amount",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_ANALYST",
+    "page": "/requests/new",
+    "what": "pricebook names",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_ANALYST",
+    "page": "/settings",
+    "what": "model call stats / endpoint",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRICING_ANALYST",
+    "page": "/crosses",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRICING_ANALYST",
+    "page": "/catalog/gudid",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRICING_DIRECTOR",
+    "page": "/catalog",
+    "what": "list price $655.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_DIRECTOR",
+    "page": "/catalog",
+    "what": "list price $794.21 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_DIRECTOR",
+    "page": "/catalog",
+    "what": "pricebook name in table",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_DIRECTOR",
+    "page": "/catalog",
+    "what": "COGS $171.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_DIRECTOR",
+    "page": "/catalog",
+    "what": "COGS $212.00 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_DIRECTOR",
+    "page": "/catalog",
+    "what": "any $ amount",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_DIRECTOR",
+    "page": "/requests/new",
+    "what": "pricebook names",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_DIRECTOR",
+    "page": "/settings",
+    "what": "model call stats / endpoint",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_DIRECTOR",
+    "page": "/crosses",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRICING_DIRECTOR",
+    "page": "/catalog/gudid",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRICING_COMMITTEE",
+    "page": "/catalog",
+    "what": "list price $655.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_COMMITTEE",
+    "page": "/catalog",
+    "what": "list price $794.21 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_COMMITTEE",
+    "page": "/catalog",
+    "what": "pricebook name in table",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_COMMITTEE",
+    "page": "/catalog",
+    "what": "COGS $171.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_COMMITTEE",
+    "page": "/catalog",
+    "what": "COGS $212.00 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_COMMITTEE",
+    "page": "/catalog",
+    "what": "any $ amount",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRICING_COMMITTEE",
+    "page": "/requests/new",
+    "what": "pricebook names",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRICING_COMMITTEE",
+    "page": "/settings",
+    "what": "model call stats / endpoint",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRICING_COMMITTEE",
+    "page": "/crosses",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRICING_COMMITTEE",
+    "page": "/catalog/gudid",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRODUCT_MARKETING",
+    "page": "/catalog",
+    "what": "list price $655.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRODUCT_MARKETING",
+    "page": "/catalog",
+    "what": "list price $794.21 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRODUCT_MARKETING",
+    "page": "/catalog",
+    "what": "pricebook name in table",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRODUCT_MARKETING",
+    "page": "/catalog",
+    "what": "COGS $171.00 (174006)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRODUCT_MARKETING",
+    "page": "/catalog",
+    "what": "COGS $212.00 (ABSTACK30X)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRODUCT_MARKETING",
+    "page": "/catalog",
+    "what": "any $ amount",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRODUCT_MARKETING",
+    "page": "/requests/new",
+    "what": "pricebook names",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "PRODUCT_MARKETING",
+    "page": "/settings",
+    "what": "model call stats / endpoint",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRODUCT_MARKETING",
+    "page": "/crosses",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "PRODUCT_MARKETING",
+    "page": "/catalog/gudid",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CLINICAL_REVIEWER",
+    "page": "/catalog",
+    "what": "list price $655.00 (174006)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CLINICAL_REVIEWER",
+    "page": "/catalog",
+    "what": "list price $794.21 (ABSTACK30X)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CLINICAL_REVIEWER",
+    "page": "/catalog",
+    "what": "pricebook name in table",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CLINICAL_REVIEWER",
+    "page": "/catalog",
+    "what": "COGS $171.00 (174006)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CLINICAL_REVIEWER",
+    "page": "/catalog",
+    "what": "COGS $212.00 (ABSTACK30X)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CLINICAL_REVIEWER",
+    "page": "/catalog",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CLINICAL_REVIEWER",
+    "page": "/requests/new",
+    "what": "pricebook names",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CLINICAL_REVIEWER",
+    "page": "/settings",
+    "what": "model call stats / endpoint",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CLINICAL_REVIEWER",
+    "page": "/crosses",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "CLINICAL_REVIEWER",
+    "page": "/catalog/gudid",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "FINANCE",
+    "page": "/catalog",
+    "what": "list price $655.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "FINANCE",
+    "page": "/catalog",
+    "what": "list price $794.21 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "FINANCE",
+    "page": "/catalog",
+    "what": "pricebook name in table",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "FINANCE",
+    "page": "/catalog",
+    "what": "COGS $171.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "FINANCE",
+    "page": "/catalog",
+    "what": "COGS $212.00 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "FINANCE",
+    "page": "/catalog",
+    "what": "any $ amount",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "FINANCE",
+    "page": "/requests/new",
+    "what": "pricebook names",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "FINANCE",
+    "page": "/settings",
+    "what": "model call stats / endpoint",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "FINANCE",
+    "page": "/crosses",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "FINANCE",
+    "page": "/catalog/gudid",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "ADMIN",
+    "page": "/catalog",
+    "what": "list price $655.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "ADMIN",
+    "page": "/catalog",
+    "what": "list price $794.21 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "ADMIN",
+    "page": "/catalog",
+    "what": "pricebook name in table",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "ADMIN",
+    "page": "/catalog",
+    "what": "COGS $171.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "ADMIN",
+    "page": "/catalog",
+    "what": "COGS $212.00 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "ADMIN",
+    "page": "/catalog",
+    "what": "any $ amount",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "ADMIN",
+    "page": "/requests/new",
+    "what": "pricebook names",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "ADMIN",
+    "page": "/settings",
+    "what": "model call stats / endpoint",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "ADMIN",
+    "page": "/crosses",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "ADMIN",
+    "page": "/catalog/gudid",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "EXECUTIVE",
+    "page": "/catalog",
+    "what": "list price $655.00 (174006)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "EXECUTIVE",
+    "page": "/catalog",
+    "what": "list price $794.21 (ABSTACK30X)",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "EXECUTIVE",
+    "page": "/catalog",
+    "what": "pricebook name in table",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "EXECUTIVE",
+    "page": "/catalog",
+    "what": "COGS $171.00 (174006)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "EXECUTIVE",
+    "page": "/catalog",
+    "what": "COGS $212.00 (ABSTACK30X)",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "EXECUTIVE",
+    "page": "/catalog",
+    "what": "any $ amount",
+    "found": true,
+    "expected": true,
+    "ok": true
+  },
+  {
+    "role": "EXECUTIVE",
+    "page": "/requests/new",
+    "what": "pricebook names",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "EXECUTIVE",
+    "page": "/settings",
+    "what": "model call stats / endpoint",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "EXECUTIVE",
+    "page": "/crosses",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  },
+  {
+    "role": "EXECUTIVE",
+    "page": "/catalog/gudid",
+    "what": "any $ amount",
+    "found": false,
+    "expected": false,
+    "ok": true
+  }
+]

@@ -13,9 +13,21 @@ import ExcelJS from "exceljs";
 import { prisma } from "../src/lib/db";
 import { normalizeCfn, isPlaceholderSku } from "../src/lib/cfn";
 import { heuristicBin, FAMILIES } from "../src/lib/match/bin";
+import { defaultCompanyName, defaultLabelers } from "../src/lib/tenancy";
 
 const SHEET = path.resolve(process.cwd(), "data/reference/Endomechanical.xlsx");
-const COMPANY = process.env.COMPANY_NAME ?? "Medtronic";
+const COMPANY = defaultCompanyName();
+
+/**
+ * Single tenant: if a company already exists under another name, the seed loads into IT rather than
+ * creating a second row nobody is served from (COMPANY_NAME drift). Resolved exactly as the app does
+ * (settings name first, else the oldest row); a fresh database gets COMPANY_NAME with OWN_LABELERS.
+ */
+async function resolveCompany() {
+  const existing = (await prisma.company.findUnique({ where: { name: COMPANY } })) ?? (await prisma.company.findFirst({ orderBy: { createdAt: "asc" } }));
+  if (existing && existing.name !== COMPANY) console.warn(`Company "${existing.name}" already exists; seeding into it (COMPANY_NAME=${COMPANY} was not used to create a second company)`);
+  return existing ?? prisma.company.create({ data: { name: COMPANY, labelers: JSON.stringify(defaultLabelers()) } });
+}
 
 type Row = { category: string; sku: string; description: string; matchType: string; competitorName: string; competitorCode: string; competitorDescription: string; reviewer: string; comment: string; sheet: string };
 
@@ -35,7 +47,7 @@ async function main() {
     console.log("Ask the project owner for data/reference/Endomechanical.xlsx (own SKUs + curated crosses) and, optionally,");
     console.log("SSXrefReport_REQ-7604.xlsx (hernia SKUs + list prices) and CrossReference_0001880967.xlsx (sample intake).");
     console.log("Seeding only the company record and the default pricebook; the catalog starts empty.");
-    await prisma.company.upsert({ where: { name: COMPANY }, create: { name: COMPANY }, update: {} });
+    await resolveCompany();
     await prisma.pricebook.upsert({ where: { name: "HOSPITAL LIST PRICE" }, create: { name: "HOSPITAL LIST PRICE" }, update: {} });
     return;
   }
@@ -82,12 +94,7 @@ async function main() {
   }
   console.log(`Read ${rows.length} curated rows from ${SHEET}${skippedPlaceholders ? ` (${skippedPlaceholders} placeholder rows skipped)` : ""}`);
 
-  // Single tenant: if a company already exists under another name, the seed loads into IT rather than
-  // creating a second row nobody is served from (COMPANY_NAME drift). Rename it in Settings if needed.
-  // Resolved exactly as the app does (settings name first, else the oldest row), so the seed never loads a company the UI does not serve.
-  const existing = (await prisma.company.findUnique({ where: { name: COMPANY } })) ?? (await prisma.company.findFirst({ orderBy: { createdAt: "asc" } }));
-  if (existing && existing.name !== COMPANY) console.warn(`Company "${existing.name}" already exists; seeding into it (COMPANY_NAME=${COMPANY} was not used to create a second company)`);
-  const company = existing ?? await prisma.company.create({ data: { name: COMPANY, labelers: JSON.stringify(["Covidien", "Medtronic", "Sofradim"]) } });
+  const company = await resolveCompany();
 
   // Own products: every MDT SKU + every Medtronic "competitor" code (internal substitutes are also our SKUs)
   const own = new Map<string, { description: string; category: string }>();
@@ -101,7 +108,7 @@ async function main() {
   }
   let created = 0;
   for (const [sku, v] of own) {
-    const bin = heuristicBin({ sku, description: v.description, category: v.category });
+    const bin = heuristicBin({ sku, manufacturer: company.name, description: v.description, category: v.category });
     await prisma.ownProduct.upsert({
       where: { companyId_sku: { companyId: company.id, sku } },
       create: { companyId: company.id, sku, description: v.description, category: v.category, binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date() },
@@ -115,7 +122,7 @@ async function main() {
   for (const p of await prisma.ownProduct.findMany({ where: { companyId: company.id, NOT: { binSource: "llm" } } })) {
     const raw = p.gudidJson ? JSON.parse(p.gudidJson) : null;
     const g = raw ? summarizeRecord(raw) : null;
-    const bin = heuristicBin({ sku: p.sku, brand: p.brand, description: g ? `${p.description} ; ${g.description ?? ""}` : p.description, category: p.category, gmdnName: p.gmdnName, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
+    const bin = heuristicBin({ sku: p.sku, manufacturer: p.labeler ?? company.name, brand: p.brand, description: g ? `${p.description} ; ${g.description ?? ""}` : p.description, category: p.category, gmdnName: p.gmdnName, sizes: g?.sizes, singleUse: g?.singleUse, sterile: g?.sterile, implantable: g?.implantable });
     // Categories that were auto-derived (they equal a family name) follow the bin; curated sales categories are kept.
     const autoCategory = !p.category || FAMILIES.includes(p.category as (typeof FAMILIES)[number]);
     await prisma.ownProduct.update({ where: { id: p.id }, data: { binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date(), ...(autoCategory && bin.family !== "Other" ? { category: bin.family } : {}) } });
@@ -168,7 +175,7 @@ async function main() {
       const category = txt(row.getCell(10).value);
       const pricebookName = txt(row.getCell(12).value);
       const price = Number(row.getCell(13).value);
-      const bin = heuristicBin({ sku, description, category });
+      const bin = heuristicBin({ sku, manufacturer: company.name, description, category });
       const prod = await prisma.ownProduct.upsert({
         where: { companyId_sku: { companyId: company.id, sku } },
         create: { companyId: company.id, sku, description, category, binJson: JSON.stringify(bin), binSource: "heuristic", binnedAt: new Date(), listPrice: Number.isFinite(price) && price > 0 ? price : null },

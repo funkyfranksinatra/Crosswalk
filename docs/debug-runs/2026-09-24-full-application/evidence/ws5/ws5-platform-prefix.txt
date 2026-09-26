@@ -1,0 +1,28 @@
+# First run of tests/db/ws5-platform.test.ts BEFORE the feeds lock / alert-count fixes (verbatim vitest output, 09:13:10)
+ ❯ tests/db/ws5-platform.test.ts (20 tests | 2 failed) 1397ms
+   ❯ WS5 platform (20)
+     ❯ feeds (5)
+       × stale RUNNING rows (older than 12 h) do not block a new run and are closed as FAILED; a fresh RUNNING row does 25ms
+     ❯ observability (6)
+       × alert lifecycle with a controlled clock: fingerprint dedupe, re-notify only after ALERT_RENOTIFY_HOURS, resolve when clear, a failed rule keeps its alerts 82ms
+
+ FAIL  tests/db/ws5-platform.test.ts > WS5 platform > feeds > stale RUNNING rows (older than 12 h) do not block a new run and are closed as FAILED; a fresh RUNNING row does
+AssertionError: expected 'RUNNING' to be 'FAILED' // Object.is equality
+ ❯ tests/db/ws5-platform.test.ts:80:29
+
+ FAIL  tests/db/ws5-platform.test.ts > WS5 platform > observability > alert lifecycle with a controlled clock: ...
+AssertionError: expected 1 to be +0 // Object.is equality   (evaluateAlerts().notified counted a deduplicated, never-created notification)
+ ❯ tests/db/ws5-platform.test.ts:301:57
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 18 passed (20)
+
+# The concurrent-ingestion case passed by timing on a cold pool; the warmed-pool probe (feed-race-before.txt) shows 5/5 rounds
+# where both ingestions ran. After the advisory-lock fix: feed-race-after.txt 0/5.
+
+# health case added later (09:47), BEFORE the queueHealth change in src/lib/jobs/boss.ts:
+       × /api/health: ready; degraded exactly above the 900 s stalled boundary; down (503) when the database is unreachable 148ms
+AssertionError: expected 'ready' to be 'degraded'   ← a job ready for 901 s was invisible: queueHealth only looked for the
+                                                      oldest ready job when pg-boss's CACHED readyCount (refreshed at most
+                                                      once a minute, less under vacuum back-off) was > 0
+# after (live grouped query for the oldest ready job): Tests 23 passed (23)

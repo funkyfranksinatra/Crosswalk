@@ -1,0 +1,202 @@
+
+> crosswalk@0.4.0 build
+> next build
+
+▲ Next.js 16.3.5 (Turbopack)
+- Environments: .env
+✓ Running next.config.ts took 69ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 8.1s
+  Running TypeScript ...
+  Finished TypeScript in 17.8s ...
+  Collecting page data using 1 worker ...
+  Generating static pages using 1 worker (0/49) ...
+  Generating static pages using 1 worker (12/49) 
+  Generating static pages using 1 worker (24/49) 
+  Generating static pages using 1 worker (36/49) 
+✓ Generating static pages using 1 worker (49/49) in 222ms
+Turbopack build encountered 2 warnings:
+./src/lib/documents/storage.ts:20:22
+Warning: Dynamic filesystem access causes tracing of the whole project
+  [90m18 |[0m }
+  [90m19 |[0m [36mexport[0m [36masync[0m [36mfunction[0m readDocumentBytes(id: string): [33mPromise[0m<[33mBuffer[0m | [36mnull[0m> {
+[33m[1m>[0m [90m20 |[0m   [36mtry[0m { [36mreturn[0m [36mawait[0m readFile(fileFor(id)); } [36mcatch[0m { [36mreturn[0m [36mnull[0m; }
+  [90m   |[0m                      [33m[1m^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m21 |[0m }
+  [90m22 |[0m
+
+Static analysis determined that this filesystem access causes the whole project to be traced and included in the output.
+This is usually unintentional and leads to all source files (including the public folder) to be deployed as part of the server code.
+This can slow down deployments or lead to failures when size limits are exceeded.
+To resolve this, you can
+- make sure the path is statically scoped to some subfolder, for example path.join(process.cwd(), 'data', bar), or
+- only use them in development, or
+- opt out by adding an ignore comment to the highlighted call: fs.readFile(/*turbopackIgnore: true*/ ...), or
+- remove them.
+
+Import trace:
+  App Route:
+    ./src/lib/documents/storage.ts
+    ./src/app/api/documents/extract/route.ts
+
+
+./src/lib/documents/storage.ts:11:121
+Warning: Dynamic filesystem access causes tracing of the whole project
+  [90m 9 |[0m ...
+  [90m10 |[0m ...path.join(process.cwd(), [32m".data"[0m, [32m"documents"[0m); }
+[33m[1m>[0m [90m11 |[0m ...[32mnvalid document id"[0m); [36mreturn[0m path.join(documentDir(), id); }
+  [90m   |[0m                                 [33m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m12 |[0m ...
+  [90m13 |[0m ...
+  [90m14 |[0m ...
+
+Static analysis determined that this filesystem access causes the whole project to be traced and included in the output.
+This is usually unintentional and leads to all source files (including the public folder) to be deployed as part of the server code.
+This can slow down deployments or lead to failures when size limits are exceeded.
+To resolve this, you can
+- make sure the path is statically scoped to some subfolder, for example path.join(process.cwd(), 'data', bar), or
+- only use them in development, or
+- opt out by adding an ignore comment to the highlighted call: path.join(/*turbopackIgnore: true*/ ...), or
+- remove them.
+
+Import trace:
+  App Route:
+    ./src/lib/documents/storage.ts
+    ./src/app/api/documents/extract/route.ts
+
+
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /accounts
+├ ƒ /accounts/[id]
+├ ƒ /analytics
+├ ƒ /api/accounts
+├ ƒ /api/accounts/[id]
+├ ƒ /api/accounts/[id]/memberships
+├ ƒ /api/analytics/[report]
+├ ƒ /api/approvals
+├ ƒ /api/approvals/[id]
+├ ƒ /api/approvals/delegations
+├ ƒ /api/approvals/delegations/[id]
+├ ƒ /api/audit
+├ ƒ /api/auth/dev
+├ ƒ /api/auth/me
+├ ƒ /api/auth/oidc/callback
+├ ƒ /api/auth/oidc/logout
+├ ƒ /api/auth/oidc/start
+├ ƒ /api/catalog/add
+├ ƒ /api/catalog/enrich
+├ ƒ /api/catalog/gudid
+├ ƒ /api/catalog/gudid/[id]
+├ ƒ /api/catalog/gudid/adopt
+├ ƒ /api/catalog/gudid/plan
+├ ƒ /api/catalog/gudid/prune
+├ ƒ /api/competitor-sizes/coverage
+├ ƒ /api/competitor-sizes/import
+├ ƒ /api/competitor-sizes/template
+├ ƒ /api/competitor/[id]
+├ ƒ /api/contracts
+├ ƒ /api/contracts/[id]
+├ ƒ /api/contracts/[id]/entries
+├ ƒ /api/contracts/[id]/performance
+├ ƒ /api/contracts/[id]/terms
+├ ƒ /api/contracts/renewals
+├ ƒ /api/costs/import
+├ ƒ /api/crosses
+├ ƒ /api/crosses/[id]
+├ ƒ /api/crosswalk/publish
+├ ƒ /api/crosswalk/versions
+├ ƒ /api/documents/extract
+├ ƒ /api/documents/extractions/[id]
+├ ƒ /api/documents/extractions/[id]/import
+├ ƒ /api/documents/extractions/[id]/verify
+├ ƒ /api/feeds
+├ ƒ /api/google
+├ ƒ /api/health
+├ ƒ /api/intake/preview
+├ ƒ /api/integrations
+├ ƒ /api/integrations/config
+├ ƒ /api/integrations/config/[key]
+├ ƒ /api/integrations/config/[key]/jobs
+├ ƒ /api/integrations/config/[key]/sync
+├ ƒ /api/integrations/config/[key]/test
+├ ƒ /api/integrations/config/[key]/upload
+├ ƒ /api/integrations/config/[key]/validate-mapping
+├ ƒ /api/integrations/jobs/[id]
+├ ƒ /api/integrations/review
+├ ƒ /api/integrations/review/[id]
+├ ƒ /api/integrations/sync
+├ ƒ /api/intelligence
+├ ƒ /api/intelligence/[id]
+├ ƒ /api/intelligence/bids
+├ ƒ /api/intelligence/bids/import
+├ ƒ /api/intelligence/import
+├ ƒ /api/metrics
+├ ƒ /api/notifications
+├ ƒ /api/notifications/preferences
+├ ƒ /api/observability/export
+├ ƒ /api/pricing-policies
+├ ƒ /api/pricing-policies/[id]/activate
+├ ƒ /api/pricing/import
+├ ƒ /api/pricing/template
+├ ƒ /api/proposals
+├ ƒ /api/proposals/[id]
+├ ƒ /api/proposals/[id]/audit
+├ ƒ /api/proposals/[id]/conversion
+├ ƒ /api/proposals/[id]/drift
+├ ƒ /api/proposals/[id]/export
+├ ƒ /api/proposals/[id]/lines/[lineId]
+├ ƒ /api/proposals/[id]/lines/[lineId]/recommend
+├ ƒ /api/proposals/[id]/logistics
+├ ƒ /api/proposals/[id]/outcome
+├ ƒ /api/proposals/[id]/push-crm
+├ ƒ /api/proposals/[id]/refresh-context
+├ ƒ /api/proposals/[id]/reopen
+├ ƒ /api/proposals/[id]/scenarios
+├ ƒ /api/proposals/[id]/scenarios/[sid]
+├ ƒ /api/proposals/[id]/scenarios/[sid]/apply
+├ ƒ /api/proposals/[id]/submit
+├ ƒ /api/proposals/[id]/version
+├ ƒ /api/purchases/import
+├ ƒ /api/requests
+├ ƒ /api/requests/[id]
+├ ƒ /api/requests/[id]/bulk
+├ ƒ /api/requests/[id]/cancel
+├ ƒ /api/requests/[id]/export
+├ ƒ /api/requests/[id]/lines/[lineId]
+├ ƒ /api/requests/[id]/lines/[lineId]/compare
+├ ƒ /api/requests/[id]/run
+├ ƒ /api/requests/[id]/sheets
+├ ƒ /api/settings
+├ ƒ /api/settings/branding
+├ ƒ /api/system
+├ ƒ /api/webhooks/salesforce
+├ ƒ /approvals
+├ ƒ /catalog
+├ ƒ /catalog/gudid
+├ ƒ /contracts
+├ ƒ /contracts/[id]
+├ ƒ /crosses
+├ ƒ /intelligence
+├ ƒ /intelligence/bids
+├ ƒ /intelligence/extractions/[id]
+├ ƒ /notifications
+├ ƒ /proposals
+├ ƒ /proposals/[id]
+├ ƒ /requests
+├ ƒ /requests/[id]
+├ ƒ /requests/new
+├ ƒ /settings
+├ ƒ /settings/integrations
+└ ƒ /settings/pricing
+
+
+ƒ Proxy (Middleware)
+
+ƒ  (Dynamic)  server-rendered on demand
+
+exit=0

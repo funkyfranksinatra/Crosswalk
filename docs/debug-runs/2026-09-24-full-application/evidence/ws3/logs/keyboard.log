@@ -1,0 +1,19 @@
+PASS first Tab lands on the skip link — {"tag":"A","text":"Skip to content","outline":true,"inDialog":false}
+PASS skip link has a visible focus ring — {"tag":"A","text":"Skip to content","outline":true,"inDialog":false}
+PASS skip link moves focus to main — {"tag":"MAIN","text":"Requests/REQ-0006WS3 Journey Hospital Co","outline":true,"inDialog":false}
+PASS Tab from main reaches page content (eyebrow link), not the sidebar — {"tag":"A","text":"Requests","outline":true,"inDialog":false}
+PASS sidebar Tab order: skip link, logo, Overview, Cross-reference, Proposals, Deal desk — ["Skip to content","CrosswalkCompetitor Product Cross Refere","Overview","Cross-reference","Proposals","Deal desk"]
+PASS every focused control shows a focus ring — [true,true,true,true]
+PASS Enter opens the Download menu
+PASS Tab moves into the menu items — {"tag":"A","text":"Cross-reference workbook (.xlsx)","outline":true,"inDialog":false}
+PASS Escape closes the menu and restores focus to the trigger — {"tag":"BUTTON","text":"Download ▾","outline":true,"inDialog":false}
+PASS dialog: focus moves inside on open — {"tag":"BUTTON","text":"Close","outline":true,"inDialog":true}
+PASS dialog: Tab stays inside (focus trap) — [true,true,true,true,true,true]
+PASS dialog: Shift+Tab stays inside
+PASS dialog: Escape closes and restores focus to the opener — {"tag":"BUTTON","text":"Side-by-side","outline":true,"inDialog":false}
+PASS popover: opens on Enter with focus in the first field — {"tag":"INPUT","text":"","outline":true,"inDialog":true}
+PASS popover: Escape closes and restores focus to the trigger — {"tag":"BUTTON","text":"New contract","outline":true,"inDialog":false}
+PASS phone: Menu button visible, nav hidden
+PASS phone: Enter opens the nav (aria-expanded)
+PASS phone: section headings present in the open nav
+18 checks, 0 failures

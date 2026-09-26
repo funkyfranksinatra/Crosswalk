@@ -9,7 +9,8 @@
 import type { PgBoss, JobWithMetadata } from "pg-boss";
 import { prisma } from "@/lib/db";
 import { log } from "@/lib/log";
-import { getBoss, jobsEnabled } from "./boss";
+import { getBoss, jobsEnabled, jobsMode } from "./boss";
+import { intEnv } from "@/lib/env";
 import { QUEUES, CRON, type QueueName, type JobData } from "./queues";
 
 type G = typeof globalThis & { __crosswalkWorkers?: Promise<void> | null; __crosswalkQueuesRegistered?: boolean };
@@ -88,18 +89,21 @@ const CONCURRENCY: Record<QueueName, number> = { "request.run": 1, "gudid.import
 async function onFinalFailure(queue: QueueName, data: unknown, error: string) {
   try {
     const { notifyJobFailed } = await import("@/lib/notifications");
-    await notifyJobFailed(queue, data, error);
+    const { redactMessage } = await import("@/lib/integrations/core/errors");
+    await notifyJobFailed(queue, data, redactMessage(error)); // a driver or provider message may quote a credential
   } catch (e) {
     log.error("jobs.final_failure_notify_error", { queue, error: e instanceof Error ? e.message : String(e) });
   }
 }
 
 async function register<N extends QueueName>(boss: PgBoss, name: N) {
-  const retryLimit = QUEUES[name].retryLimit;
   for (let i = 0; i < CONCURRENCY[name]; i++) {
     const options = { batchSize: 1, includeMetadata: true, pollingIntervalSeconds: name === "notify.deliver" ? 2 : 5 } as const;
     await boss.work<JobData[N], unknown, typeof options>(name, options, async (jobs: JobWithMetadata<JobData[N]>[]) => {
       const job = jobs[0];
+      // The job's own limit (a send() may override the queue's), else the queue's: "final attempt" must
+      // agree with what pg-boss will actually do, or the last failure is never reported to anyone.
+      const retryLimit = typeof job.retryLimit === "number" ? job.retryLimit : QUEUES[name].retryLimit;
       const attempt = (job.retryCount ?? 0) + 1;
       const finalAttempt = attempt > retryLimit;
       const t0 = Date.now();
@@ -121,15 +125,17 @@ async function register<N extends QueueName>(boss: PgBoss, name: N) {
 
 /** Cron-driven queues. Schedules are idempotent per (queue, key). */
 async function registerSchedules(boss: PgBoss) {
-  await boss.schedule("alerts.evaluate", CRON["alerts.evaluate"], {}, { tz: "UTC", singletonKey: "cron" });
-  await boss.schedule("gudid.refresh", CRON["gudid.refresh"], { limit: Number(process.env.GUDID_REFRESH_BATCH ?? 200) }, { tz: "UTC", singletonKey: "refresh:sweep" });
-  // A bad or "off" cron for one of these must not stop feeds scheduling and orphan recovery below.
+  // A bad or "off" cron for any of these must not stop the other schedules, feeds scheduling and
+  // orphan recovery below: it is logged (jobs.schedule_failed) and that one schedule is left off.
   // Schedule keys allow only [A-Za-z0-9_-]; the job's singletonKey may carry ":" like the manual ones.
-  const sched = async (queue: "embed.refresh" | "analytics.refresh" | "retention.sweep", cron: string, data: object, key: string, singletonKey: string) => {
-    if (cron === "off") { await boss.unschedule(queue, key).catch(() => undefined); return; }
-    try { await boss.schedule(queue, cron, data, { tz: "UTC", key, singletonKey }); } catch (e) { log.error("jobs.schedule_failed", { queue, cron, error: e instanceof Error ? e.message : String(e) }); }
+  const sched = async (queue: "alerts.evaluate" | "gudid.refresh" | "embed.refresh" | "analytics.refresh" | "retention.sweep", cron: string, data: object, key: string | undefined, singletonKey: string) => {
+    if (cron === "off") { await boss.unschedule(queue, key ?? undefined).catch(() => undefined); return; }
+    try { await boss.schedule(queue, cron, data, { tz: "UTC", ...(key ? { key } : {}), singletonKey }); }
+    catch (e) { log.error("jobs.schedule_failed", { queue, cron, error: e instanceof Error ? e.message : String(e) }); await boss.unschedule(queue, key ?? undefined).catch(() => undefined); }
   };
-  await sched("embed.refresh", CRON["embed.refresh"], { limit: Number(process.env.EMBED_REFRESH_BATCH ?? 5000) }, "embed-sweep", "embed:sweep");
+  await sched("alerts.evaluate", CRON["alerts.evaluate"], {}, undefined, "cron");
+  await sched("gudid.refresh", CRON["gudid.refresh"], { limit: intEnv("GUDID_REFRESH_BATCH", 200, { min: 1, max: 100_000 }) }, undefined, "refresh:sweep");
+  await sched("embed.refresh", CRON["embed.refresh"], { limit: intEnv("EMBED_REFRESH_BATCH", 5000, { min: 1, max: 1_000_000 }) }, "embed-sweep", "embed:sweep");
   await sched("analytics.refresh", CRON["analytics.refresh"], { trigger: "schedule" }, "analytics-cron", "analytics:cron");
   // Retention is scheduled only while it is switched on; switching it off unschedules it at the next start.
   const { retentionConfig } = await import("@/lib/retention");
@@ -202,7 +208,7 @@ export function startWorkers(): Promise<void> {
       if (!g.__crosswalkQueuesRegistered) { for (const name of Object.keys(QUEUES) as QueueName[]) await register(boss, name); g.__crosswalkQueuesRegistered = true; }
       await registerSchedules(boss);
       await recoverOrphans().catch((e) => log.error("jobs.recover_error", { error: e instanceof Error ? e.message : String(e) }));
-      log.info("jobs.workers_started", { queues: Object.keys(QUEUES), mode: process.env.JOBS_WORKER ?? "inline" });
+      log.info("jobs.workers_started", { queues: Object.keys(QUEUES), mode: jobsMode() });
     })().catch((e) => {
       g.__crosswalkWorkers = null;
       log.error("jobs.workers_failed", { error: e instanceof Error ? e.message : String(e) });

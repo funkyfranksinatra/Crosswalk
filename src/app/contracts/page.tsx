@@ -13,9 +13,11 @@ export default async function ContractsPage() {
   if (!can(actor, "view_pricing")) return <Empty title="Contracts are visible to commercial roles">Your role has no pricing visibility.</Empty>;
   const contracts = await prisma.contract.findMany({ where: contractWhere(await scopeFor(actor!)), orderBy: [{ status: "asc" }, { effectiveTo: "asc" }], include: { account: true, gpo: true, _count: { select: { entries: true, commitments: true, rebates: true, bundles: true } } } });
   const renewals = await renewalPipeline(180);
+  // The GPO list feeds the New-contract popover (there is no GPO listing route); only a manage_contracts actor can use it.
+  const gpos = can(actor, "manage_contracts") ? await prisma.gpo.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [];
   return (
     <>
-      <PageHeader eyebrow="Contracts" title="Contracts & price context" description="List → national → GPO tier → IDN → local account. The waterfall reads these; proposals snapshot the result." actions={<ContractTools />} />
+      <PageHeader eyebrow="Contracts" title="Contracts & price context" description="List → national → GPO tier → IDN → local account. The waterfall reads these; proposals snapshot the result." actions={<ContractTools gpos={gpos} />} />
       {renewals.length > 0 && (
         <Card title="Renewal pipeline" subtitle="Active contracts expiring within 180 days" className="mb-4" padded={false}>
           <table className="table !text-[12.5px]"><thead><tr><th>Contract</th><th>Counterparty</th><th>Expires</th><th>Days</th><th>Flags</th></tr></thead><tbody>{renewals.map((r) => <tr key={r.id}><td><Link className="mono text-accent" href={`/contracts/${r.id}`}>{r.contractNumber}</Link> <span className="text-muted">{r.name}</span></td><td>{r.account ?? "—"}</td><td className="mono">{r.effectiveTo.slice(0, 10)}</td><td className={`mono ${r.daysLeft < 60 ? "text-none" : "text-alt"}`}>{r.daysLeft}</td><td className="text-muted">{r.flags.join(" · ") || (r.renewal ? `${r.renewal.kind?.toLowerCase()} renewal` : "")}</td></tr>)}</tbody></table>

@@ -1,0 +1,6 @@
+Users: 11 dev users across 11 roles
+StandardCost backfilled from legacy COGS: 0
+Pricing policies: 6 families ensured
+Crosswalk v3 already published
+Demo commercial data ready (MSK, Premier Tier 2, local override, 3-hospital price intelligence).
+EXIT 0

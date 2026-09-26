@@ -1,0 +1,5 @@
+== PRE-FIX (original src/proxy.ts + src/lib/auth/index.ts via git stash), server started with SSO_MODE=proxy and NO shared secret ==
+curl -H 'x-sso-subject: admin@crosswalk.dev' /api/auth/me →
+{"actor":{"id":"cmuf6hhnk0009ks7d9izncxsa","name":"Crosswalk Admin","email":"admin@crosswalk.dev","roles":["ADMIN"],"permissions":["view_pricing","edit_proposed_pricing","edit_contract_pricing","view_
+GET /api/requests with only x-sso-subject → HTTP 200
+GET /api/settings (configure view) with x-sso-subject: admin → HTTP 200

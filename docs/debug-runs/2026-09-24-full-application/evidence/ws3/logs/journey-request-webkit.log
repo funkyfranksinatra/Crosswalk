@@ -1,0 +1,52 @@
+[engine] webkit 26.0
+PASS preview: 5 distinct codes — 5 codes
+PASS preview: 1 duplicate row merged — 1 duplicate rows merged
+PASS preview: summary/junk rows skipped — 1 rows skipped
+PASS preview: IN-12-4 kept as a code
+PASS preview: merged quantity 15 for 1190500
+PASS wizard: pricebook options listed — ["List price only","HOSPITAL LIST PRICE (7 priced)","SAP-MOCK list · US-LIST (0 priced)","VIZIENT HERNIA MECH TIER 1 (1 priced)"]
+PASS submit: only one POST /api/requests on a double click — {"posts":1}
+PASS submit: exactly one request created on a double click — {"before":7,"after":8,"id":"cmug4frb8005e6i7dd4hx1p2m"}
+PASS run: reached complete — complete after 0 s
+PASS run: 5 lines persisted — ["1190500:resolved","B12LTH:resolved","TLC75:resolved","C0121:resolved","IN-12-4:resolved"]
+PASS run: 1190500 quantity merged to 15
+PASS run: progress polling stopped (status not running)
+PASS filter: All selectable — 5 rows
+PASS filter: Needs attention selectable — 1 rows
+PASS filter: Flagged selectable — 0 rows
+PASS filter: Exact selectable — 2 rows
+PASS filter: Close selectable — 2 rows
+PASS filter: Alternative selectable — 1 rows
+PASS filter: Already ours selectable — 0 rows
+PASS bulk: review_exact marks the exact lines reviewed — {"exact":2,"reviewed":2}
+PASS bulk: review_matched marks every matched line — {"matched":5,"reviewed":5}
+PASS bulk: unreview_all clears reviewed
+PASS bulk: flag_verify sets flags — {"flagged":2}
+PASS bulk: clear_flags clears every flag
+PASS bulk: select_top re-selects a candidate
+PASS line with candidates exists
+PASS select candidate: radio reflects the click at once (optimistic)
+PASS select candidate persisted — {"want":"PCO2520X"}
+PASS rep note persisted — ws3 rep note
+PASS customer note persisted — ws3 customer note
+PASS est. competitor price persisted — 123.45
+PASS flag persisted — verify
+PASS reviewed persisted
+PASS side-by-side: attribute rows rendered — 18 rows
+PASS side-by-side: focus moved into the dialog
+PASS side-by-side: Escape closes
+PASS side-by-side: focus restored to the opener — Side-by-side
+PASS download: xref xlsx — {"status":200,"type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","disposition":"attachment; filename=\"Crosswalk_XrefReport_REQ-0008_20260924_2246.xlsx\"","bytes":14385}
+PASS download: xref csv — {"status":200,"type":"text/csv; charset=utf-8","disposition":"attachment; filename=\"Crosswalk_XrefReport_REQ-0008_20260924_2246.csv\"","bytes":3715}
+PASS download: offer xlsx — {"status":200,"type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","disposition":"attachment; filename=\"Medtronic_Proposal_WS3_Journey_Hospital_20260924_2246.xlsx\"","bytes":800
+PASS download: offer csv — {"status":200,"type":"text/csv; charset=utf-8","disposition":"attachment; filename=\"Medtronic_Proposal_WS3_Journey_Hospital_20260924_2246.csv\"","bytes":1148}
+PASS download: offer pdf — {"status":200,"type":"application/pdf","disposition":"attachment; filename=\"Medtronic_Contract_Offer_WS3_Journey_Hospital_20260924_2246.pdf\"","bytes":3836}
+PASS download menu: five entries
+PASS download menu: Escape closes
+page.waitForURL: Navigation failed because page crashed!
+=========================== logs ===========================
+waiting for navigation until "load"
+============================================================
+    at /home/claude/cracr/docs/debug-runs/2026-09-24-full-application/evidence/ws3/journey-request.js:187:16
+    at async withBrowser (/home/claude/cracr/docs/debug-runs/2026-09-24-full-application/evidence/ws3/lib.js:113:16)
+    at async main (/home/claude/cracr/docs/debug-runs/2026-09-24-full-application/evidence/ws3/journey-request.js:19:3)

@@ -1,0 +1,27 @@
+PASS intelligence: observation recorded — ["123.45:UNVERIFIED","123.45:DISPUTED","123.45:DISPUTED"]
+PASS intelligence: Verify persisted — ["VERIFIED","DISPUTED","DISPUTED"]
+PASS intelligence: Dispute persisted — ["DISPUTED","DISPUTED","DISPUTED"]
+PASS intelligence: import recorded 2 rows and skipped the blank code — 2 observations recorded from 2 rows
+PASS intelligence: SALES_REP sees no Verify/Dispute (no verify_competitor_pricing)
+PASS intelligence: SALES_REP can still record (import_competitor_pricing)
+PASS intelligence: FINANCE gets a read-only record card and no import controls
+PASS catalog: pricing template csv served — ﻿SKU,Description,Category,List Price,COGS,HOSPITAL LIST PRICE,SAP-MOCK list · US-LIST,VIZIENT HERNIA MECH TIER 1
+PASS catalog: re-imported list price shows ($661.25)
+PASS catalog: restore import applied ($655.00 back)
+PASS catalog: competitor sizes template served — ﻿Competitor Code,Manufacturer,Description,Width,Length,Diameter,Thickness (mm),Unit,Notes,Priority,Lists,Units,Est. spend,Size on file from
+PASS catalog: sizes import reports a result — 1 competitor sizes saved from 1 rows
+PASS catalog: enrich job reachable after start — {"running":false,"done":0,"total":0,"enriched":0,"missing":0,"startedAt":1790247948181}
+PASS catalog: Add SKUs reports present / invalid tokens — 0 added, 1 already present, not catalog numbers: !!!
+PASS settings: weights and candidates persisted — {"before":{"bin":0.5,"price":0.2,"cogs":0.15,"margin":0.15},"after":{"bin":0.5,"price":0.7,"cogs":0.15,"margin":0.15},"max":6}
+PASS settings: oversized logo rejected with the size — ["Logo must be under 300 KB (this file is 400 KB)"]
+PASS settings: small logo persisted — data:image/png;base64,iVBORw0K
+PASS settings: server also refuses an oversized logo — {"status":400,"error":"logo must be under 300 KB"}
+PASS settings: evaluate alerts reported
+PASS settings/pricing: invalid rules JSON flagged and Save disabled
+PASS settings/pricing: draft persisted — {"v":3,"status":"DRAFT"}
+PASS settings/pricing: activation persisted
+PASS settings/pricing: analyst's New draft is disabled with the reason
+PASS settings/pricing: analyst sees no Activate / New version
+PASS no page errors — []
+PASS no CSP violations — []
+26 checks, 0 failures

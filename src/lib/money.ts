@@ -20,14 +20,23 @@ export function minorUnits(currency: string): number {
   return MINOR_UNITS[currency.toUpperCase()] ?? 2;
 }
 
-/** Convert anything money-like to a Decimal; null stays null. */
+/**
+ * Convert anything money-like to a Decimal; null stays null. A non-finite value (NaN, ±Infinity,
+ * an exponent beyond Decimal's range) is "no value" whatever form it arrives in: decimal.js parses
+ * the strings "NaN" and "Infinity", NaN compares false against every bound (so `lte(0)` / `gt(max)`
+ * validators pass it), and PostgreSQL stores numeric NaN — a typed "NaN" would otherwise land in a
+ * price column.
+ */
 export function money(v: MoneyLike): Decimal | null {
   if (v === null || v === undefined || v === "") return null;
-  if (v instanceof Decimal) return v;
+  if (v instanceof Decimal) return v.isFinite() ? v : null;
   if (typeof v === "number") { if (!Number.isFinite(v)) return null; return new Decimal(v); }
   const s = String(v).trim();
   if (!s) return null;
-  try { return new Decimal(s); } catch { return null; }
+  // Plain decimal notation only: decimal.js also reads "0x10", "0b101", "0o17" and "0x1p3", and a
+  // price typed as one of those must be a refusal, not 16 (review REV-04).
+  if (!/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(s)) return null;
+  try { const d = new Decimal(s); return d.isFinite() ? d : null; } catch { return null; }
 }
 
 /** Like money() but throws on missing values — for figures that must exist. */

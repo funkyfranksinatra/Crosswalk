@@ -17,5 +17,6 @@ export async function storeDocumentBytes(id: string, bytes: Buffer): Promise<str
   return p;
 }
 export async function readDocumentBytes(id: string): Promise<Buffer | null> {
-  try { return await readFile(fileFor(id)); } catch { return null; }
+  const p = fileFor(id); // an invalid id is an error, never "not found"
+  try { return await readFile(p); } catch { return null; }
 }

@@ -1,0 +1,12 @@
+line sum 8473.92 economics.revenue 8473.92
+freightMode="FLAT"
+freightValue=25
+freightAmount=25
+taxMode="MANUAL"
+taxRate=0.05
+taxAmount=423.7
+taxProvider="manual"
+taxCalculatedAt="2026-09-24T11:28:34.005Z"
+taxDetailJson="{\"note\":\"Manual rate 5.000%, freight untaxed\",\"fingerprint\":\"9fb9338a38a96287606b5d8ddb9bcd9c13fa67ed\",\"totalT
+taxExemptionNo=null
+shipToJson="{\"line1\":\"1 Main St\",\"line2\":null,\"city\":\"Boston\",\"region\":\"MA\",\"postalCode\":\"02101\",\"country\":\"US

@@ -1,0 +1,47 @@
+ M .env.example
+ M CONTRIBUTING.md
+ M README.md
+ M deploy/entrypoint.sh
+ M docs/BACKUPS.md
+ M docs/DEPLOYMENT.md
+ M docs/INTEGRATIONS.md
+ M docs/INTEGRATION_SETUP.md
+ M docs/OPERATIONS.md
+ M package-lock.json
+ M package.json
+ M prisma/schema.prisma
+ M prisma/seed-enterprise.ts
+ M prisma/seed.ts
+ M scripts/db-preflight.ts
+ M scripts/eval.ts
+ M scripts/lib/harness.ts
+ M scripts/model-eval.ts
+ M scripts/test-adversarial.ts
+ M scripts/test-enterprise.ts
+ M scripts/worker.ts
+ M src/lib/db.ts
+ M src/lib/documents/storage.ts
+ M src/lib/feeds/index.ts
+ M src/lib/feeds/schedule.ts
+ M src/lib/integrations/core/admin.ts
+ M src/lib/integrations/core/config.ts
+ M src/lib/integrations/core/registry.ts
+ M src/lib/integrations/fx/service.ts
+ D src/lib/integrations/salesforce.ts
+ M src/lib/integrations/salesforce/writeback.ts
+ D src/lib/integrations/sap.ts
+ M src/lib/integrations/sap/adapter.ts
+ M src/lib/integrations/sync.ts
+ M src/lib/jobs/boss.ts
+ M src/lib/jobs/workers.ts
+ M src/lib/notifications/index.ts
+ M src/lib/observability/alerts.ts
+ M src/lib/retention.ts
+ M src/lib/tenancy.ts
+?? src/lib/env.ts
+?? src/lib/observability/redact.ts
+?? tests/db/ws5-integrations.test.ts
+?? tests/db/ws5-jobs.test.ts
+?? tests/db/ws5-platform.test.ts
+?? tests/unit/ws5-config.test.ts
+?? tests/unit/ws5-salesforce.test.ts

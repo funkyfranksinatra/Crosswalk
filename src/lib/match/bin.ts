@@ -8,6 +8,7 @@
  */
 import { z } from "zod";
 import { buildAccessProfile, type AccessProfile, type ProfileSource } from "./access";
+import { siblingAssertions, siblingsOf, type SiblingRecord } from "./siblings";
 import { compareAccess, type ConstraintResult } from "./constraints";
 
 export const FAMILIES = [
@@ -32,7 +33,7 @@ export const DimensionSchema = z.object({
  * Model bins record the heuristic version they were drafted from (`hv`); a bump rebuilds those
  * too, because the model corrects the heuristic first pass rather than starting from nothing.
  */
-export const BIN_VERSION = 7;
+export const BIN_VERSION = 9;
 
 export const BinSchema = z.object({
   v: z.number().optional().describe("internal: binner rule version"),
@@ -95,10 +96,10 @@ const FEATURES: [RegExp, string][] = [
   [/articulat/i, "articulating"],
   [/roticulat/i, "articulating"],
   [/bladeless|non[\s-]?bladed|blunt/i, "bladeless"],
-  [/\bbladed\b|shielded blade/i, "bladed"],
-  [/optical|visiport|clear tip/i, "optical"],
-  [/fixation cannula|fixation|threaded|z-thread/i, "fixation cannula"],
-  [/smooth cannula|non-threaded/i, "smooth cannula"],
+  [/(?<!non[\s-])\bbladed\b|shielded blade/i, "bladed"],
+  [/(?<!non[\s-])(?<!without\s)optical|visiport|clear tip/i, "optical"],
+  [/(?<!without\s)fixation cannula|(?<!without\s)fixation|(?<!non[\s-])(?<!un)threaded|z-thread/i, "fixation cannula"],
+  [/smooth cannula|non-?threaded|unthreaded|without fixation/i, "smooth cannula"],
   [/curved tip/i, "curved tip"],
   [/reinforced|buttress|reinforcement/i, "reinforced"],
   [/(?:bio)?(?:ab|re)sorbable/i, "absorbable"],
@@ -357,6 +358,8 @@ export function heuristicBin(input: {
   code?: string | null;
   /** The rep's intake description for this code (customer item master) — evidence below GUDID and the SKU convention. */
   intakeDescription?: string | null;
+  /** Other records of the same labeler line from the GUDID library: what the family marks and this record does not (src/lib/match/siblings.ts). */
+  siblings?: SiblingRecord[] | null;
   singleUse?: boolean | null;
   sterile?: boolean | null;
   implantable?: boolean | null;
@@ -438,6 +441,9 @@ export function heuristicBin(input: {
       ...(input.sizes?.length ? [{ text: null, source: "gudid:size" as const, sizes: input.sizes }] : []),
       { text: input.code ?? input.sku ?? null, source: "sku", manufacturer: input.manufacturer ?? null },
       { text: [input.brand, input.name, input.description].filter(Boolean).join(" ; "), source: "gudid:description", gmdn: input.gmdnName ?? null },
+      // Sibling-family evidence fills what the record's own words leave open (optical or not) — below the
+      // record's text, above the rep's intake description.
+      ...(input.siblings?.length ? siblingAssertions({ code: input.code ?? input.sku ?? null, brand: input.brand ?? null, description: [input.name, input.description].filter(Boolean).join(" ; ") }, siblingsOf({ code: input.code ?? input.sku ?? null, brand: input.brand ?? null, description: null }, input.siblings), input.manufacturer).map((a) => ({ text: null, source: "gudid:siblings" as const, assert: a.assert, via: a.via })) : []),
       ...(input.intakeDescription ? [{ text: input.intakeDescription, source: "intake:description" as const }] : []),
     ];
     access = buildAccessProfile(sources);

@@ -1,0 +1,407 @@
+== npm ci 21:56:08
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated fstream@1.0.12: This package is no longer supported.
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+npm warn deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+npm warn deprecated eslint@9.39.5: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+
+> crosswalk@0.7.0 postinstall
+> prisma generate
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+
+✔ Generated Prisma Client (7.10.0) to ./src/generated/prisma in 592ms
+
+
+added 480 packages in 52s
+exit=0 53s
+== migrate 21:57:01
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "crosswalk_clone", schema "public" at "localhost:5432"
+
+15 migrations found in prisma/migrations
+
+Applying migration `20260914200000_postgres_baseline`
+Applying migration `20260914210000_enterprise_platform`
+Applying migration `20260915020000_gudid_library`
+Applying migration `20260915210000_widen_pct_columns`
+Applying migration `20260915220000_purchase_external_index`
+Applying migration `20260917060000_tier1_platform`
+Applying migration `20260917120000_tier1_fixes`
+Applying migration `20260918000000_tier3_product_scale`
+Applying migration `20260918000100_tier3_line_flags`
+Applying migration `20260919000000_tier0_break_glass`
+Applying migration `20260919000100_tier0_check_constraints`
+Applying migration `20260923000000_tier2_integrations`
+Applying migration `20260923000001_tier2_account_contacts`
+Applying migration `20260923000002_tier2_check_constraints`
+Applying migration `20260924000000_match_quality`
+
+┌─────────────────────────────────────────────────────────┐
+│  Update available 7.10.0 -> 8.0.0-rc.17                 │
+│                                                         │
+│  This is a major update - please follow the guide at    │
+│  https://pris.ly/d/major-version-upgrade                │
+│                                                         │
+│  Run the following to update                            │
+│    npm i --save-dev prisma@latest                       │
+│    npm i @prisma/client@latest                          │
+└─────────────────────────────────────────────────────────┘
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20260914200000_postgres_baseline/
+    └─ migration.sql
+  └─ 20260914210000_enterprise_platform/
+    └─ migration.sql
+  └─ 20260915020000_gudid_library/
+    └─ migration.sql
+  └─ 20260915210000_widen_pct_columns/
+    └─ migration.sql
+  └─ 20260915220000_purchase_external_index/
+    └─ migration.sql
+  └─ 20260917060000_tier1_platform/
+    └─ migration.sql
+  └─ 20260917120000_tier1_fixes/
+    └─ migration.sql
+  └─ 20260918000000_tier3_product_scale/
+    └─ migration.sql
+  └─ 20260918000100_tier3_line_flags/
+    └─ migration.sql
+  └─ 20260919000000_tier0_break_glass/
+    └─ migration.sql
+  └─ 20260919000100_tier0_check_constraints/
+    └─ migration.sql
+  └─ 20260923000000_tier2_integrations/
+    └─ migration.sql
+  └─ 20260923000001_tier2_account_contacts/
+    └─ migration.sql
+  └─ 20260923000002_tier2_check_constraints/
+    └─ migration.sql
+  └─ 20260924000000_match_quality/
+    └─ migration.sql
+
+All migrations have been successfully applied.
+exit=0 2s
+== typecheck 21:57:03
+
+> crosswalk@0.7.0 typecheck
+> tsc --noEmit
+
+exit=0 21s
+== lint 21:57:24
+
+> crosswalk@0.7.0 lint
+> eslint "src/**/*.{ts,tsx}"
+
+exit=0 6s
+== check 21:57:30
+
+> crosswalk@0.7.0 check
+> tsx scripts/check.ts
+
+19 passed, 0 failed
+exit=0 1s
+== check:enterprise 21:57:31
+
+> crosswalk@0.7.0 check:enterprise
+> tsx scripts/check-enterprise.ts
+
+21 passed, 0 failed
+exit=0 1s
+== build 21:57:32
+
+> crosswalk@0.7.0 build
+> next build
+
+▲ Next.js 16.3.5 (Turbopack)
+✓ Running next.config.ts took 28ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 22.9s
+  Running TypeScript ...
+  Finished TypeScript in 23.5s ...
+  Collecting page data using 1 worker ...
+  Generating static pages using 1 worker (0/49) ...
+  Generating static pages using 1 worker (12/49) 
+  Generating static pages using 1 worker (24/49) 
+  Generating static pages using 1 worker (36/49) 
+✓ Generating static pages using 1 worker (49/49) in 120ms
+Turbopack build encountered 2 warnings:
+./src/lib/documents/storage.ts:21:22
+Warning: Dynamic filesystem access causes tracing of the whole project
+  [90m19 |[0m [36mexport[0m [36masync[0m [36mfunction[0m readDocumentBytes(id: string): [33mPromise[0m<[33mBuffer[0m | [36mnull[0m> {
+  [90m20 |[0m   [36mconst[0m p = fileFor(id); [90m// an invalid id is an error, never "not found"[0m
+[33m[1m>[0m [90m21 |[0m   [36mtry[0m { [36mreturn[0m [36mawait[0m readFile(p); } [36mcatch[0m { [36mreturn[0m [36mnull[0m; }
+  [90m   |[0m                      [33m[1m^^^^^^^^^^^[0m
+  [90m22 |[0m }
+  [90m23 |[0m
+
+Static analysis determined that this filesystem access causes the whole project to be traced and included in the output.
+This is usually unintentional and leads to all source files (including the public folder) to be deployed as part of the server code.
+This can slow down deployments or lead to failures when size limits are exceeded.
+To resolve this, you can
+- make sure the path is statically scoped to some subfolder, for example path.join(process.cwd(), 'data', bar), or
+- only use them in development, or
+- opt out by adding an ignore comment to the highlighted call: fs.readFile(/*turbopackIgnore: true*/ ...), or
+- remove them.
+
+Import trace:
+  App Route:
+    ./src/lib/documents/storage.ts
+    ./src/app/api/documents/extract/route.ts
+
+
+./src/lib/documents/storage.ts:11:121
+Warning: Dynamic filesystem access causes tracing of the whole project
+  [90m 9 |[0m ...
+  [90m10 |[0m ...path.join(process.cwd(), [32m".data"[0m, [32m"documents"[0m); }
+[33m[1m>[0m [90m11 |[0m ...[32mnvalid document id"[0m); [36mreturn[0m path.join(documentDir(), id); }
+  [90m   |[0m                                 [33m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m12 |[0m ...
+  [90m13 |[0m ...
+  [90m14 |[0m ...
+
+Static analysis determined that this filesystem access causes the whole project to be traced and included in the output.
+This is usually unintentional and leads to all source files (including the public folder) to be deployed as part of the server code.
+This can slow down deployments or lead to failures when size limits are exceeded.
+To resolve this, you can
+- make sure the path is statically scoped to some subfolder, for example path.join(process.cwd(), 'data', bar), or
+- only use them in development, or
+- opt out by adding an ignore comment to the highlighted call: path.join(/*turbopackIgnore: true*/ ...), or
+- remove them.
+
+Import trace:
+  App Route:
+    ./src/lib/documents/storage.ts
+    ./src/app/api/documents/extract/route.ts
+
+
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /accounts
+├ ƒ /accounts/[id]
+├ ƒ /analytics
+├ ƒ /api/accounts
+├ ƒ /api/accounts/[id]
+├ ƒ /api/accounts/[id]/memberships
+├ ƒ /api/analytics/[report]
+├ ƒ /api/approvals
+├ ƒ /api/approvals/[id]
+├ ƒ /api/approvals/delegations
+├ ƒ /api/approvals/delegations/[id]
+├ ƒ /api/audit
+├ ƒ /api/auth/dev
+├ ƒ /api/auth/me
+├ ƒ /api/auth/oidc/callback
+├ ƒ /api/auth/oidc/logout
+├ ƒ /api/auth/oidc/start
+├ ƒ /api/catalog/add
+├ ƒ /api/catalog/enrich
+├ ƒ /api/catalog/gudid
+├ ƒ /api/catalog/gudid/[id]
+├ ƒ /api/catalog/gudid/adopt
+├ ƒ /api/catalog/gudid/plan
+├ ƒ /api/catalog/gudid/prune
+├ ƒ /api/competitor-sizes/coverage
+├ ƒ /api/competitor-sizes/import
+├ ƒ /api/competitor-sizes/template
+├ ƒ /api/competitor/[id]
+├ ƒ /api/contracts
+├ ƒ /api/contracts/[id]
+├ ƒ /api/contracts/[id]/entries
+├ ƒ /api/contracts/[id]/performance
+├ ƒ /api/contracts/[id]/terms
+├ ƒ /api/contracts/renewals
+├ ƒ /api/costs/import
+├ ƒ /api/crosses
+├ ƒ /api/crosses/[id]
+├ ƒ /api/crosswalk/publish
+├ ƒ /api/crosswalk/versions
+├ ƒ /api/documents/extract
+├ ƒ /api/documents/extractions/[id]
+├ ƒ /api/documents/extractions/[id]/import
+├ ƒ /api/documents/extractions/[id]/verify
+├ ƒ /api/feeds
+├ ƒ /api/google
+├ ƒ /api/health
+├ ƒ /api/intake/preview
+├ ƒ /api/integrations
+├ ƒ /api/integrations/config
+├ ƒ /api/integrations/config/[key]
+├ ƒ /api/integrations/config/[key]/jobs
+├ ƒ /api/integrations/config/[key]/sync
+├ ƒ /api/integrations/config/[key]/test
+├ ƒ /api/integrations/config/[key]/upload
+├ ƒ /api/integrations/config/[key]/validate-mapping
+├ ƒ /api/integrations/jobs/[id]
+├ ƒ /api/integrations/review
+├ ƒ /api/integrations/review/[id]
+├ ƒ /api/integrations/sync
+├ ƒ /api/intelligence
+├ ƒ /api/intelligence/[id]
+├ ƒ /api/intelligence/bids
+├ ƒ /api/intelligence/bids/import
+├ ƒ /api/intelligence/import
+├ ƒ /api/metrics
+├ ƒ /api/notifications
+├ ƒ /api/notifications/preferences
+├ ƒ /api/observability/export
+├ ƒ /api/pricing-policies
+├ ƒ /api/pricing-policies/[id]/activate
+├ ƒ /api/pricing/import
+├ ƒ /api/pricing/template
+├ ƒ /api/proposals
+├ ƒ /api/proposals/[id]
+├ ƒ /api/proposals/[id]/audit
+├ ƒ /api/proposals/[id]/conversion
+├ ƒ /api/proposals/[id]/drift
+├ ƒ /api/proposals/[id]/export
+├ ƒ /api/proposals/[id]/lines/[lineId]
+├ ƒ /api/proposals/[id]/lines/[lineId]/recommend
+├ ƒ /api/proposals/[id]/logistics
+├ ƒ /api/proposals/[id]/outcome
+├ ƒ /api/proposals/[id]/push-crm
+├ ƒ /api/proposals/[id]/refresh-context
+├ ƒ /api/proposals/[id]/reopen
+├ ƒ /api/proposals/[id]/scenarios
+├ ƒ /api/proposals/[id]/scenarios/[sid]
+├ ƒ /api/proposals/[id]/scenarios/[sid]/apply
+├ ƒ /api/proposals/[id]/submit
+├ ƒ /api/proposals/[id]/version
+├ ƒ /api/purchases/import
+├ ƒ /api/requests
+├ ƒ /api/requests/[id]
+├ ƒ /api/requests/[id]/bulk
+├ ƒ /api/requests/[id]/cancel
+├ ƒ /api/requests/[id]/export
+├ ƒ /api/requests/[id]/lines/[lineId]
+├ ƒ /api/requests/[id]/lines/[lineId]/compare
+├ ƒ /api/requests/[id]/run
+├ ƒ /api/requests/[id]/sheets
+├ ƒ /api/settings
+├ ƒ /api/settings/branding
+├ ƒ /api/system
+├ ƒ /api/webhooks/salesforce
+├ ƒ /approvals
+├ ƒ /catalog
+├ ƒ /catalog/gudid
+├ ƒ /contracts
+├ ƒ /contracts/[id]
+├ ƒ /crosses
+├ ƒ /docs/[doc]
+├ ƒ /intelligence
+├ ƒ /intelligence/bids
+├ ƒ /intelligence/extractions/[id]
+├ ƒ /notifications
+├ ƒ /proposals
+├ ƒ /proposals/[id]
+├ ƒ /requests
+├ ƒ /requests/[id]
+├ ƒ /requests/new
+├ ƒ /settings
+├ ƒ /settings/integrations
+└ ƒ /settings/pricing
+
+
+ƒ Proxy (Middleware)
+
+ƒ  (Dynamic)  server-rendered on demand
+
+exit=0 50s
+== seeds (no reference data) 21:58:22
+No curated cross-reference sheet at data/reference/Endomechanical.xlsx.
+Ask the project owner for data/reference/Endomechanical.xlsx (own SKUs + curated crosses) and, optionally,
+SSXrefReport_REQ-7604.xlsx (hernia SKUs + list prices) and CrossReference_0001880967.xlsx (sample intake).
+Seeding only the company record and the default pricebook; the catalog starts empty.
+Users: 11 dev users across 11 roles
+StandardCost backfilled from legacy COGS: 0
+Pricing policies: 6 families ensured
+Crosswalk v1 published with 0 entries
+Competitor price observations: 19
+Demo commercial data ready (MSK, Premier Tier 2, local override, 3-hospital price intelligence).
+exit=0 4s
+== test:adversarial 21:58:26
+
+> crosswalk@0.7.0 test:adversarial
+> tsx scripts/test-adversarial.ts
+
+  ✓ a bare user id is not a session; only the signed cookie value is
+  ✓ money arithmetic is exact where floats are not
+  ✓ waterfall: contracts beginning today apply, contracts ending today apply, tomorrow's and yesterday's do not; ties choose the lowest price and say so
+  ✓ waterfall: a EUR contract never prices a USD question; an unapproved entry never applies
+  ✓ recommendation never goes below floor, never above reference; missing cost → no floor, margin unknown, not zero
+  ✓ competitor intelligence: an absurd observation (case price as unit price) does not become KNOWN_ACCOUNT on its own
+  ✓ submit routes the three lines correctly and locks the proposal
+  ✓ CHAIN: changes-requested on one line must not let a repriced sibling line be approved against a stale snapshot
+  ✓ CHAIN: resubmission after changes-requested supersedes old requests; the proposal can still reach APPROVED
+  ✓ exported quote carries exactly the approved prices; nothing mutated after approval
+  ✓ a rep cannot export before approval, a clinical reviewer cannot export at all, finance cannot set prices
+  ✓ two managers deciding the same request simultaneously: exactly one decision is recorded
+  ✓ double submit in parallel creates one set of approval requests
+  ✓ parallel price edits on one line leave a consistent line and one audit event per write
+  ✓ negative, zero, NaN and absurd prices are refused; a 100% discount needs the committee
+  ✓ a won proposal's contract cannot be deleted from under it; a request with proposals cannot be deleted
+  ✓ intake parser survives formulas, unicode, huge quantities, blanks and duplicate headers; CSV output neutralises formula injection
+  ✓ cost, floor and margin never reach a rep through the audit trail or nested recommendation JSON
+  ✓ a cross cannot be approved on one signature, with no equivalence, or with an invented status
+  ✓ purchase and cost imports are idempotent and skip bad rows with a reason
+  ✓ a policy that would disable floors or invert authority is refused; a sane draft is accepted
+  ✓ renaming the company keeps the catalog (no second Company row); bad settings are refused
+  ✓ a rep-proposed cross must name a real SKU and a real match type
+  ✓ an approved proposal past its valid-through date cannot be exported
+
+24 passed, 0 failed
+exit=0 3s
+== vitest 21:58:29
+
+ RUN  v5.0.1 /tmp/claude-0/clone
+
+prisma:error 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `N/A`. Message: `Can't reach database server at 127.0.0.1:1`
+
+ Test Files  43 passed (43)
+      Tests  698 passed (698)
+   Start at  21:58:30
+   Duration  159.26s (tests 86%, setup 7%, import 4%, transform 2%)
+
+exit=0 160s
+== eval:gate (expected FAIL) 22:01:09
+
+> crosswalk@0.7.0 eval:gate
+> tsx scripts/model-eval.ts --gate
+
+Model eval gate: WARNING — LLM_MODEL is gpt-5.6-astra but the accepted baseline measured gpt-6-astra (no model configured here; the versions still match)
+Model eval gate: FAILED
+  - BIN_VERSION is 8 but the accepted baseline measured version 6 — re-measure grading on the new bins and accept it
+exit=1 1s
+== test:enterprise 22:01:10
+
+> crosswalk@0.7.0 test:enterprise
+> tsx scripts/test-enterprise.ts
+
+Error: ENOENT: no such file or directory, open '/tmp/claude-0/clone/data/reference/CrossReference_0001880967.xlsx'
+    at Object.openSync (node:fs:560:18)
+    at Object.readFileSync (node:fs:444:35)
+    at main (/tmp/claude-0/clone/scripts/test-enterprise.ts:95:39)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/tmp/claude-0/clone/data/reference/CrossReference_0001880967.xlsx'
+}
+exit=1 2s
+== DONE 22:01:12

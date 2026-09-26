@@ -34,6 +34,8 @@ samples/
 
 # editor / os / misc
 *.log
+# the command logs of a debug run are its evidence (TEST_RESULTS.md cites them by name)
+!docs/debug-runs/**/*.log
 .DS_Store
 Thumbs.db
 .vscode/
@@ -65,3 +67,4 @@ scratch/
 
 # uploaded document bytes (DOCUMENT_STORAGE_DIR)
 .data/
+.scratch/

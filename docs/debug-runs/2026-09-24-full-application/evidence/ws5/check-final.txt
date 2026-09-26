@@ -1,0 +1,5 @@
+
+> crosswalk@0.7.0 check
+> tsx scripts/check.ts
+
+19 passed, 0 failed

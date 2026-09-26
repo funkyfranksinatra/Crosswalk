@@ -1,0 +1,7 @@
+PASS gudid: plan preview shows a record count — 230 records across 1 labeler name · about 1 openFDA requests · 230 already in the library
+PASS gudid: import skipped — the library already holds this labeler (rerun) — 230 already
+PASS gudid: cancel path skipped (set GUDID_CANCEL_TEST=1 to run a second live import) — skipped
+PASS gudid: panel back to idle after the import
+PASS no page errors — []
+PASS no CSP violations — []
+6 checks, 0 failures

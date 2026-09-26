@@ -1,0 +1,35 @@
+PASS proposal loaded — {"status":"DRAFT","lines":5}
+PASS an included, priced line exists — {"code":"1190500","sku":"PCO2520X","proposed":461.76,"list":1015}
+PASS inline price edit persisted (777.77) — 777.77
+PASS negative price refused and reported — price must be positiveDismiss
+PASS drawer tab Recommendation
+PASS drawer tab Price waterfall
+PASS drawer tab Competitor prices
+PASS drawer tab Cost basis present — hidden: role has no view_cost
+PASS drawer tab Cross evidence
+PASS drawer tab Approvals
+PASS re-recommend applied (recommendation JSON present) — {"proposed":1015,"recommended":1015}
+PASS line customer note persisted — ws3 proposal customer note
+PASS scenario created — ["Aggressive"]
+PASS scenario view banner
+PASS scenario applied to proposal prices — {"scenarioPrice":"1015","now":1015}
+PASS scenario deleted
+PASS logistics saved (flat freight 25, manual tax 5 %) — {"freight":"FLAT","value":"25","tax":"MANUAL","rate":"0.05"}
+PASS tax calculated — {"currency":"USD","subtotal":"16772.52","freight":"25","tax":"838.63","total":"17636.15","taxCalculatedAt":"2026-09-24T11:28:47.753Z","taxStale":false,"taxNote":"Manual rate 5.000%, freight untaxed"}
+PASS exclude line persisted for every unpriced line — ["1190500:in","B12LTH:in","TLC75:out","C0121:out","IN-12-4:out"]
+PASS submitted — {"status":"SUBMITTED","pending":["PRICING_COMMITTEE"]}
+PASS deal desk: PRICING_COMMITTEE sees the request
+PASS approvals decided — ["PRICING_COMMITTEE:APPROVED"]
+PASS proposal approved — APPROVED
+PASS quote export: button enabled once approved
+PASS quote export: PDF download triggered from the button — Crosswalk_Quote_PRP-0001-v2_WS3_Journey_Hospital_20260924_1128.pdf
+PASS quote export pdf — {"status":200,"type":"application/pdf","disposition":"attachment; filename=\"Crosswalk_Quote_PRP-0001-v2_WS3_Journey_Hospital_20260924_1128.pdf\"","bytes":3645}
+PASS quote export xlsx — {"status":200,"type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","disposition":"attachment; filename=\"Crosswalk_Quote_PRP-0001-v2_WS3_Journey_Hospital_20260924_1128.xlsx\"","bytes":7672}
+PASS quote export csv — {"status":200,"type":"text/csv; charset=utf-8","disposition":"attachment; filename=\"Crosswalk_Quote_PRP-0001-v2_WS3_Journey_Hospital_20260924_1128.csv\"","bytes":676}
+PASS record outcome offered
+PASS outcome dialog: focus inside
+PASS outcome recorded (WON) — {"status":"WON","outcome":{"id":"cmufg8bsc004ffc7dx0qeuhdb","proposalId":"cmufg7xut003hfc7d1qtzrbk0","outcome":"WON","competitorId":null,"priceReason":"ws3 won on price","commercialReason":"","finalValue":16772.52,"curre
+PASS new version offered
+PASS new version created (v+1, DRAFT) — {"v":3,"status":"DRAFT"}
+PASS no page errors — []
+34 checks, 0 failures

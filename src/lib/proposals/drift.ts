@@ -18,7 +18,7 @@ import { loadPricingContext } from "@/lib/contracts/context";
 import { activePolicies, policyFor } from "@/lib/pricing/policy";
 import { floorFor, recommend } from "@/lib/pricing/recommend";
 import { approvedCross, currentPublishedVersion } from "@/lib/xref/governance";
-import { recomputeAllLines, refreshEconomics } from "./service";
+import { recomputeAllLines, refreshEconomics, listEntriesFor } from "./service";
 import { log } from "@/lib/log";
 
 export type Change = { field: "listPrice" | "contractPrice" | "contractPriceSource" | "cost" | "floorPrice" | "policy" | "equivalence" | "product"; from: string | null; to: string | null; note?: string };
@@ -29,7 +29,7 @@ const s = (v: Money | null | undefined) => (v === null || v === undefined ? null
 const same = (a: Money | null, b: Money | null) => (a === null && b === null) || (a !== null && b !== null && a.eq(b));
 
 async function liveContext(proposalId: string) {
-  const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { account: true, lines: { orderBy: { lineNo: "asc" }, include: { product: { include: { prices: { include: { pricebook: true } }, costs: true } } } } } });
+  const p = await prisma.proposal.findUniqueOrThrow({ where: { id: proposalId }, include: { account: true, request: { select: { pricebookId: true } }, lines: { orderBy: { lineNo: "asc" }, include: { product: { include: { prices: { include: { pricebook: true } }, costs: true } } } } } });
   const asOf = new Date();
   const [ctx, policies, version] = await Promise.all([loadPricingContext({ accountId: p.accountId, asOf }), activePolicies(), currentPublishedVersion()]);
   return { p, ctx, policies, version, asOf };
@@ -51,7 +51,7 @@ export async function driftFor(proposalId: string): Promise<ProposalDrift> {
     if (!l.included || !l.product) continue;
     const product = l.product;
     const qty = money(l.quantity)!;
-    const price = ctx.resolvePrice({ id: product.id, sku: product.sku, category: product.category, listPrice: product.listPrice, currency: product.currency, prices: product.prices.map((e) => ({ ...e, pricebook: e.pricebook ? { name: e.pricebook.name } : null })) }, qty);
+    const price = ctx.resolvePrice({ id: product.id, sku: product.sku, category: product.category, listPrice: product.listPrice, currency: product.currency, prices: listEntriesFor(product.prices, p.request?.pricebookId) }, qty);
     const cost = ctx.resolveCost({ id: product.id, cogs: product.cogs, currency: product.currency, costs: product.costs });
     const listPrice = money(price.steps.find((st) => st.level === "LIST" && st.price !== null)?.price ?? null);
     const contractStep = price.source && price.source !== "LIST" ? price : null;
@@ -104,7 +104,7 @@ export async function refreshContext(actor: Actor, proposalId: string) {
     if (!l || !l.product) continue;
     const product = l.product;
     const qty = money(l.quantity)!;
-    const price = ctx.resolvePrice({ id: product.id, sku: product.sku, category: product.category, listPrice: product.listPrice, currency: product.currency, prices: product.prices.map((e) => ({ ...e, pricebook: e.pricebook ? { name: e.pricebook.name } : null })) }, qty);
+    const price = ctx.resolvePrice({ id: product.id, sku: product.sku, category: product.category, listPrice: product.listPrice, currency: product.currency, prices: listEntriesFor(product.prices, p.request?.pricebookId) }, qty);
     const cost = ctx.resolveCost({ id: product.id, cogs: product.cogs, currency: product.currency, costs: product.costs });
     const listPrice = money(price.steps.find((st) => st.level === "LIST" && st.price !== null)?.price ?? null);
     const contractStep = price.source && price.source !== "LIST" ? price : null;
@@ -125,6 +125,7 @@ export async function refreshContext(actor: Actor, proposalId: string) {
   await prisma.proposal.update({ where: { id: proposalId }, data: { gpoIdSnapshot: ctx.primaryGpo?.id ?? null, gpoNameSnapshot: ctx.primaryGpo ? `${ctx.primaryGpo.name}${ctx.primaryGpo.tier ? ` · ${ctx.primaryGpo.tier}` : ""}` : null, contractId: ctx.primaryContractId, crosswalkVersionId: version?.id ?? null, policyVersionsJson: JSON.stringify(Object.fromEntries([...policies.values()].map((x) => [x.productFamily, x.id]))) } });
   const econ = await refreshEconomics(proposalId);
   await recomputeAllLines(proposalId, { dealValue: econ.revenue, strategicAccount: ctx.account?.isStrategic });
+  await refreshEconomics(proposalId); // approval states may have moved with the new floors / policy
   await audit({ actorUserId: actor.id, entityType: "Proposal", entityId: proposalId, action: "CONTEXT_REFRESHED", before: { checkedAt: before.checkedAt, proposal: before.proposal, lines: before.lines.map((d) => ({ line: d.lineNo, sku: d.sku, changes: d.changes })) }, after: { refreshedLines: refreshed, asOf: asOf.toISOString() } });
   log.info("proposal.context_refreshed", { proposalId, refreshed, proposalChanges: before.proposal.length });
   return { refreshed, drift: before };

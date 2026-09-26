@@ -172,8 +172,8 @@ export async function notifyFeedFailed(feed: string, error: string, feedRunId: s
   await notify({ kind: "FEED_FAILED", userIds: await adminIds(), title: `Feed "${feed}" failed`, body: error, link: `${baseUrl()}/settings`, entityType: "FeedRun", entityId: feedRunId, dedupeKey: feed });
 }
 
-export async function notifyAlert(a: { fingerprint: string; severity: string; title: string; detail: string | null; id: string }) {
-  await notify({ kind: "ALERT", userIds: await adminIds(), title: `[${a.severity}] ${a.title}`, body: a.detail, link: `${baseUrl()}/settings`, entityType: "Alert", entityId: a.id, dedupeKey: a.fingerprint });
+export async function notifyAlert(a: { fingerprint: string; severity: string; title: string; detail: string | null; id: string }): Promise<{ created: number }> {
+  return notify({ kind: "ALERT", userIds: await adminIds(), title: `[${a.severity}] ${a.title}`, body: a.detail, link: `${baseUrl()}/settings`, entityType: "Alert", entityId: a.id, dedupeKey: a.fingerprint });
 }
 
 export async function notifyJobFailed(queue: string, data: unknown, error: string) {

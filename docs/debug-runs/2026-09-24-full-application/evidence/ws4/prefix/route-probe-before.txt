@@ -1,0 +1,21 @@
+== BEFORE (original src/app/api, src/lib/api.ts, src/lib/auth, src/proxy.ts via git stash) ==
+     × KN-02: CLINICAL_REVIEWER can read /api/crosses and /api/crosswalk/versions 80ms
+     × KN-07: GET /api/catalog/enrich refuses a SALES_REP (manage_catalog) 30ms
+     × KN-08: a rep from another territory cannot correct a competitor product another rep's request resolved (404) 18ms
+     × K: revoking someone else's delegation is 404, not 403 20ms
+     × E: GET /api/requests/[id]/export with an unknown id answers 404 JSON, not an unhandled throw 430ms
+     × E: POST /api/requests with a JSON body answers 400, not an unhandled TypeError 524ms
+     × E: POST /api/catalog/add with no skus is a validation 400, not a TypeError message 19ms
+     × H: a SALES_REP never sees the cost / floor / margin sentinels in scenarios, approvals or the proposal's approval rows 272ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected 403 to be 200 // Object.is equality
+AssertionError: expected 200 to be 403 // Object.is equality
+AssertionError: expected 200 to be 404 // Object.is equality
+AssertionError: expected 403 to be 404 // Object.is equality
+PrismaClientKnownRequestError: 
+ FAIL  tests/db/ws4-prefix-probe.test.ts > WS4 pre-fix probe > E: POST /api/requests with a JSON body answers 400, not an unhandled TypeError
+TypeError: Content-Type was not one of "multipart/form-data" or "application/x-www-form-urlencoded".
+ FAIL  tests/db/ws4-prefix-probe.test.ts > WS4 pre-fix probe > E: POST /api/catalog/add with no skus is a validation 400, not a TypeError message
+AssertionError: expected 'Cannot read properties of undefined (…' not to match /Cannot read properties|undefined/
+AssertionError: scenario create leaks 1234.5678: expected '{"scenario":{"id":"cmufbk556000e9l7dz…' not to contain '1234.5678'
+      Tests  8 failed (8)

@@ -1,0 +1,25 @@
+[engine] firefox 142.0.1
+AXE /: 0 rule violations {} 
+AXE /requests: 0 rule violations {} 
+AXE /requests/new: 0 rule violations {} 
+AXE /requests/[id]: 0 rule violations {} 
+AXE /proposals: 0 rule violations {} 
+AXE /proposals/[id]: 0 rule violations {} 
+AXE /approvals: 0 rule violations {} 
+AXE /accounts: 0 rule violations {} 
+AXE /accounts/[id]: 0 rule violations {} 
+AXE /contracts: 0 rule violations {} 
+AXE /contracts/[id]: 0 rule violations {} 
+AXE /intelligence: 0 rule violations {} 
+AXE /intelligence/bids: 0 rule violations {} 
+AXE /intelligence/extractions/[id]: 0 rule violations {} 
+AXE /analytics: 0 rule violations {} 
+AXE /catalog: 0 rule violations {} 
+AXE /catalog/gudid: 0 rule violations {} 
+AXE /crosses: 0 rule violations {} 
+AXE /notifications: 0 rule violations {} 
+AXE /settings: 0 rule violations {} 
+AXE /settings/integrations: 0 rule violations {} 
+AXE /settings/pricing: 0 rule violations {} 
+axe summary by impact (rule → nodes): {}
+horizontal-scroll pages: 0 of 88

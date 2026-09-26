@@ -1,0 +1,8 @@
+PASS request created without an account number — {"id":"cmuffj0gu0001qa7duj3fo0io","lines":2}
+PASS request ran to complete — complete
+PASS API without accountId refuses with the account message
+PASS account picker opens instead of failing
+PASS search lists matching accounts — {"hits":1}
+PASS proposal created for the chosen account — {"account":"Memorial Sloan Kettering","lines":2}
+PASS no page errors — []
+7 checks, 0 failures

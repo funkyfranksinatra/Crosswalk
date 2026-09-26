@@ -1,12 +1,17 @@
-import { NextResponse } from "next/server";
 import { handle } from "@/lib/api";
 import { getCompany } from "@/lib/settings";
 import { enrichOwnProducts } from "@/lib/gudid/enrich";
 
+/**
+ * Catalog enrichment job. Both the status read and the start need manage_catalog: the
+ * progress counters describe the catalog's GUDID coverage, which is not something every
+ * signed-in role needs. NOTE: `job` is per process — on a multi-instance deployment each
+ * instance reports its own job (documented in docs/DEPLOYMENT.md by WS5).
+ */
 let job: { running: boolean; done: number; total: number; enriched: number; missing: number; startedAt: number } | null = null;
 
 export async function GET() {
-  return NextResponse.json(job ?? { running: false });
+  return handle("manage_catalog", async () => job ?? { running: false });
 }
 
 export async function POST(req: Request) {

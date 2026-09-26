@@ -1,0 +1,14 @@
+=== run 1 (fresh: all embeddings null) ===
+ RUN  v5.0.1 /home/claude/cracr
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  07:09:02
+   Duration  5.75s (tests 69%, transform 18%, import 9%, setup 5%)
+EXIT=0
+=== run 2 (warm) ===
+ RUN  v5.0.1 /home/claude/cracr
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  07:09:09
+   Duration  5.07s (tests 66%, transform 19%, import 9%, setup 6%)
+EXIT=0

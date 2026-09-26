@@ -36,6 +36,7 @@ in the room.*
 25. [Decisions log](#25-decisions-log)
 26. [Known issues, inconsistencies and gaps](#26-known-issues-inconsistencies-and-gaps)
 27. [Operator checklists](#27-operator-checklists)
+28. [Full-application debugging run (Sept 24)](#28-full-application-debugging-run-sept-24)
 
 ---
 
@@ -82,7 +83,7 @@ Two things define the engineering style throughout:
 | Sept 23 | `8beb338`, `fd9f620`, `ea820a0` | Prisma CLI on Neon's direct host; engine round trips 4,872 → 1,998 per 300 lines; intake fix; PACR comparison (REQ-7628) |
 | Sept 24 | `1b43393` | **Match quality model** — access-product profile, brand registry, hard/soft constraints, confidence, curated crosses as evidence, SELF_MATCH successors, contract pricing in runs, intake accounting; PACR superiority run |
 
-`package.json` still says `0.4.0`; `FEATURES.md` calls the current state v0.7; the only tag is
+`package.json` says `0.7.0` since the Sept 24 debug run (it was `0.4.0`); `FEATURES.md` calls the current state v0.7; the only tag is
 `v0.6.0` (see §26). Branch `mac-demo` = `main` + 15 additive commits (tooling only, no `src/`
 changes) and is merged forward after every `main` change (currently `21344fc`).
 
@@ -243,7 +244,9 @@ out of the image. Full guide: `docs/DEPLOYMENT.md`.
 Defaults in parentheses. "(i)" = read through a helper. Everything is optional except `DATABASE_URL`.
 
 **Core and database** — `DATABASE_URL` (required); `DATABASE_ADAPTER` (pg | neon-ws | neon-http);
-`DIRECT_DATABASE_URL` (Prisma CLI); `DATABASE_POOL_MAX` (5); `PRISMA_LOG`; `COMPANY_NAME` (Medtronic);
+`DIRECT_DATABASE_URL` (Prisma CLI); `DATABASE_POOL_MAX` (5, 1–200); `PRISMA_LOG`; `COMPANY_NAME` (Medtronic);
+`OWN_LABELERS` (comma-separated GUDID labeler names counted as "ours"; default Covidien, Medtronic, Sofradim);
+`TENANCY_STRICT` (true: a database with more than one Company row refuses to start);
 `APP_BASE_URL` (http://localhost:3000); `PROGRESS_WRITE_MS` (400); `NODE_ENV`.
 
 **Model and embeddings** — `OPENAI_API_KEY` (absent = heuristic mode); `OPENAI_BASE_URL`; `LLM_MODEL`
@@ -252,7 +255,7 @@ Defaults in parentheses. "(i)" = read through a helper. Everything is optional e
 `EMBEDDING_TIMEOUT_MS` (20000); `EMBED_REFRESH_BATCH` (5000); `EMBED_REFRESH_CRON` (`15 4 * * *`).
 
 **openFDA / GUDID** — `OPENFDA_API_KEY` (240 → 1000 req/min); `OPENFDA_RPM` (80 % of the limit);
-`OPENFDA_MAX_ATTEMPTS` (5); `OPENFDA_RETRY_BASE_MS` (1000); `OPENFDA_MEMO_SECONDS` (300, 0 disables);
+`OPENFDA_MAX_ATTEMPTS` (5); `OPENFDA_RETRY_BASE_MS` (1000); `OPENFDA_TIMEOUT_MS` (per request); `OPENFDA_MEMO_SECONDS` (300, 0 disables);
 `OPENFDA_PACE_MS` (0); `GUDID_CACHE_TTL_DAYS` (90); `GUDID_REFRESH_BATCH` (200); `GUDID_REFRESH_CRON`
 (`30 3 * * *`).
 
@@ -277,7 +280,7 @@ required in production); `INTEGRATIONS_ALLOW_MOCK`; any integration secret may b
 
 **Identity, security, logging** — `SESSION_SECRET` (≥ 16 chars in production); `SESSION_TTL_HOURS`
 (12, max 720); `ALLOW_DEV_SIGNIN`; `SSO_ISSUER` + `SSO_CLIENT_ID` (both set enables SSO);
-`SSO_CLIENT_SECRET` (blank = public client); `SSO_MODE` (oidc | proxy); `SSO_REDIRECT_URI`;
+`SSO_CLIENT_SECRET` (blank = public client); `SSO_MODE` (oidc | proxy); `SSO_PROXY_SHARED_SECRET` (proxy mode: the value the proxy must send in `x-sso-proxy-secret`; ≥ 16 chars; required in production); `SSO_REDIRECT_URI`;
 `SSO_SCOPES` (openid profile email); `SSO_ROLE_CLAIM` (roles); `SSO_ROLE_MAP` (JSON or `a=B` pairs);
 `SSO_DEFAULT_ROLE`; `SSO_AUTO_PROVISION` (true); `METRICS_TOKEN`; `CSP_REPORT_ONLY`;
 `RATE_LIMIT_AUTH` (20) / `_HEAVY` (60) / `_API` (600) per minute; `RATE_LIMIT_GLOBAL_FACTOR` (20);
@@ -322,7 +325,7 @@ with a `currency` column beside it.
 | RequestLine | one competitor code | `lineNo`, `rawCode`, `cfnNorm`, `quantity`, `estCompetitorPrice`, `description` (intake evidence), `competitorProductId`, `resolutionStatus` (pending \| resolved \| not-found \| error), `resolutionNote`, `matchStatus` (pending \| matched \| no-match \| error), `selectedCandidateId`, `overrideNote`, `customerNote`, `flag` ("verify"), `reviewed` |
 | MatchCandidate | a ranked own SKU for a line | `rank`, `matchType`, `source` (identity \| known-cross \| attribute \| llm), `score`, `scoreBin/Price/Cogs/Margin`, `factorsJson` (weights, notes, evidence, curated, cap), `rationale`, `additionalProducts`, `confidence`, `unitPrice`, `extended`, `priceSource`, `isSelected` |
 | Setting | key/value | `key` PK, `value` |
-| LlmCall | every model call | purpose, model, ok, durationMs, tokens, error, subject |
+| LlmCall | every structured model call, written by the application gateway (`src/lib/ai/gateway.ts`), never by the model layer | purpose, model, ok, durationMs, tokens, error, subject |
 | LlmGrade | cached grading verdicts | `key` PK (sha256 of inputs), model, lines, json |
 
 ### 6.2 Identity, accounts, contracts, cost, FX, audit (15)
@@ -495,16 +498,20 @@ report-only. Hardening headers on every response: nosniff, `x-frame-options: DEN
 strict-origin-when-cross-origin, permissions-policy (camera/mic/geolocation/payment/usb/interest-cohort
 off), COOP same-origin, dns-prefetch off, HSTS 1 year with subdomains over HTTPS.
 
-**API:** (1) request id (`x-request-id` reused when `^[A-Za-z0-9_.:-]{6,64}$`, echoed); (2) malformed
+**API:** (1) request id (a client's `x-request-id` reused only behind a declared proxy, `TRUST_PROXY_HOPS > 0`, and when it matches `^[A-Za-z0-9_.:-]{6,64}$`; otherwise a fresh id; echoed); (2) malformed
 path encoding → 400; (3) rate limit, fixed 60 s window per instance: class `auth` (`/api/auth/*`, 20/min),
 `heavy` (run, bulk, export, sheets, POST requests, all imports, catalog add/enrich/gudid/plan/adopt/
 prune, integrations/sync, feeds, observability export, proposal export/refresh-context; 60/min), `api`
 (600/min); per-instance ceiling = `RATE_LIMIT_GLOBAL_FACTOR` × client limit; client from
 X-Forwarded-For (`TRUST_PROXY_HOPS`) or x-real-ip; 429 with `retry-after`; (4) `x-crosswalk-route`
 (ids collapsed to `:id`, for metrics) and `x-crosswalk-path` (decoded path, always overwritten — the
-scope hook reads it); (5) auth gate: open list `/api/auth/`, `/api/health`, `/api/metrics`; everything
-else needs a dev cookie, a session cookie or `x-sso-subject`, else 401. The handlers verify the
-session; the proxy only checks presence.
+scope hook reads it); `x-sso-subject` / `x-sso-proxy-secret` are stripped from the request unless
+`SSO_MODE=proxy`; (5) auth gate: open list `/api/auth/`, `/api/health`, `/api/metrics` and exactly
+`POST /api/webhooks/salesforce` (authenticated by its HMAC); everything else needs a dev cookie, a
+session cookie or (proxy mode, with the shared secret) `x-sso-subject`, else 401. The handlers verify
+the session; the proxy only checks presence. (6) CSRF gate for cookie-authenticated non-GET requests:
+`Sec-Fetch-Site` must be same-origin/none, else the `Origin` host must match the addressed host
+(`X-Forwarded-Host` counts only with `TRUST_PROXY_HOPS > 0`); no CORS headers are ever sent.
 
 `next.config.ts` adds static security headers and `Cache-Control: private, no-store`, and marks the
 database, Excel, PDF, queue and mail packages as server-external.
@@ -591,7 +598,7 @@ Bard/BD/Davol → "BD - Bard", …).
 
 ### 9.4 Stage 2 — bin (`src/lib/llm/tasks.ts` `binProduct`, `src/lib/match/bin.ts` `heuristicBin`)
 
-Each distinct competitor product whose cached bin is stale (`v < BIN_VERSION` = 7, or a model bin whose
+Each distinct competitor product whose cached bin is stale (`v < BIN_VERSION` = 9, or a model bin whose
 `hv` < 7) or heuristic while the model is on is (re)binned at concurrency 3. Inputs: GUDID brand +
 description **plus** the curated sheet's description for the code (fetched once per run; a
 long-standing bug that dropped the GUDID text whenever a curated one existed was fixed in `1b43393`),
@@ -1254,7 +1261,7 @@ submitters), admins (ADMIN + PRICING_DIRECTOR), clinical reviewers + product mar
 
 Rules (`evaluateAlerts`, one Alert per fingerprint, re-notify after `ALERT_RENOTIFY_HOURS`): model —
 ≥ 3 of the last 5 calls in 30 min failed → CRITICAL; resolution ratio below `ALERT_RESOLUTION_MIN` on
-lists ≥ 5 lines (BENCH-* excluded); ≥ `ALERT_RUN_FAILURES` failed runs in 24 h; queue stall
+lists ≥ 5 lines (BENCH-* excluded); more than `ALERT_RUN_FAILURES` failed runs in 24 h; queue stall
 ≥ `ALERT_QUEUE_STALL_MIN` (CRITICAL at 4×) and failed jobs; feed failed (CRITICAL) / stale (WARNING).
 Prometheus text at `/api/metrics` (Bearer `METRICS_TOKEN` or an ADMIN session): http requests/seconds,
 openFDA requests/wait, llm calls/tokens, jobs, runs, notifications, alerts firing, queue jobs and oldest
@@ -1356,9 +1363,12 @@ request view) is reused by the catalog page; `DelegationPanel` by the approvals 
 PUT 2). Every route except `/api/auth/*`, `/api/health` and `/api/metrics` sits behind the proxy's
 session gate (§8). Inside the handler, `handle(perm, fn)` (JSON) or `authorize(perm)` (files, CSV)
 resolves the actor, returns 401 / 403 (`Missing permission: <perm>`), runs the ownership-scope hook for
-`/api/(accounts|requests|proposals|contracts)/<id>` paths, serialises Decimals, and maps error text to
-status (not found → 404; already / changed / decided by someone / being submitted / conflict → 409;
-otherwise 400; Prisma and driver messages replaced by generic text). Validators: `requireText`,
+`/api/(accounts|requests|proposals|contracts)/<id>` paths, serialises Decimals, and maps errors to
+status (`errorResponse`): service messages — not found → 404; already / changed / decided by someone /
+being submitted / conflict → 409; otherwise 400; database errors — unique constraint → 409, foreign
+key / overflow / bad encoding / too long → 400 with generic text, unreachable → 503, anything else →
+500; runtime faults (TypeError and friends) → 500 (a body the runtime could not parse → 400); the raw
+driver text never reaches the client. Validators: `requireText`,
 `optText`, `oneOf`, `currencyCode`, `positiveMoney` (≤ 1e9), `nonNegativeMoney`, `num`, `str`, `date`.
 "scope" below means the path-scope hook applies.
 
@@ -1387,14 +1397,14 @@ otherwise 400; Prisma and driver messages replaced by generic text). Validators:
 | POST `/api/feeds` | `{feed, force}` → `requestIngest` | configure_settings |
 | GET `/api/audit` | `?entityType=&entityId=`; latest 200 events, redacted; scoped roles must name an entity they can see | view_pricing |
 | GET `/api/google` | Drive status, `?test=1` runs a connection test | session |
-| POST `/api/webhooks/salesforce` | Raw body ≤ 256 KB, HMAC in `x-crosswalk-signature` | HMAC only — but blocked by the proxy gate (§26) |
+| POST `/api/webhooks/salesforce` | Raw body ≤ 256 KB (413 above), HMAC in `x-crosswalk-signature`, replay deduped | HMAC only — open at the proxy for exactly this path (fixed in the Sept 24 debug run) |
 
 ### 21.3 Settings and branding
 
 | Method & path | Does | Auth |
 |---|---|---|
-| GET `/api/settings` | Settings + `llm {available, model, baseURL}` + call stats | session |
-| POST `/api/settings` | `{weights, maxCandidates, companyName}` → `saveSettings`; audited | configure_settings |
+| GET `/api/settings` | Settings + `llm {available, model}`; the endpoint (`baseURL`) and per-purpose call statistics only for configure_settings | session |
+| POST `/api/settings` | `{weights, maxCandidates, companyName, scopeUnassignedParent}` → `saveSettings`; audited | configure_settings |
 | GET `/api/settings/branding` | Branding object | view_pricing |
 | PUT `/api/settings/branding` | Full branding body; audited (logo size only) | configure_settings |
 
@@ -1419,7 +1429,7 @@ otherwise 400; Prisma and driver messages replaced by generic text). Validators:
 | GET `/api/contracts/{id}/performance` | `contractPerformance` | view_pricing, scope |
 | POST `/api/contracts/{id}/terms` | `{kind: commitment \| rebate \| bundle \| scope, data}` (Zod per kind); audit `<KIND>_ADDED` | manage_contracts, scope |
 | DELETE `/api/contracts/{id}/terms` | `{kind, termId}`; audit `<KIND>_REMOVED` | manage_contracts, scope |
-| GET `/api/contracts/renewals` | `?days=180` → `renewalPipeline` | view_pricing |
+| GET `/api/contracts/renewals` | `?days=` (1–3650, default 180) → `renewalPipeline` | view_pricing |
 
 ### 21.6 Cross-reference requests (heavy rate class for run / bulk / export / sheets / POST)
 
@@ -1428,7 +1438,7 @@ otherwise 400; Prisma and driver messages replaced by generic text). Validators:
 | POST `/api/intake/preview` | Form: file ≤ 20 MB, sheetUrl, csvText ≤ 5 MB, csvName → `parseIntakeAny` (lines, sheet, source, skipped, duplicatesMerged, detectedColumns); 400 `{error, hint}` on SheetAccessError | run_cross_reference |
 | GET `/api/requests` | Scoped list (no `BENCH-`), line count, pricebook | run_cross_reference |
 | POST `/api/requests` | Intake fields + pricebookId, accountNumber ≤ 40, accountName ≤ 200, accountType, reportType, useLlm; 1–5000 lines; existing account must be writable (403 "not in your book"); creates Request + lines, `enqueueRun`; returns `{id, reference, jobId, lines, skipped, ignored, duplicatesMerged, accounting, skippedRows}`; 503 with the id if enqueue fails | run_cross_reference |
-| GET `/api/requests/{id}` | Request, lines, competitor products, candidates + own products (COGS / scoreCogs nulled without view_cost, scoreMargin without view_margin), `summary`, `log`, `llmAvailable`, `google`, `modelStatus` | run_cross_reference, scope |
+| GET `/api/requests/{id}` | Request, lines, competitor products, candidates + own products; for roles without view_cost / view_margin every candidate loses COGS, the cost/margin fit scores, and the margin figures in `rationale` and `factorsJson.notes` (`redactCandidateForActor`); `summary`, `log`, `llmAvailable`, `google`, `modelStatus` | run_cross_reference, scope |
 | DELETE `/api/requests/{id}` | 409 if proposals exist; audit DELETE | same |
 | POST `/api/requests/{id}/run` | `{freshGrades?, useLlm?}` → `{ok, jobId, alreadyRunning}` | same |
 | POST `/api/requests/{id}/cancel` | `cancelRun`; audit RUN_CANCEL_REQUESTED | same |
@@ -1437,7 +1447,7 @@ otherwise 400; Prisma and driver messages replaced by generic text). Validators:
 | GET `/api/requests/{id}/lines/{lineId}/compare` | `?candidateId=` → attribute rows (GUDID / Bin groups, same?), similarity, candidates; margin sentences stripped without view_margin, price null without view_pricing | same |
 | GET `/api/requests/{id}/export` | `?type=xref\|offer&format=xlsx\|csv\|pdf` (PDF offer only); xref hides cost / margin per permission | same |
 | POST `/api/requests/{id}/sheets` | `{which?: [xref, offer], anyoneWithLink?}` → native Google Sheets; saves the URLs; 400 unconfigured, 502 upload failure | same |
-| PATCH `/api/competitor/{id}` | `{di}` (GUDID lookup, manual resolution, confidence 1, bin cleared) or `{manufacturer, description}`; audit CORRECTED | run_cross_reference (no scope — shared cache) |
+| PATCH `/api/competitor/{id}` | `{di}` (validated GUDID lookup, manual resolution, confidence 1, bin + embedding hash cleared) or `{manufacturer, description}`; audit CORRECTED | manage_catalog anywhere; run_cross_reference only for a product one of the actor's visible request lines references, else 404 (`docs/DATA_ACCESS_POLICY.md`) |
 
 ### 21.7 Proposals (all `/api/proposals/{id}/**` scoped)
 
@@ -1445,7 +1455,7 @@ otherwise 400; Prisma and driver messages replaced by generic text). Validators:
 |---|---|---|
 | GET `/api/proposals` | Scoped list ≤ 200 with account, line and pending-approval counts | view_pricing |
 | POST `/api/proposals` | `{requestId, accountId?, opportunityId?, objectives? ≤ 4000, validDays? 1–365}` → `createFromRequest` (account resolved or created from the request's number) | edit_proposed_pricing |
-| GET `/api/proposals/{id}` | Proposal, lines (redacted), economics, `finalize`, `permissions`, `integrations` | view_pricing |
+| GET `/api/proposals/{id}` | Proposal, lines (redacted: cost, floor, target price, margins), economics (margin fields nulled), never the raw `economicsJson`; `finalize`, `permissions`, `integrations` | view_pricing |
 | DELETE `/api/proposals/{id}` | DRAFT only | edit_proposed_pricing |
 | GET `…/audit` | ≤ 300 events (proposal, lines, approvals), redacted, actor names | view_pricing |
 | GET `…/conversion` | `proposalConversion` | view_pricing |
@@ -1460,7 +1470,7 @@ otherwise 400; Prisma and driver messages replaced by generic text). Validators:
 | POST `…/version` | `newVersion` → the new proposal | edit_proposed_pricing |
 | POST `…/outcome` | `{outcome WON\|LOST\|NO_DECISION, competitorName, priceReason, commercialReason, contractMonths}` → `recordOutcome` | record_outcomes |
 | POST `…/push-crm` | `pushQuote` | export_proposals |
-| GET / POST `…/scenarios` | List `ScenarioView[]` / create `{kind (default CUSTOM), name?}` | view_pricing / edit_proposed_pricing |
+| GET / POST `…/scenarios` | List `ScenarioView[]` (economics redacted) / create `{kind ∈ RECOMMENDED, AGGRESSIVE, MARGIN_OPTIMIZED, CUSTOMER_REQUESTED, CUSTOM, FINAL (default CUSTOM), name?}` | view_pricing / edit_proposed_pricing |
 | GET / PATCH / DELETE `…/scenarios/{sid}` | Read / `{lineId, proposedPrice? > 0, included?}` / delete | view_pricing / edit_proposed_pricing |
 | POST `…/scenarios/{sid}/apply` | `applyScenario` | edit_proposed_pricing |
 
@@ -1472,16 +1482,17 @@ otherwise 400; Prisma and driver messages replaced by generic text). Validators:
 | POST `/api/approvals/{id}` | `{decision APPROVED\|REJECTED\|CHANGES_REQUESTED, comments?}` → `decide` (break-glass rules inside) | approve_discount |
 | GET `/api/approvals/delegations` | `?all=1` → `{delegations, users, me, admin}` | view_pricing |
 | POST `/api/approvals/delegations` | `{fromUserId?, toUserId, startsAt?, endsAt, reason?}` | approve_discount |
-| DELETE `/api/approvals/delegations/{id}` | `revokeDelegation` (ownership inside the service) | view_pricing |
+| DELETE `/api/approvals/delegations/{id}` | `revokeDelegation`: the delegator, the delegate or an ADMIN; anyone else → 404 | view_pricing |
 
 ### 21.9 Crosswalk governance
 
 | Method & path | Does | Auth |
 |---|---|---|
-| GET `/api/crosses` | `?status=&q=` ≤ 200 KnownCross rows | view_pricing |
+| GET `/api/crosses` | `?status=&q=` ≤ 200 KnownCross rows (no prices in the payload); `?conflicts=open` → the Evidence-conflicts queue (`openConflicts`, parsed `conflict` record per row) | view_pricing or manage_crosswalk or review_crosswalk_clinical |
 | POST `/api/crosses` | `proposeCross` (rep-proposed) | run_cross_reference |
 | PATCH `/api/crosses/{id}` | approvalStatus, clinicalReviewStatus (review_crosswalk_clinical or ADMIN), marketingReviewStatus, equivalenceLevel, approvedUsage, justification, effective dates → `setReview` | manage_crosswalk |
-| GET `/api/crosswalk/versions` | Versions with entry / proposal counts, `byStatus` | view_pricing |
+| POST `/api/crosses/{id}/conflict` | `{decision: RETIRE \| REPLACE \| KEEP, note?}` → `decideConflict` (§28.1; audited `CONFLICT_<decision>`) | manage_crosswalk |
+| GET `/api/crosswalk/versions` | Versions with entry / proposal counts, `byStatus` | view_pricing or manage_crosswalk or review_crosswalk_clinical |
 | POST `/api/crosswalk/publish` | `{notes?}` → `publishVersion` | publish_crosswalk |
 
 ### 21.10 Catalog and GUDID (heavy class)
@@ -1489,7 +1500,7 @@ otherwise 400; Prisma and driver messages replaced by generic text). Validators:
 | Method & path | Does | Auth |
 |---|---|---|
 | POST `/api/catalog/add` | `{skus ≤ 100, category?}` → openFDA lookup under our labelers; per-SKU status added / exists / not-found / invalid; 260 ms pacing; embeddings queued | manage_catalog |
-| GET / POST `/api/catalog/enrich` | In-memory job status / start `enrichOwnProducts {onlyMissing?}` | session / manage_catalog |
+| GET / POST `/api/catalog/enrich` | In-memory (per-instance) job status / start `enrichOwnProducts {onlyMissing?}` | manage_catalog / manage_catalog |
 | GET / POST `/api/catalog/gudid` | `libraryStats` / start an import `{query ≥ 3, kind OWN\|COMPETITOR, addToOwnCatalog, families, productCodes, inDistributionOnly}` | session / manage_catalog |
 | POST `/api/catalog/gudid/plan` | Preview `{total, existing, requests, labelers, productCodes}` | manage_catalog |
 | GET / DELETE `/api/catalog/gudid/{id}` | Job status / cancel QUEUED or RUNNING | session / manage_catalog |
@@ -1507,7 +1518,7 @@ otherwise 400; Prisma and driver messages replaced by generic text). Validators:
 | POST `/api/pricing/import` | file ≤ 20 MB or sheetUrl → `{updated, rows, pricebooks, unknownSkus, invalid}`; audit IMPORT_PRICING | import_cost_data |
 | POST `/api/costs/import` | CSV (SKU, Cost, Currency, Plant, Region, Cost Type, Effective From/To) → `importCostsGrid` | import_cost_data |
 | POST `/api/purchases/import` | CSV (Account Number, SKU, Quantity, Net Price, Currency, Invoice Date, Contract Number, Invoice Number); registers a Document | import_purchases |
-| GET / POST `/api/pricing-policies` | All versions / `draftPolicy(PolicyInput)` | view_pricing / configure_pricing_rules |
+| GET / POST `/api/pricing-policies` | All versions (target and minimum margins nulled without view_margin) / `draftPolicy(PolicyInput)` | view_pricing / configure_pricing_rules |
 | POST `/api/pricing-policies/{id}/activate` | `activatePolicy` (supersedes the active version) | configure_pricing_rules |
 
 ### 21.12 Competitive intelligence and documents
@@ -1620,7 +1631,7 @@ diagnosis).
 
 ## 23. Tests and evaluation harnesses
 
-### 23.1 Vitest (`npm test`; 13 files, 299 cases at run time)
+### 23.1 Vitest (`npm test`; 45 files, 714 cases after the Sept 25 decisions work — 43 / 698 after the Sept 24 debug run, 13 files / 299 before it)
 
 `vitest.config.mts`: `tests/**/*.test.ts`, setup `tests/setup.ts` (dotenv, `globalThis.__vitest_harness`
 so `scripts/check*.ts` register their cases, `setActorForTests`), 120 s timeouts, `fileParallelism:
@@ -1680,6 +1691,7 @@ with a pgvector DB and `JOBS_WORKER=external` → poll `/api/health` (60 × 2 s)
 | `PRODUCTION_READINESS.md` | where new team members start: the gap from prototype to production |
 | `ARCHITECTURE.md` | matching-engine architecture and the decisions behind it |
 | `MATCH_QUALITY_MODEL.md` | substitution decisions, confidence and classification (REQ-7628) |
+| `AI_BOUNDARY.md` | the model boundary: the model layer never reaches the database; the application reads, prompts, validates and writes |
 | `ENTERPRISE_ARCHITECTURE.md` | deal-desk platform plan and implementation record (ER diagram, phases, decisions, risks) |
 | `BUSINESS_RULES.md` | every commercial rule → implementing file → test |
 | `FEATURES.md` | feature inventory and roadmap (v0.7) |
@@ -1748,6 +1760,8 @@ and reported afterwards.
 | Sept 24 | Match quality: coverage never gained by guessing; Exact must not get easier; curated data is evidence, not immutable, and never rewritten; no Sanford-specific hard-coding; baseline reproduced first | the PACR superiority run is measured, not asserted |
 | Sept 24 | Score, confidence and classification are separate quantities; the cap binds the LLM grader; curated rows contradicted by evidence are labelled and demoted, not deleted | reviewers see why, and the sheet owner decides |
 | Sept 24 | Runs price through the contract waterfall when the request names a known account; `priceSource` per candidate | PACR priced 101 lines under Sanford contracts where Crosswalk had priced 18 at list |
+| Sept 25 | Owner decisions become product mechanisms: sibling-family evidence from the labeler's catalog (`gudid:siblings`), the Evidence-conflicts queue with Retire / Replace / Keep on the `KnownCross`, and a per-company setting for children of unassigned accounts (§28.1) | Crosswalk is deployed at many companies; nobody there owns a spreadsheet of corrections |
+| Sept 26 | Model boundary: `src/lib/llm/` holds only provider calls and prompts (no database import, directly or transitively); the application reaches it only through `src/lib/ai/gateway.ts`, which records calls; the application validates answers against the hard constraints and writes every result (`AI_BOUNDARY.md`, enforced by `tests/unit/llm-boundary.test.ts`) | the model must only ever see what the application hands it and only ever hand results back to the application |
 
 Standing constraints: never sync `.env` between machines; destructive Neon operations only when asked;
 no secrets in docs, logs or reports; DB tests run against local Postgres, never Neon; reference
@@ -1755,7 +1769,7 @@ spreadsheets, `.env`, service-account JSON and bundles stay out of git.
 
 ## 26. Known issues, inconsistencies and gaps
 
-### 26.1 Bugs found while writing this document (not yet fixed)
+### 26.1 Bugs found while writing this document — all fixed in the Sept 24 debug run (see §28)
 
 | # | Where | Problem | Effect |
 |---|---|---|---|
@@ -1786,7 +1800,7 @@ spreadsheets, `.env`, service-account JSON and bundles stay out of git.
 - Contract entries are not written in one transaction (pre-existing, documented).
 - `test:enterprise` / `test:adversarial` do not exit on their own after passing (pre-existing).
 
-### 26.3 Repository inconsistencies
+### 26.3 Repository inconsistencies (all resolved in the Sept 24 debug run: version 0.7.0, schema comments, CONTRIBUTING, `.env.example`; mac-demo tooling stays branch-specific by design)
 
 - `package.json` version `0.4.0`; `FEATURES.md` says v0.7; the only tag is `v0.6.0`.
 - CHECK constraints allow more values than the schema comments list: Account `type` adds BILL_TO and
@@ -1906,3 +1920,77 @@ spreadsheets, `.env`, service-account JSON and bundles stay out of git.
 | Constraint violation on migrate | `npm run db:preflight`, fix the rows, re-run |
 | Dev sign-in refused | production needs `ALLOW_DEV_SIGNIN=true` or SSO |
 | `next dev` answers an existing API route with the app's HTML not-found page (404, ~6 kB gzipped; `/api/auth/dev`, `/api/requests/{id}`…) while other routes work | a stale Turbopack dev cache (`.next/dev/cache/turbopack`) restored a route tree without those routes — seen Sept 25 after bundles were fetched under a stopped server. `npm run dev:clean` (deletes `.next/dev`, then starts); `next.config.ts` now sets `experimental.turbopackFileSystemCacheForDev: false` so a restart always rescans |
+
+
+## 28. Full-application debugging run (Sept 24)
+
+Branch `debug/2026-09-24-full-application`, run directory `docs/debug-runs/2026-09-24-full-application/`
+(manifest, inventory, coverage matrix, bug log in Markdown and JSON, test ledger, blockers,
+checkpoint, final report, independent review, five workstream reports, sanitised evidence). Everything
+in §26.1–26.3 and every KN-01…KN-24 item of the brief was reproduced and closed there; the sections
+above were corrected where behaviour changed. Highlights that change how the application behaves:
+
+- **Security:** `SSO_MODE=proxy` trusts `x-sso-subject` only with `x-sso-proxy-secret` =
+  `SSO_PROXY_SHARED_SECRET` (production refuses to start without it); CSRF gate on cookie-authenticated
+  mutations; the Salesforce webhook is open at the proxy for exactly its path; forwarded
+  `X-Forwarded-Host` / `x-request-id` count only behind a declared proxy; decompression-bomb guard on
+  spreadsheet uploads; integration URL fields refuse loopback/private/metadata hosts; error mapping no
+  longer turns runtime faults into 400s.
+- **Redaction:** scenario economics, raw `economicsJson`, approval snapshots, matcher rationale and
+  `factorsJson` notes, `targetPrice`, policy margins, the xref workbook's rationale prose and the NDJSON
+  export are redacted for roles without cost/margin permission; `GET /api/settings` shows the model
+  endpoint and call statistics to operators only.
+- **Commercial atomicity:** contract price entries, submission, decisions (proposal row locked —
+  two approvers deciding two lines at once no longer strand a proposal), reopen, WON, policy activation
+  and feed ingestion are single transactions / advisory-locked; `money()` accepts plain decimal notation
+  only; scenario kinds are the constraint's six; CRM push is gated by `canFinalize`.
+- **Matching:** BIN_VERSION 8 (structured cm/inch sizes, negations, Versaport bladeless-with-cannula,
+  "for use with … trocar"); preferred-column reviewer notes are never SKUs (and never published —
+  **re-publish the crosswalk in every environment whose published version predates this run**);
+  SELF_MATCH follows successor chains with a cycle guard; deterministic tie-break; run weights
+  snapshotted at enqueue; the sibling floor never lifts a hard cap; NFKC folding of codes; openFDA
+  timeout (`OPENFDA_TIMEOUT_MS`).
+- **Platform:** `OWN_LABELERS` implemented, strict single-tenant start-up (`TENANCY_STRICT`),
+  `JOBS_WORKER` values validated, entrypoint execs local binaries so SIGTERM reaches the server,
+  the harness releases pg-boss so the tsx suites exit, health sees stalled jobs, job retry limits are
+  honoured, a malformed cron cannot take the job system down, rotated encryption keys fail safely, the
+  runner never advances the watermark past a page cap, FX look-back canonical at 5 days.
+- **UI:** GPO contracts can be created; prices gated by `view_pricing` on server pages; `/docs/[doc]`
+  serves the two allow-listed guides; every control follows role and business state
+  (`PermissionsProvider`); sidebar groups; error/not-found boundaries; hooks-order lint gate (`npm run
+  lint`, in CI); 0 axe violations and 0 horizontal-scroll pages at four widths; polling stops on unmount.
+- **Still open (missing inputs):** `eval:gate` until the model baseline is re-measured at the
+  current bins with a key; Docker image build/boot (no daemon here); live-provider, macOS and
+  browser-matrix verification.
+
+### 28.1 Owner decisions moved into the product (Sept 25)
+
+The run's three "needs an owner" items were decisions Crosswalk asked a person with a spreadsheet to
+make. At the companies it is deployed for nobody owns that spreadsheet, so each became a mechanism:
+
+- **Is B12LTH optical?** — answered from the labeler's own catalog. Ethicon marks optical products in
+  the line as "ENDOPATH XCEL OPTIVIEW" (codes 2B12LT, 2B5ST…); a plain "ENDOPATH XCEL" record carries
+  no marker, and the absence is now evidence with the sibling records as provenance (`gudid:siblings`,
+  `src/lib/match/siblings.ts`, MATCH_QUALITY_MODEL §3.4; BIN_VERSION 9). The run builds the sibling
+  index per competitor manufacturer from `GudidDevice`. Generic: any labeler that marks a binary
+  feature on some of a line's records has said what the others are.
+- **Thoracoport** — GUDID says "Trocar" and "…Single Use Trocar; Non-conductive Sleeve"; the component
+  reading now treats a sleeve named as an attribute of a trocar as a trocar, and a sleeve sold *with*
+  its obturator (Ethicon "Thoracic Trocar Sleeves with Rounded Tip Obturator", TT012) as the complete
+  device (`component.ts`), so the thoracic ports cross to each other (WS1-F27's TT012 concern is
+  gone); "sleeve only" / "sleeve assembly" / "universal sleeve" remain cannula.
+- **The 14 flagged curated rows, and every row like them anywhere** — the **Evidence conflicts** queue
+  (Crosswalk page; `src/lib/xref/conflicts.ts`; `GET /api/crosses?conflicts=open`,
+  `POST /api/crosses/{id}/conflict`). A run that contradicts a curated row marks the `KnownCross`
+  (`conflictStatus`, `conflictJson`, `conflictCount`, `conflictSeenAt`, decided-by/at/note; migrations
+  `20260925000000_curated_conflicts` + tier-3 CHECK). A `manage_crosswalk` reviewer settles it with
+  Retire / Replace with \<SKU\> / Keep (MATCH_QUALITY_MODEL §5.5). Runs never wait; KEEP holds only
+  against soft findings; decisions survive re-runs and re-seeds; audited as `CONFLICT_<decision>`.
+- **Children of an unassigned parent (B-08)** — not derivable from data, so a per-company setting:
+  Settings → "Account visibility" (`scopeUnassignedParent`, `own` by default: a hospital with its own
+  owner stays with that owner while its IDN is unassigned; `inherit` restores the earlier behaviour).
+  `scopeFor` reads it; `accountWhere` builds the parent clause accordingly (DATA_ACCESS_POLICY).
+
+Tests: `tests/unit/decisions-siblings.test.ts`, `tests/db/decisions-conflicts.test.ts`, the scope
+fragment case in `tier0-units`. Deploy note: `npx prisma migrate deploy` now has two migrations to
+apply; re-publish the crosswalk after the first decisions.
