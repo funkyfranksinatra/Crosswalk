@@ -140,16 +140,30 @@ export function pdfText(buf: Buffer): string {
   }
 }
 
+/**
+ * Text of a PDF without poppler: the shown strings of every (inflated) content stream. pdfkit
+ * writes text as hex strings inside TJ arrays — `[<4d65647472> 0 <6f6e6963>] TJ` — and other
+ * producers use literal strings `(Medtronic) Tj`; both are decoded (latin1 ≈ WinAnsi for the
+ * standard fonts, which is all the exports use). One line per text-showing operator.
+ * (CI runners have no pdftotext; this used to read only literal strings, so every PDF assertion
+ * failed there while passing locally — Sept 26.)
+ */
 export function pdfTextFallback(buf: Buffer): string {
   const out: string[] = [];
   const src = buf.toString("latin1");
   const re = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  const literal = (body: string) => body.replace(/\\([nrtbf()\\]|[0-7]{1,3})/g, (_, e: string) => (/^[0-7]+$/.test(e) ? String.fromCharCode(parseInt(e, 8)) : ({ n: "\n", r: "\r", t: "\t", b: "\b", f: "\f" } as Record<string, string>)[e] ?? e));
+  const hex = (body: string) => { const h = body.replace(/\s+/g, ""); return Buffer.from(h.length % 2 ? `${h}0` : h, "hex").toString("latin1"); };
+  const show = (operand: string) => {
+    let text = "";
+    for (const t of operand.matchAll(/\((?:\\.|[^\\)])*\)|<[0-9A-Fa-f\s]*>/g)) text += t[0].startsWith("(") ? literal(t[0].slice(1, -1)) : hex(t[0].slice(1, -1));
+    return text;
+  };
   let m: RegExpExecArray | null;
   while ((m = re.exec(src))) {
     let content = m[1];
     try { content = inflateSync(Buffer.from(m[1], "latin1")).toString("latin1"); } catch { /* uncompressed */ }
-    const strings = content.match(/\((?:\\.|[^\\)])*\)\s*Tj|\[(?:[^\]]*)\]\s*TJ/g) ?? [];
-    for (const s of strings) out.push(s.replace(/\\\(/g, "(").replace(/\\\)/g, ")").replace(/[()\[\]]|Tj|TJ|-?\d+(\.\d+)?(?=\s|$)/g, ""));
+    for (const op of content.matchAll(/(\((?:\\.|[^\\)])*\)|<[0-9A-Fa-f\s]*>)\s*(?:Tj|'|")|\[((?:\((?:\\.|[^\\)])*\)|<[0-9A-Fa-f\s]*>|[^\]])*)\]\s*TJ/g)) out.push(show(op[1] ?? op[2] ?? ""));
   }
   return out.join("\n");
 }

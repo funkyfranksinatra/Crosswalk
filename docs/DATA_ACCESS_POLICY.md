@@ -57,8 +57,10 @@ Two layers, both server-side, both on every request:
   own or cover, and anything they created; requests, proposals and contracts follow their
   account. Every other role sees everything. Whether the children of an IDN *nobody owns yet*
   are visible to every scoped user (as the IDN is) or follow their own owner and territory is a
-  per-company choice — Settings → "Account visibility" (`scopeUnassignedParent`, default `own`,
-  the narrower rule); the choice is audited like every setting. A row outside the caller's scope is a 404, never a 403
+  per-company choice — Settings → "Account visibility" (`scopeUnassignedParent`, default
+  `inherit`: visible, the behaviour before the setting existed; `own` narrows it — give regional
+  managers territories first, or they lose sight of their reps' accounts and the approvals on
+  them); the choice is audited like every setting. A row outside the caller's scope is a 404, never a 403
   (`src/lib/auth/scope.ts`, enforced centrally for every `/api/{accounts,requests,proposals,
   contracts}/<id>/…` route in `src/lib/api.ts`).
 

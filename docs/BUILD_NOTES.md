@@ -1987,8 +1987,10 @@ make. At the companies it is deployed for nobody owns that spreadsheet, so each 
   Retire / Replace with \<SKU\> / Keep (MATCH_QUALITY_MODEL §5.5). Runs never wait; KEEP holds only
   against soft findings; decisions survive re-runs and re-seeds; audited as `CONFLICT_<decision>`.
 - **Children of an unassigned parent (B-08)** — not derivable from data, so a per-company setting:
-  Settings → "Account visibility" (`scopeUnassignedParent`, `own` by default: a hospital with its own
-  owner stays with that owner while its IDN is unassigned; `inherit` restores the earlier behaviour).
+  Settings → "Account visibility" (`scopeUnassignedParent`, `inherit` by default — the behaviour before
+  the setting existed; `own` keeps a hospital with its own owner with that owner while its IDN is
+  unassigned). The default was `own` until Sept 26, when CI showed it taking a rep's IDN member out of
+  a territory-less manager's view — and the approvals on it with it; narrowing is now opt-in.
   `scopeFor` reads it; `accountWhere` builds the parent clause accordingly (DATA_ACCESS_POLICY).
 
 Tests: `tests/unit/decisions-siblings.test.ts`, `tests/db/decisions-conflicts.test.ts`, the scope
