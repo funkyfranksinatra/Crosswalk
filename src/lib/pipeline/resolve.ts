@@ -12,7 +12,7 @@ import { prisma } from "@/lib/db";
 import { compactCfn, normalizeCfn } from "@/lib/cfn";
 import { searchByCfn, searchOpenFda, searchByBrandAndCompany, summarizeRecord, displayManufacturer, recordCode, type OpenFdaRecord } from "@/lib/gudid/openfda";
 import { localHits } from "@/lib/gudid/library";
-import { cfnHints } from "@/lib/llm/tasks";
+import { cfnHints } from "@/lib/ai/gateway";
 import { heuristicBin, type Family } from "@/lib/match/bin";
 
 export type ResolutionContext = {

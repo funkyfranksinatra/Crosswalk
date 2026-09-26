@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSettings, saveSettings } from "@/lib/settings";
-import { llmConfig } from "@/lib/llm/client";
+import { llmConfig } from "@/lib/ai/gateway";
 import { prisma } from "@/lib/db";
 import { authorize } from "@/lib/api";
 import { can } from "@/lib/auth";

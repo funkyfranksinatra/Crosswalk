@@ -16,7 +16,7 @@
  */
 import { prisma } from "@/lib/db";
 import { log } from "@/lib/log";
-import { llmConfig } from "@/lib/llm/client";
+import { llmConfig } from "@/lib/ai/gateway";
 import { alertsFiring } from "./metrics";
 
 export type Severity = "INFO" | "WARNING" | "CRITICAL";

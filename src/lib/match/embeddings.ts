@@ -11,9 +11,8 @@
  * queried with raw SQL because Prisma has no vector type.
  */
 import { createHash } from "node:crypto";
-import OpenAI from "openai";
 import { prisma } from "@/lib/db";
-import { llmConfig } from "@/lib/llm/client";
+import { llmConfig, embedTexts } from "@/lib/ai/gateway";
 import { log } from "@/lib/log";
 import { counter, histogram } from "@/lib/observability/metrics";
 import { parseBin, type Bin } from "./bin";
@@ -52,28 +51,24 @@ export function embeddingText(p: { sku?: string | null; brand?: string | null; d
 
 export const embeddingHash = (text: string) => createHash("sha256").update(`${EMBEDDING_MODEL}\n${text}`).digest("hex");
 
-let client: OpenAI | null = null;
 type Embedder = (texts: string[]) => Promise<number[][]>;
 let testEmbedder: Embedder | null = null;
 /** Tests inject a deterministic embedder; nothing else ever calls the API without a key. */
 export function setEmbedderForTests(fn: Embedder | null) { testEmbedder = fn; }
 
-/** Embed a batch of texts. Throws on API failure (callers decide whether that is fatal). */
+/**
+ * Embed a batch of texts. Throws on API failure (callers decide whether that is fatal).
+ * The provider call happens behind the model boundary (src/lib/llm, via the gateway); the
+ * vectors come back here and this module — the application — writes them to the database.
+ */
 export async function embed(texts: string[]): Promise<number[][]> {
   if (!texts.length) return [];
   if (testEmbedder) return testEmbedder(texts);
-  const cfg = llmConfig();
-  if (!cfg.available) throw new Error("OPENAI_API_KEY is not set — embeddings need the model key");
-  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, baseURL: cfg.baseURL, timeout: Number(process.env.EMBEDDING_TIMEOUT_MS ?? 20_000), maxRetries: 1 });
   const t0 = Date.now();
   try {
-    const res = await client.embeddings.create({ model: EMBEDDING_MODEL, input: texts, dimensions: EMBEDDING_DIMS });
+    const out = await embedTexts(texts, { model: EMBEDDING_MODEL, dimensions: EMBEDDING_DIMS, timeoutMs: Number(process.env.EMBEDDING_TIMEOUT_MS ?? 20_000) });
     embeddingCalls.inc({ outcome: "ok" });
     embeddingLatency.observe({}, (Date.now() - t0) / 1000);
-    // The API returns in index order, but say so explicitly.
-    const out = new Array<number[]>(texts.length);
-    for (const d of res.data) out[d.index] = d.embedding;
-    if (out.some((v) => !v || v.length !== EMBEDDING_DIMS)) throw new Error("embedding response was incomplete");
     return out;
   } catch (e) {
     embeddingCalls.inc({ outcome: "error" });

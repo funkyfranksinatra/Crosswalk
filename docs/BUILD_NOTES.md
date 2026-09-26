@@ -325,7 +325,7 @@ with a `currency` column beside it.
 | RequestLine | one competitor code | `lineNo`, `rawCode`, `cfnNorm`, `quantity`, `estCompetitorPrice`, `description` (intake evidence), `competitorProductId`, `resolutionStatus` (pending \| resolved \| not-found \| error), `resolutionNote`, `matchStatus` (pending \| matched \| no-match \| error), `selectedCandidateId`, `overrideNote`, `customerNote`, `flag` ("verify"), `reviewed` |
 | MatchCandidate | a ranked own SKU for a line | `rank`, `matchType`, `source` (identity \| known-cross \| attribute \| llm), `score`, `scoreBin/Price/Cogs/Margin`, `factorsJson` (weights, notes, evidence, curated, cap), `rationale`, `additionalProducts`, `confidence`, `unitPrice`, `extended`, `priceSource`, `isSelected` |
 | Setting | key/value | `key` PK, `value` |
-| LlmCall | every model call | purpose, model, ok, durationMs, tokens, error, subject |
+| LlmCall | every structured model call, written by the application gateway (`src/lib/ai/gateway.ts`), never by the model layer | purpose, model, ok, durationMs, tokens, error, subject |
 | LlmGrade | cached grading verdicts | `key` PK (sha256 of inputs), model, lines, json |
 
 ### 6.2 Identity, accounts, contracts, cost, FX, audit (15)
@@ -1691,6 +1691,7 @@ with a pgvector DB and `JOBS_WORKER=external` → poll `/api/health` (60 × 2 s)
 | `PRODUCTION_READINESS.md` | where new team members start: the gap from prototype to production |
 | `ARCHITECTURE.md` | matching-engine architecture and the decisions behind it |
 | `MATCH_QUALITY_MODEL.md` | substitution decisions, confidence and classification (REQ-7628) |
+| `AI_BOUNDARY.md` | the model boundary: the model layer never reaches the database; the application reads, prompts, validates and writes |
 | `ENTERPRISE_ARCHITECTURE.md` | deal-desk platform plan and implementation record (ER diagram, phases, decisions, risks) |
 | `BUSINESS_RULES.md` | every commercial rule → implementing file → test |
 | `FEATURES.md` | feature inventory and roadmap (v0.7) |
@@ -1760,6 +1761,7 @@ and reported afterwards.
 | Sept 24 | Score, confidence and classification are separate quantities; the cap binds the LLM grader; curated rows contradicted by evidence are labelled and demoted, not deleted | reviewers see why, and the sheet owner decides |
 | Sept 24 | Runs price through the contract waterfall when the request names a known account; `priceSource` per candidate | PACR priced 101 lines under Sanford contracts where Crosswalk had priced 18 at list |
 | Sept 25 | Owner decisions become product mechanisms: sibling-family evidence from the labeler's catalog (`gudid:siblings`), the Evidence-conflicts queue with Retire / Replace / Keep on the `KnownCross`, and a per-company setting for children of unassigned accounts (§28.1) | Crosswalk is deployed at many companies; nobody there owns a spreadsheet of corrections |
+| Sept 26 | Model boundary: `src/lib/llm/` holds only provider calls and prompts (no database import, directly or transitively); the application reaches it only through `src/lib/ai/gateway.ts`, which records calls; the application validates answers against the hard constraints and writes every result (`AI_BOUNDARY.md`, enforced by `tests/unit/llm-boundary.test.ts`) | the model must only ever see what the application hands it and only ever hand results back to the application |
 
 Standing constraints: never sync `.env` between machines; destructive Neon operations only when asked;
 no secrets in docs, logs or reports; DB tests run against local Postgres, never Neon; reference

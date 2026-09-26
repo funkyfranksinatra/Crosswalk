@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { PageHeader, Empty } from "@/components/ui";
 import { NewRequestForm } from "./form";
-import { llmConfig } from "@/lib/llm/client";
+import { llmConfig } from "@/lib/ai/gateway";
 import { getActor, can } from "@/lib/auth";
 
 export default async function NewRequestPage() {

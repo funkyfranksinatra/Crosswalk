@@ -15,10 +15,10 @@ import { resolveCfn } from "../src/lib/pipeline/resolve";
 import { parseBin, binSimilarity, heuristicBin, withAccessProfile, type Bin } from "../src/lib/match/bin";
 import { mergeProfiles, emptyProfile } from "../src/lib/match/access";
 import { scoreCandidates } from "../src/lib/match/score";
-import { binProduct } from "../src/lib/llm/tasks";
+import { binProduct } from "../src/lib/ai/gateway";
 import { loadSiblingIndex } from "../src/lib/pipeline/siblings-index";
 import { summarizeRecord, type OpenFdaRecord } from "../src/lib/gudid/openfda";
-import { llmConfig } from "../src/lib/llm/client";
+import { llmConfig } from "../src/lib/ai/gateway";
 import { getCompany } from "../src/lib/settings";
 
 function mergeBins(primary: Bin | null, extra: Bin): Bin {

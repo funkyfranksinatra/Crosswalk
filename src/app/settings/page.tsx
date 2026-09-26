@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
-import { llmConfig } from "@/lib/llm/client";
+import { llmConfig } from "@/lib/ai/gateway";
 import { PageHeader, Card, Chip } from "@/components/ui";
 import { SettingsForm } from "./form";
 import { GoogleCard } from "./google";

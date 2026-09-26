@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { plain } from "@/lib/serialize";
 import { prisma } from "@/lib/db";
 import { summarizeLines } from "@/lib/requests";
-import { llmConfig } from "@/lib/llm/client";
+import { llmConfig } from "@/lib/ai/gateway";
 import { googleStatus } from "@/lib/sheets/google";
 import { authorize } from "@/lib/api";
 import { redactCandidateForActor } from "@/lib/auth";

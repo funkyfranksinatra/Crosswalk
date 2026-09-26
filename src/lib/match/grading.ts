@@ -14,7 +14,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { structured, llmConfig } from "@/lib/llm/client";
+import { structured, llmConfig } from "@/lib/ai/gateway";
 import { constructionSignature, type Bin } from "./bin";
 import type { ScoredCandidate } from "./score";
 

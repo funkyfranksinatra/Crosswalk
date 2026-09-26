@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getCompany } from "@/lib/settings";
-import { llmConfig } from "@/lib/llm/client";
+import { llmConfig } from "@/lib/ai/gateway";
 import { PageHeader, Card, Stat, StatusPill, relTime, Empty, Chip } from "@/components/ui";
 import { summarizeLines } from "@/lib/requests";
 import { getActor } from "@/lib/auth";

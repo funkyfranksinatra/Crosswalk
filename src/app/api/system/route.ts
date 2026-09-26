@@ -1,7 +1,7 @@
 import { handle, body } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { channelsConfigured } from "@/lib/notifications";
-import { llmConfig } from "@/lib/llm/client";
+import { llmConfig } from "@/lib/ai/gateway";
 
 /** Settings → System: queues, recent failures, feeds, alerts, model — for people with configure_settings. */
 export async function GET() {

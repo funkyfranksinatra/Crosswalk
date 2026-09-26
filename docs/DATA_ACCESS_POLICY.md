@@ -107,7 +107,7 @@ two audit events are written, and every other `ADMIN` and `PRICING_DIRECTOR` is 
 | Database CHECK constraints on every state/type column and on money and quantity signs | `src/lib/db/constraints.ts` |
 | Secrets scrubbed from logs; request ids on every log line | `src/lib/log.ts` |
 | Audit trail on every commercial action, with before/after and context, redacted per viewer | `src/lib/audit.ts` |
-| Model calls (OpenAI) send competitor codes, product descriptions and attributes for binning and grading; the unresolved-code hint prompt also sends the **customer account name** and sibling codes from the same list. Never prices, costs or people. `useLlm=false` on a request keeps a run heuristic; `LLM_SEND_ACCOUNT_NAME=false` drops the account name from prompts. | `src/lib/llm/tasks.ts`, `src/lib/match/*` |
+| Model calls (OpenAI) send competitor codes, product descriptions and attributes for binning and grading; the unresolved-code hint prompt also sends the **customer account name** and sibling codes from the same list. Never prices, costs or people. `useLlm=false` on a request keeps a run heuristic; `LLM_SEND_ACCOUNT_NAME=false` drops the account name from prompts. The model layer has no database access and no tools: it sees only the text the application puts in a request, and its answers go back to the application, which applies the hard constraints and writes the results (`AI_BOUNDARY.md`). | `src/lib/llm/tasks.ts`, `src/lib/match/*` |
 
 Not provided by the application and expected from the platform: network isolation of the
 database (Neon IP allow-list or private link), WAF/DDoS at the edge, malware scanning of
